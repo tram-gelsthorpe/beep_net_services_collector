@@ -7,3 +7,5 @@
 /tests/WebsiteCollector.Worker.Tests.Development/bin/Debug/net10.0
 /tests/WebsiteCollector.Worker.Tests.Development/obj
 /src/WebsiteCollector.Worker/bin/Debug/net10.0
+/src/WorkerFramework/bin/Debug/net10.0
+/src/WorkerFramework/obj
