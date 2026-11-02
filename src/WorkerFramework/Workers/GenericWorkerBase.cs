@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using WorkerFramework.Configuration;
 using WorkerFramework.Leasing;
 using WorkerFramework.Processing;
 
@@ -20,6 +21,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 	private readonly Guid _workerId = Guid.NewGuid();
 	protected readonly ILeaseManager<T> LeaseManager;
 	protected readonly IWorkProcessor<T> Processor;
+	protected readonly IWorkerConfiguration Configuration;
 	protected readonly ILogger Logger;
 
 	protected abstract int PollIntervalSeconds { get; }
@@ -33,6 +35,19 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 	{
 		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));
 		Processor = processor ?? throw new ArgumentNullException(nameof(processor));
+		Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+		Configuration = null!; // Will be set from properties
+	}
+
+	protected GenericWorkerBase(
+		ILeaseManager<T> leaseManager,
+		IWorkProcessor<T> processor,
+		IWorkerConfiguration configuration,
+		ILogger logger)
+	{
+		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));
+		Processor = processor ?? throw new ArgumentNullException(nameof(processor));
+		Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 		Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 

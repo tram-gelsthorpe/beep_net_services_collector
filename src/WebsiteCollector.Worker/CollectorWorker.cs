@@ -9,35 +9,24 @@ using WorkerFramework.Workers;
 
 public sealed class CollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {
-	private readonly CollectorOptions _settings;
+	private readonly CollectorOptions _collectorOptions;
 
 	public CollectorWorker(
 		IWebsiteCollectionService collectionService,
 		IHttpClientFactory httpClientFactory,
-		IOptions<CollectorOptions> settings,
+		IOptions<CollectorOptions> options,
 		ILogger<CollectorWorker> logger)
 		: base(
 			new SelectorLeaseManager(collectionService),
-			new CollectorWorkProcessor(collectionService, httpClientFactory, settings, logger),
+			new CollectorWorkProcessor(collectionService, httpClientFactory, options, logger),
+			options.Value,
 			logger)
 	{
-		_settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
-		ValidateSettings();
+		_collectorOptions = options?.Value ?? throw new ArgumentNullException(nameof(options));
+		_collectorOptions.Validate();
 	}
 
-	protected override int PollIntervalSeconds => _settings.PollSeconds;
-	protected override int MaxConcurrentItems => _settings.Concurrency;
-	protected override int LeaseSeconds => _settings.LeaseSeconds;
-
-	private void ValidateSettings()
-	{
-		if (_settings.Concurrency is < 1 or > 256 ||
-			_settings.LeaseSeconds is < 60 or > 3600 ||
-			_settings.PollSeconds < 1 ||
-			_settings.MaxResponseBytes < 1 ||
-			_settings.AllowedHosts.Length == 0)
-		{
-			throw new InvalidOperationException("Invalid Collector settings or empty AllowedHosts");
-		}
-	}
+	protected override int PollIntervalSeconds => _collectorOptions.PollIntervalSeconds;
+	protected override int MaxConcurrentItems => _collectorOptions.MaxConcurrentItems;
+	protected override int LeaseSeconds => _collectorOptions.LeaseSeconds;
 }
