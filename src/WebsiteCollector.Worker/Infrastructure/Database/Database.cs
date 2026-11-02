@@ -2,13 +2,30 @@ using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using WorkerFramework.Data;
 using WebsiteCollector.Features.WebsiteCollection.Models;
 
 namespace WebsiteCollector.Infrastructure.Database;
 
-public sealed class Database(IConfiguration config)
+/// <summary>
+/// Database access layer for website collection domain models.
+/// Also provides access to WorkerFramework generic work item repository.
+/// </summary>
+public sealed class Database(IConfiguration config, ILogger<Database> logger, ILoggerFactory loggerFactory)
 {
+	private IWorkItemRepository WorkItemRepository { get; } = new WorkItemRepository(
+		config.GetConnectionString("Default") ?? throw new InvalidOperationException("Missing Default connection string"),
+		loggerFactory.CreateLogger<WorkItemRepository>());
+
 	private SqlConnection Open() => new(config.GetConnectionString("Default") ?? throw new InvalidOperationException("Missing Default connection string"));
+
+	/// <summary>
+	/// Generic work item repository for all workers to use.
+	/// </summary>
+	public IWorkItemRepository WorkItems => WorkItemRepository;
+
+	// ===== Domain-specific procedures for website collection =====
 
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
 	{
