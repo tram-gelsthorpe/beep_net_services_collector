@@ -1,0 +1,18 @@
+namespace WebsiteCollector.Infrastructure.Events;
+
+/// <summary>
+/// Event aggregator for publishing domain events to registered subscribers.
+/// This is an in-memory, synchronous event dispatcher.
+/// </summary>
+public interface IEventAggregator
+{
+	/// <summary>
+	/// Subscribe a handler to a specific event type.
+	/// </summary>
+	void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class, IEvent;
+
+	/// <summary>
+	/// Publish an event to all registered subscribers.
+	/// </summary>
+	Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default) where TEvent : class, IEvent;
+}
