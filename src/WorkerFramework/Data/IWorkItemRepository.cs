@@ -6,44 +6,6 @@ using System.Threading.Tasks;
 namespace WorkerFramework.Data;
 
 /// <summary>
-/// Standard result from claiming work items.
-/// Represents a single claimed item ready for processing.
-/// </summary>
-public interface IClaimedWorkItem
-{
-	/// <summary>
-	/// Unique ID of the work item in the framework.
-	/// </summary>
-	Guid WorkItemId { get; }
-
-	/// <summary>
-	/// Domain-specific ID (e.g., WebsiteSelectorsId, DeliveryId).
-	/// Workers use this to fetch full domain data.
-	/// </summary>
-	Guid DomainId { get; }
-
-	/// <summary>
-	/// Type of domain entity (e.g., 'WebsiteSelector', 'WebhookDelivery').
-	/// </summary>
-	string DomainType { get; }
-
-	/// <summary>
-	/// proof of lease ownership. Must be provided on renew/complete.
-	/// </summary>
-	Guid LeaseToken { get; }
-
-	/// <summary>
-	/// Current attempt number (1-based).
-	/// </summary>
-	int AttemptNumber { get; }
-
-	/// <summary>
-	/// Maximum number of retries allowed. When AttemptNumber >= MaxAttempts, no more retries.
-	/// </summary>
-	int MaxAttempts { get; }
-}
-
-/// <summary>
 /// Generic work item repository providing centralized work claiming,
 /// lease management, and completion tracking for all workers.
 /// This is the primary WorkerFramework abstraction for database operations.
@@ -163,34 +125,3 @@ public interface IWorkItemRepository
 		Guid workItemId,
 		CancellationToken cancellationToken = default);
 }
-
-/// <summary>
-/// Detailed information about a work item, including attempt history.
-/// </summary>
-public record WorkItemDetail(
-	Guid Id,
-	string WorkerType,
-	Guid DomainId,
-	string DomainType,
-	string Status,
-	Guid? LeaseOwner,
-	int AttemptCount,
-	int MaxAttempts,
-	DateTimeOffset NextRunAt,
-	string? LastError,
-	DateTimeOffset CreatedAt,
-	DateTimeOffset? StartedAt,
-	DateTimeOffset? CompletedAt,
-	IReadOnlyList<WorkItemAttemptRecord> Attempts
-);
-
-/// <summary>
-/// Single attempt record in a work item's history.
-/// </summary>
-public record WorkItemAttemptRecord(
-	int AttemptNumber,
-	DateTimeOffset StartedAt,
-	DateTimeOffset? FinishedAt,
-	string? Status,
-	string? ErrorMessage
-);
