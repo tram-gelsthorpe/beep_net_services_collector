@@ -55,9 +55,9 @@ public sealed record WebsiteExecution(
 	int? HttpStatus,
 	string? ErrorMessage);
 
-public sealed record CollectedData(
+public sealed record WebsiteSelectorsCollectedData(
 	Guid Id,
-	Guid WebsiteExecutionsId,
+	Guid WebsiteSelectorsExecutionsId,
 	byte[] ContentHash,
 	string ResponseContent,
 	string? ExtractedJson,

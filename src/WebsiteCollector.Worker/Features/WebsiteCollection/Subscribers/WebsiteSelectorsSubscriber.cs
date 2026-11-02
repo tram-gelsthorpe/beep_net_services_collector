@@ -78,7 +78,6 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 		{
 			EventId = @event.EventId,
 			WebsiteSelectorsId = @event.WebsiteSelectorsId,
-			WebsiteId = @event.WebsiteId,
 			IsSuccess = @event.IsSuccess,
 			HttpStatusCode = @event.HttpStatusCode,
 			Error = @event.Error,

@@ -5,9 +5,9 @@ SET XACT_ABORT ON;
 GO
 
 -- Drop existing objects if they exist (in dependency order)
-IF OBJECT_ID('dbo.CollectedData', 'U') IS NOT NULL DROP TABLE dbo.CollectedData;
+IF OBJECT_ID('dbo.WebsiteSelectorsCollectedData', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsCollectedData;
 GO
-IF OBJECT_ID('dbo.WebsiteExecutions', 'U') IS NOT NULL DROP TABLE dbo.WebsiteExecutions;
+IF OBJECT_ID('dbo.WebsiteSelectorsExecutions', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsExecutions;
 GO
 IF OBJECT_ID('dbo.WebsiteSelectorsMonitor', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsMonitor;
 GO
@@ -81,8 +81,8 @@ CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextR
 WHERE LeaseOwner IS NULL;
 GO
 
--- Create WebsiteExecutions table - Tracks individual collection attempts
-CREATE TABLE dbo.WebsiteExecutions (
+-- Create WebsiteSelectorsExecutions table - Tracks individual collection attempts
+CREATE TABLE dbo.WebsiteSelectorsExecutions (
 	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
 	WebsiteSelectorsId uniqueidentifier NOT NULL REFERENCES dbo.WebsiteSelectors(Id) ON DELETE CASCADE,
 	LeaseToken uniqueidentifier NOT NULL UNIQUE,
@@ -97,22 +97,22 @@ CREATE TABLE dbo.WebsiteExecutions (
 );
 GO
 
-CREATE INDEX IX_Exec_WebsiteSelectorsTime ON dbo.WebsiteExecutions(WebsiteSelectorsId, StartedAt DESC);
+CREATE INDEX IX_Exec_WebsiteSelectorsTime ON dbo.WebsiteSelectorsExecutions(WebsiteSelectorsId, StartedAt DESC);
 GO
 
--- Create CollectedData table - Stores collected content
-CREATE TABLE dbo.CollectedData (
+-- Create WebsiteSelectorsCollectedData table - Stores collected content
+CREATE TABLE dbo.WebsiteSelectorsCollectedData (
 	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
-	WebsiteExecutionsId uniqueidentifier NOT NULL REFERENCES dbo.WebsiteExecutions(Id) ON DELETE CASCADE,
+	WebsiteSelectorsExecutionsId uniqueidentifier NOT NULL REFERENCES dbo.WebsiteSelectorsExecutions(Id) ON DELETE CASCADE,
 	ContentHash binary(32) NOT NULL,
 	ResponseContent nvarchar(max) NOT NULL,
 	ExtractedJson nvarchar(max) NULL,
 	CollectedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-	CONSTRAINT UQ_CollectedData_Hash UNIQUE(WebsiteExecutionsId, ContentHash)
+	CONSTRAINT UQ_CollectedData_Hash UNIQUE(WebsiteSelectorsExecutionsId, ContentHash)
 );
 GO
 
-CREATE INDEX IX_CollectedData_Execution ON dbo.CollectedData(WebsiteExecutionsId, CollectedAt DESC);
+CREATE INDEX IX_CollectedData_Execution ON dbo.WebsiteSelectorsCollectedData(WebsiteSelectorsExecutionsId, CollectedAt DESC);
 GO
 
 -- ============================================================
@@ -197,9 +197,9 @@ BEGIN
 	BEGIN
 		IF @ContentHash IS NOT NULL 
 		BEGIN
-			INSERT dbo.CollectedData(WebsiteExecutionsId, ContentHash, ResponseContent, ExtractedJson)
+			INSERT dbo.WebsiteSelectorsCollectedData(WebsiteSelectorsExecutionsId, ContentHash, ResponseContent, ExtractedJson)
 			SELECT Id, @ContentHash, @ResponseContent, @ExtractedJson 
-			FROM dbo.WebsiteExecutions 
+			FROM dbo.WebsiteSelectorsExecutions 
 			WHERE LeaseToken = @LeaseToken;
 		END;
 
@@ -231,7 +231,7 @@ BEGIN
 		WHERE Id = @WebsiteSelectorsId;
 	END;
 
-	UPDATE dbo.WebsiteExecutions 
+	UPDATE dbo.WebsiteSelectorsExecutions 
 	SET FinishedAt = @now,
 		Status = IIF(@Succeeded = 1, 'Succeeded', 'Failed'),
 		HttpStatus = @HttpStatus,
@@ -277,7 +277,7 @@ BEGIN
 	DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
 
 	-- Mark any abandoned running executions
-	UPDATE dbo.WebsiteExecutions 
+	UPDATE dbo.WebsiteSelectorsExecutions 
 	SET Status = 'Abandoned',
 		FinishedAt = @now,
 		ErrorMessage = 'Lease expired' 
@@ -286,7 +286,7 @@ BEGIN
 		AND LeaseToken <> @LeaseToken;
 
 	-- Create new execution record
-	INSERT dbo.WebsiteExecutions(WebsiteSelectorsId, LeaseToken, WorkerId, Status, AttemptNumber)
+	INSERT dbo.WebsiteSelectorsExecutions(WebsiteSelectorsId, LeaseToken, WorkerId, Status, AttemptNumber)
 	SELECT Id, @LeaseToken, @WorkerId, 'Running', AttemptCount 
 	FROM dbo.WebsiteSelectorsMonitor
 	WHERE Id = @WebsiteSelectorsId 

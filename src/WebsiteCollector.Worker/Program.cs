@@ -12,6 +12,7 @@ using WebsiteCollector.Features.WebsiteCollection.Services;
 using WebsiteCollector.Features.WebsiteCollection.Repositories;
 using WebsiteCollector.Features.WebsiteCollection.Models;
 using WebsiteCollector.Features.WebsiteCollection.Subscribers;
+using WebsiteCollector.Features.WebsiteCollection;
 using WebsiteCollector.Features.SelectorManagement.Services;
 using WebsiteCollector.Features.SelectorManagement.Models;
 using WebsiteCollector.Features.LeaseManagement.Services;
@@ -24,12 +25,15 @@ builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
 builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();
 builder.Services.AddScoped<IWebsiteSelectionWebhookRepository, WebsiteSelectionWebhookRepository>();
+builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
 builder.Services.AddScoped<IWebsiteCollectionService, WebsiteCollectionService>();
+builder.Services.AddScoped<IWebhookDeliveryService, WebhookDeliveryService>();
 builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
 builder.Services.AddScoped<ILeaseManagementService, LeaseManagementService>();
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 builder.Services.AddCollectorHttpClient();
 builder.Services.AddHostedService<CollectorWorker>();
+builder.Services.AddHostedService<WebhookDeliveryWorker>();
 
 var host = builder.Build();
 
