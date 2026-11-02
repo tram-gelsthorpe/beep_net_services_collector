@@ -105,3 +105,100 @@ BEGIN
 		AND w.IsEnabled = 1;
 END;
 GO
+
+-- Stored Procedure: Complete a webhook delivery (release the claim)
+-- Updates delivery status based on success/failure and handles retries with exponential backoff
+CREATE PROCEDURE dbo.CompleteWebhookDelivery
+	@DeliveryId uniqueidentifier,
+	@Success bit,
+	@HttpStatusCode int = NULL,
+	@ErrorMessage nvarchar(2000) = NULL
+AS
+BEGIN
+	SET XACT_ABORT ON;
+
+	DECLARE @WebsiteSelectorsWebhooksId uniqueidentifier;
+	DECLARE @AttemptNumber int;
+	DECLARE @MaxRetryAttempts int;
+	DECLARE @NextRetryAt datetimeoffset(7);
+	DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
+
+	BEGIN TRANSACTION;
+
+	-- Get delivery details
+	SELECT @WebsiteSelectorsWebhooksId = WebsiteSelectorsWebhooksId, 
+		   @AttemptNumber = AttemptNumber
+	FROM dbo.WebsiteSelectorsWebhookDeliveries
+	WHERE Id = @DeliveryId;
+
+	-- Get max retries from webhook config
+	SELECT @MaxRetryAttempts = MaxRetryAttempts
+	FROM dbo.WebsiteSelectorsWebhooks
+	WHERE Id = @WebsiteSelectorsWebhooksId;
+
+	IF @Success = 1
+	BEGIN
+		-- SUCCESS: Release claim by marking as SUCCESS
+		UPDATE dbo.WebsiteSelectorsWebhookDeliveries
+		SET Status = 'SUCCESS', 
+			HttpStatusCode = @HttpStatusCode, 
+			DeliveredAt = @now
+		WHERE Id = @DeliveryId;
+
+		-- Update monitor: reset consecutive failures
+		UPDATE dbo.WebsiteSelectorsWebhookMonitor
+		SET LastDeliveredAt = @now, 
+			LastStatusCode = @HttpStatusCode,
+			ConsecutiveFailures = 0,
+			IsCircuitBreakerOpen = 0,
+			UpdatedAt = @now
+		WHERE WebsiteSelectorsWebhooksId = @WebsiteSelectorsWebhooksId;
+	END
+	ELSE
+	BEGIN
+		-- FAILURE: Check if we should retry or abandon
+		IF @AttemptNumber < @MaxRetryAttempts
+		BEGIN
+			-- Calculate exponential backoff: 1s, 2s, 4s, 8s, etc. (capped at 1 hour)
+			SET @NextRetryAt = DATEADD(second, 
+				CASE WHEN POWER(2, @AttemptNumber) > 3600 THEN 3600 ELSE POWER(2, @AttemptNumber) END,
+				@now);
+
+			-- Mark current attempt as FAILED, release claim
+			UPDATE dbo.WebsiteSelectorsWebhookDeliveries
+			SET Status = 'FAILED', 
+				HttpStatusCode = @HttpStatusCode, 
+				ErrorMessage = @ErrorMessage
+			WHERE Id = @DeliveryId;
+
+			-- Create next retry attempt as PENDING (will be picked up by next ClaimWebhookDelivery)
+			INSERT INTO dbo.WebsiteSelectorsWebhookDeliveries
+				(WebsiteSelectorsWebhooksId, CollectedDataId, Status, AttemptNumber, NextRetryAt, ErrorMessage)
+			SELECT WebsiteSelectorsWebhooksId, CollectedDataId, 'PENDING', 
+				   @AttemptNumber + 1, @NextRetryAt, @ErrorMessage
+			FROM dbo.WebsiteSelectorsWebhookDeliveries
+			WHERE Id = @DeliveryId;
+		END
+		ELSE
+		BEGIN
+			-- Max retries exceeded: ABANDON delivery, release claim
+			UPDATE dbo.WebsiteSelectorsWebhookDeliveries
+			SET Status = 'ABANDONED', 
+				HttpStatusCode = @HttpStatusCode, 
+				ErrorMessage = @ErrorMessage,
+				DeliveredAt = @now
+			WHERE Id = @DeliveryId;
+
+			-- Update monitor: increment consecutive failures, potentially open circuit breaker
+			UPDATE dbo.WebsiteSelectorsWebhookMonitor
+			SET ConsecutiveFailures = ConsecutiveFailures + 1,
+				IsCircuitBreakerOpen = CASE WHEN (ConsecutiveFailures + 1) >= 5 THEN 1 ELSE 0 END,
+				LastErrorMessage = @ErrorMessage,
+				UpdatedAt = @now
+			WHERE WebsiteSelectorsWebhooksId = @WebsiteSelectorsWebhooksId;
+		END
+	END
+
+	COMMIT TRANSACTION;
+END;
+GO
