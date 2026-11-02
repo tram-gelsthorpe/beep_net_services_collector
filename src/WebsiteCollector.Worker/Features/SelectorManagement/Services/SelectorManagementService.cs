@@ -13,6 +13,6 @@ public sealed class SelectorManagementService(Database db) : ISelectorManagement
 	public async Task<IReadOnlyList<Selector>> GetSelectorsAsync(Guid websiteId, CancellationToken ct)
 	{
 		var selectors = await db.SelectorsAsync(websiteId, ct);
-		return selectors.Select(s => new Selector(s.FieldName, s.CssSelector, s.AttributeName)).ToList();
+		return selectors.Select(s => new Selector(s.ContentSelector, s.TableSelector)).ToList();
 	}
 }

@@ -81,14 +81,17 @@ public sealed class CollectorWorker(IWebsiteCollectionService collectionService,
 			}
 			var raw = Encoding.UTF8.GetString(ms.ToArray());
 			string? extracted = null;
+
 			if (selector.CollectionType == "HTML")
 			{
 				if (!string.IsNullOrEmpty(selector.ContentSelector))
 				{
 					var doc = await new HtmlParser().ParseDocumentAsync(raw, ct);
 					var elements = doc.QuerySelectorAll(selector.ContentSelector);
+
 					var values = elements.Select(el => el.TextContent?.Trim()).ToList();
-					extracted = JsonSerializer.Serialize(new { content = values.Count == 1 ? values[0] : values });
+
+					extracted = JsonSerializer.Serialize(new { ContentSelector = values?.Count == 1 ? (object)values[0] : (object)values });
 				}
 			}
 			else if (selector.CollectionType == "JSON") { using var _ = JsonDocument.Parse(raw); }
@@ -103,7 +106,9 @@ public sealed class CollectorWorker(IWebsiteCollectionService collectionService,
 			else log.LogInformation("Website collected successfully");
 		}
 		catch (OperationCanceledException) when (shutdown.IsCancellationRequested || leaseLost.IsCancellationRequested)
-		{ log.LogWarning("Job cancelled due to shutdown or lost lease"); }
+		{ 
+			log.LogWarning("Job cancelled due to shutdown or lost lease"); 
+		}
 		catch (Exception ex)
 		{
 			log.LogError(ex, "Website collection failed");
