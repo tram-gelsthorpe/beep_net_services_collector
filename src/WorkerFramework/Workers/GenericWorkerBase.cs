@@ -20,8 +20,8 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 {
 	private readonly Guid _workerId = Guid.NewGuid();
 	protected readonly ILeaseManager<T> LeaseManager;
-	protected readonly IWorkProcessor<T> Processor;
-	protected readonly IWorkerOption Configuration;
+	protected readonly IWorkProcessor<T> WorkProcessor;
+	protected readonly IWorkerOption WorkderOption;
 	protected readonly ILogger Logger;
 
 	protected abstract int PollIntervalSeconds { get; }
@@ -34,9 +34,9 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 		ILogger logger)
 	{
 		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));
-		Processor = processor ?? throw new ArgumentNullException(nameof(processor));
+		WorkProcessor = processor ?? throw new ArgumentNullException(nameof(processor));
 		Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		Configuration = null!; // Will be set from properties
+		WorkderOption = null!; // Will be set from properties
 	}
 
 	protected GenericWorkerBase(
@@ -46,8 +46,8 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 		ILogger logger)
 	{
 		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));
-		Processor = processor ?? throw new ArgumentNullException(nameof(processor));
-		Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+		WorkProcessor = processor ?? throw new ArgumentNullException(nameof(processor));
+		WorkderOption = configuration ?? throw new ArgumentNullException(nameof(configuration));
 		Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -127,16 +127,16 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 		try
 		{
 			// Initialize processing
-			await Processor.InitializeAsync(item, leaseToken, _workerId, processingToken);
+			await WorkProcessor.InitializeAsync(item, leaseToken, _workerId, processingToken);
 
 			// Start heartbeat task
 			heartbeat = HeartbeatAsync(item, leaseToken, leaseLostSource, processingToken);
 
 			// Process the item
-			var result = await Processor.ProcessAsync(item, leaseToken, processingToken);
+			var result = await WorkProcessor.ProcessAsync(item, leaseToken, processingToken);
 
 			// Complete processing
-			await Processor.CompleteAsync(item, leaseToken, result, processingToken);
+			await WorkProcessor.CompleteAsync(item, leaseToken, result, processingToken);
 
 			if (result.Success)
 			{
@@ -157,7 +157,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 			try
 			{
 				var failureResult = new ProcessingResult { Success = false, ErrorMessage = GetErrorMessage(ex) };
-				await Processor.CompleteAsync(item, leaseToken, failureResult, processingToken);
+				await WorkProcessor.CompleteAsync(item, leaseToken, failureResult, processingToken);
 			}
 			catch (Exception completeEx)
 			{
@@ -190,7 +190,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 	{
 		try
 		{
-			var interval = Math.Max(10, Processor.HeartbeatIntervalSeconds);
+			var interval = Math.Max(10, WorkProcessor.HeartbeatIntervalSeconds);
 
 			while (!processingToken.IsCancellationRequested)
 			{
