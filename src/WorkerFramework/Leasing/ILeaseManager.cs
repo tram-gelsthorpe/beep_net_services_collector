@@ -6,16 +6,6 @@ using System.Threading.Tasks;
 namespace WorkerFramework.Leasing;
 
 /// <summary>
-/// Represents a claimed work item with lease information.
-/// </summary>
-/// <typeparam name="T">The type of work item</typeparam>
-public interface IClaimedItem<T>
-{
-	T Item { get; }
-	Guid LeaseToken { get; }
-}
-
-/// <summary>
 /// Manages lease lifecycle for work items: claiming, renewing, and releasing.
 /// Implements the generic lease pattern for any process/queue system.
 /// </summary>

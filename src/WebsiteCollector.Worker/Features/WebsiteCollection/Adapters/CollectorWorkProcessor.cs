@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -14,66 +11,8 @@ using WebsiteCollector.Infrastructure.Configuration;
 using WebsiteCollector.Features.WebsiteCollection.Services;
 using WebsiteCollector.Features.WebsiteCollection.Models;
 using WorkerFramework.Processing;
-using WorkerFramework.Leasing;
 
 namespace WebsiteCollector.Features.WebsiteCollection;
-
-/// <summary>
-/// Adapter for IClaimedItem to wrap ClaimedWebsiteSelector
-/// </summary>
-internal sealed class ClaimedSelectorItem : IClaimedItem<ClaimedWebsiteSelector>
-{
-	public ClaimedWebsiteSelector Item { get; }
-	public Guid LeaseToken { get; }
-
-	public ClaimedSelectorItem(ClaimedWebsiteSelector selector, Guid leaseToken)
-	{
-		Item = selector;
-		LeaseToken = leaseToken;
-	}
-}
-
-/// <summary>
-/// Lease manager implementation for website selectors using IWebsiteCollectionService
-/// </summary>
-internal sealed class SelectorLeaseManager : ILeaseManager<ClaimedWebsiteSelector>
-{
-	private readonly IWebsiteCollectionService _collectionService;
-
-	public SelectorLeaseManager(IWebsiteCollectionService collectionService)
-	{
-		_collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
-	}
-
-	public async Task<IReadOnlyList<IClaimedItem<ClaimedWebsiteSelector>>> ClaimAsync(
-		Guid workerIdent,
-		int maxItems,
-		int leaseSeconds,
-		CancellationToken ct)
-	{
-		var items = await _collectionService.ClaimSelectorsAsync(workerIdent, maxItems, leaseSeconds, ct);
-		return items
-			.Select(item => (IClaimedItem<ClaimedWebsiteSelector>)new ClaimedSelectorItem(item, item.LeaseToken))
-			.ToList();
-	}
-
-	public async Task<bool> RenewAsync(object item, Guid leaseToken, int leaseSeconds, CancellationToken ct)
-	{
-		if (item is not ClaimedWebsiteSelector selector)
-			return false;
-
-		return await _collectionService.RenewLeaseAsync(selector.WebsiteSelectorsId, leaseToken, leaseSeconds, ct);
-	}
-
-	public async Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct)
-	{
-		if (item is not ClaimedWebsiteSelector selector)
-			return;
-
-		// Release is handled via CompleteExecutionAsync in the processor
-		await Task.CompletedTask;
-	}
-}
 
 /// <summary>
 /// Work processor implementation for website collection

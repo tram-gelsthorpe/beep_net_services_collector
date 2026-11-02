@@ -32,7 +32,7 @@ builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService
 builder.Services.AddScoped<ILeaseManagementService, LeaseManagementService>();
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 builder.Services.AddCollectorHttpClient();
-builder.Services.AddHostedService<WebsiteCollectorWorker>();
+builder.Services.AddHostedService<CollectorWorker>();
 builder.Services.AddHostedService<WebhookDeliveryWorker>();
 
 var host = builder.Build();

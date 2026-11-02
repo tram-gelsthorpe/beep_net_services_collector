@@ -5,16 +5,6 @@ using System.Threading.Tasks;
 namespace WorkerFramework.Processing;
 
 /// <summary>
-/// Represents the result of processing a work item.
-/// </summary>
-public class ProcessingResult
-{
-	public bool Success { get; set; }
-	public string? ErrorMessage { get; set; }
-	public object? ResultData { get; set; }
-}
-
-/// <summary>
 /// Processor for claimed work items.
 /// Implementations handle initialization, processing, and completion of items.
 /// </summary>

@@ -4,18 +4,18 @@ using Microsoft.Extensions.Logging;
 using WebsiteCollector.Infrastructure.Configuration;
 using WebsiteCollector.Features.WebsiteCollection.Services;
 using WebsiteCollector.Features.WebsiteCollection.Models;
-using WorkerFramework.Workers;
 using WebsiteCollector.Features.WebsiteCollection;
+using WorkerFramework.Workers;
 
-public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
+public sealed class CollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {
 	private readonly CollectorOptions _settings;
 
-	public WebsiteCollectorWorker(
+	public CollectorWorker(
 		IWebsiteCollectionService collectionService,
 		IHttpClientFactory httpClientFactory,
 		IOptions<CollectorOptions> settings,
-		ILogger<WebsiteCollectorWorker> logger)
+		ILogger<CollectorWorker> logger)
 		: base(
 			new SelectorLeaseManager(collectionService),
 			new CollectorWorkProcessor(collectionService, httpClientFactory, settings, logger),
