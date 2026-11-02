@@ -7,15 +7,15 @@ using WebsiteCollector.Features.WebsiteCollection.Models;
 using WebsiteCollector.Features.WebsiteCollection;
 using WorkerFramework.Workers;
 
-public sealed class CollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
+public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {
 	private readonly CollectorOptions _collectorOptions;
 
-	public CollectorWorker(
+	public WebsiteCollectorWorker(
 		IWebsiteCollectionService collectionService,
 		IHttpClientFactory httpClientFactory,
 		IOptions<CollectorOptions> options,
-		ILogger<CollectorWorker> logger)
+		ILogger<WebsiteCollectorWorker> logger)
 		: base(
 			new SelectorLeaseManager(collectionService),
 			new CollectorWorkProcessor(collectionService, httpClientFactory, options, logger),
