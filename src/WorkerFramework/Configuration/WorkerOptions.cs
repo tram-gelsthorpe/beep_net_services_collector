@@ -6,7 +6,7 @@ namespace WorkerFramework.Configuration;
 /// Default implementation of IWorkerConfiguration.
 /// Provides standard worker framework settings for any GenericWorkerBase worker.
 /// </summary>
-public class WorkerOptions : IWorkerConfiguration
+public class WorkerOptions : IWorkerOption
 {
 	/// <summary>
 	/// Maximum number of items to process concurrently.

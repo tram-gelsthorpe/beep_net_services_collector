@@ -21,7 +21,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 	private readonly Guid _workerId = Guid.NewGuid();
 	protected readonly ILeaseManager<T> LeaseManager;
 	protected readonly IWorkProcessor<T> Processor;
-	protected readonly IWorkerConfiguration Configuration;
+	protected readonly IWorkerOption Configuration;
 	protected readonly ILogger Logger;
 
 	protected abstract int PollIntervalSeconds { get; }
@@ -42,7 +42,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 	protected GenericWorkerBase(
 		ILeaseManager<T> leaseManager,
 		IWorkProcessor<T> processor,
-		IWorkerConfiguration configuration,
+		IWorkerOption configuration,
 		ILogger logger)
 	{
 		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));

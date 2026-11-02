@@ -4,7 +4,7 @@ namespace WorkerFramework.Configuration;
 /// Defines the configuration contract for any GenericWorkerBase worker.
 /// Implementations provide the settings needed by the generic worker framework.
 /// </summary>
-public interface IWorkerConfiguration
+public interface IWorkerOption
 {
 	/// <summary>
 	/// Maximum number of items to process concurrently.
