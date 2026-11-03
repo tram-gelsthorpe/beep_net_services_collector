@@ -21,7 +21,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 {
 	private readonly IWebsiteCollectionService _collectionService;
 	private readonly IHttpClientFactory _httpClientFactory;
-	private readonly CollectorOptions _settings;
+	private readonly WebsiteCollectorOptions _settings;
 	private readonly ILogger _logger;
 
 	public int HeartbeatIntervalSeconds { get; }
@@ -29,7 +29,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 	public CollectorWorkProcessor(
 		IWebsiteCollectionService collectionService,
 		IHttpClientFactory httpClientFactory,
-		IOptions<CollectorOptions> settings,
+		IOptions<WebsiteCollectorOptions> settings,
 		ILogger logger)
 	{
 		_collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));

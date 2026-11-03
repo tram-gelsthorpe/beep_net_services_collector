@@ -20,7 +20,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.Configure<CollectorOptions>(builder.Configuration.GetSection("Collector"));
+builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection("Collector"));
 builder.Services.Configure<WebhookDeliveryOptions>(builder.Configuration.GetSection("WebhookDelivery"));
 builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();

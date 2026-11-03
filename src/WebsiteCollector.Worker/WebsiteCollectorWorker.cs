@@ -9,12 +9,12 @@ using WorkerFramework.Workers;
 
 public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {
-	private readonly CollectorOptions _collectorOptions;
+	private readonly WebsiteCollectorOptions _collectorOptions;
 
 	public WebsiteCollectorWorker(
 		IWebsiteCollectionService collectionService,
 		IHttpClientFactory httpClientFactory,
-		IOptions<CollectorOptions> options,
+		IOptions<WebsiteCollectorOptions> options,
 		ILogger<WebsiteCollectorWorker> logger)
 		: base(
 			new SelectorLeaseManager(collectionService),

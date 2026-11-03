@@ -6,7 +6,7 @@ namespace WebsiteCollector.Infrastructure.Configuration;
 /// Configuration for the website collector worker.
 /// Extends the base WorkerOptions with collector-specific settings.
 /// </summary>
-public sealed class CollectorOptions : WorkerOptions
+public sealed class WebsiteCollectorOptions : WorkerOptions
 {
 	/// <summary>
 	/// HTTPS hosts that are allowed to be collected.
@@ -14,7 +14,7 @@ public sealed class CollectorOptions : WorkerOptions
 	/// </summary>
 	public string[] AllowedHosts { get; set; } = [];
 
-	public CollectorOptions()
+	public WebsiteCollectorOptions()
 	{
 		// Collectors can run longer than webhooks (complex data extraction)
 		// Use defaults from WorkerOptions
