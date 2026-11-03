@@ -8,10 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../WorkerFramework/WorkerFramework.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.9.1" />
     <PackageReference Include="Dapper" Version="2.1.89" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
@@ -24,6 +20,10 @@
 
   <ItemGroup>
     <Folder Include="Features\WebhookDelivery\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
   </ItemGroup>
 
 </Project>
