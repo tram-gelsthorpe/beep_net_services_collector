@@ -15,7 +15,6 @@ using WebsiteCollector.Features.WebsiteCollection.Subscribers;
 using WebsiteCollector.Features.WebsiteCollection;
 using WebsiteCollector.Features.SelectorManagement.Services;
 using WebsiteCollector.Features.SelectorManagement.Models;
-using WebsiteCollector.Features.LeaseManagement.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,7 +29,6 @@ builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository
 builder.Services.AddScoped<IWebsiteCollectionService, WebsiteCollectionService>();
 builder.Services.AddScoped<IWebhookDeliveryService, WebhookDeliveryService>();
 builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
-builder.Services.AddScoped<ILeaseManagementService, LeaseManagementService>();
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 builder.Services.AddCollectorHttpClient();
 builder.Services.AddHostedService<WebsiteCollectorWorker>();
