@@ -1,12 +1,11 @@
-using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WorkerFramework.Data;
-using WebsiteCollector.Features.WebsiteCollection.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Infrastructure.Database;
+namespace WebsiteCollector.Worker.Infrastructure.Database;
 
 /// <summary>
 /// Database access layer for website collection domain models.

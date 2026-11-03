@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Infrastructure.Events;
+namespace WebsiteCollector.Worker.Infrastructure.Events;
 
 /// <summary>
 /// Base event interface for all events in the system.

@@ -1,8 +1,7 @@
-using System;
-using WebsiteCollector.Features.WebsiteCollection.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 using WorkerFramework.Leasing;
 
-namespace WebsiteCollector.Features.WebsiteCollection;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 
 /// <summary>
 /// Adapter for IClaimedItem to wrap PendingWebhookDelivery

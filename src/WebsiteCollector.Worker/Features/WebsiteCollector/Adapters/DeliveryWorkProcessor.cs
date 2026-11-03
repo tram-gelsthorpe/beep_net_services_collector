@@ -1,12 +1,9 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WebsiteCollector.Features.WebsiteCollection.Services;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WorkerFramework.Processing;
 
-namespace WebsiteCollector.Features.WebsiteCollection;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 
 /// <summary>
 /// Work processor implementation for webhook delivery

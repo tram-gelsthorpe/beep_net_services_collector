@@ -1,11 +1,10 @@
-using System;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Infrastructure.Configuration;
-using WebsiteCollector.Features.WebsiteCollection.Services;
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WebsiteCollector.Features.WebsiteCollection;
 using WorkerFramework.Workers;
+using WebsiteCollector.Worker.Infrastructure.Configuration;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 
 public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {

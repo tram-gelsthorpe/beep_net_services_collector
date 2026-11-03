@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WebsiteCollector.Features.WebsiteCollection.Services;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WorkerFramework.Leasing;
 
-namespace WebsiteCollector.Features.WebsiteCollection;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 
 /// <summary>
 /// Lease manager implementation for website selectors using IWebsiteCollectionService

@@ -1,12 +1,9 @@
-using WebsiteCollector.Infrastructure.Database;
-using WebsiteCollector.Features.SelectorManagement.Models;
+using WebsiteCollector.Worker.Features.SelectorManagement.Models;
+using WebsiteCollector.Worker.Infrastructure.Database;
 
-namespace WebsiteCollector.Features.SelectorManagement.Services;
+namespace WebsiteCollector.Worker.Features.SelectorManagement.Services;
 
-public interface ISelectorManagementService
-{
-	Task<IReadOnlyList<Selector>> GetSelectorsAsync(Guid websiteId, CancellationToken ct);
-}
+
 
 public sealed class SelectorManagementService(Database db) : ISelectorManagementService
 {

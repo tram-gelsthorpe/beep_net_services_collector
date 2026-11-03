@@ -1,12 +1,12 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Features.WebsiteCollection.Events;
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WebsiteCollector.Features.WebsiteCollection.Repositories;
-using WebsiteCollector.Infrastructure.Events;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker.Infrastructure.Events;
 
-namespace WebsiteCollector.Features.WebsiteCollection.Subscribers;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 
 /// <summary>
 /// Subscriber that forwards collection notifications to registered webhooks.

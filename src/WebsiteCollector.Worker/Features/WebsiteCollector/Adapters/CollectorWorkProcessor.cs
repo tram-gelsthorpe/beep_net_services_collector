@@ -1,18 +1,15 @@
-using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using AngleSharp.Html.Parser;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Infrastructure.Configuration;
-using WebsiteCollector.Features.WebsiteCollection.Services;
-using WebsiteCollector.Features.WebsiteCollection.Models;
 using WorkerFramework.Processing;
+using WebsiteCollector.Worker.Infrastructure.Configuration;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Features.WebsiteCollection;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 
 /// <summary>
 /// Work processor implementation for website collection

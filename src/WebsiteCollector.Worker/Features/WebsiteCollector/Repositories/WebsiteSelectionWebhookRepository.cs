@@ -1,10 +1,9 @@
-using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using WebsiteCollector.Features.WebsiteCollection.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Features.WebsiteCollection.Repositories;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 
 /// <summary>
 /// Repository for managing website selection webhooks.

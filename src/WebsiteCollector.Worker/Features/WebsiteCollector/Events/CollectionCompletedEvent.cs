@@ -1,6 +1,6 @@
-using WebsiteCollector.Infrastructure.Events;
+using WebsiteCollector.Worker.Infrastructure.Events;
 
-namespace WebsiteCollector.Features.WebsiteCollection.Events;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Events;
 
 /// <summary>
 /// Event published when a website collection/selection completes.

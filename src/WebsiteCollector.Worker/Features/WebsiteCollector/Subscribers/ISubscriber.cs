@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Features.WebsiteCollection.Subscribers;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 
 /// <summary>
 /// Contract for components that subscribe to collection events.

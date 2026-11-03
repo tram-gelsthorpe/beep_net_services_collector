@@ -1,13 +1,13 @@
-using System;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Infrastructure.Configuration;
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WebsiteCollector.Features.WebsiteCollection.Repositories;
-using WebsiteCollector.Features.WebsiteCollection.Services;
 using WorkerFramework.Workers;
+using WebsiteCollector.Worker.Infrastructure.Configuration;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 
-namespace WebsiteCollector.Features.WebsiteCollection;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Background hosted service for asynchronous webhook delivery processing.

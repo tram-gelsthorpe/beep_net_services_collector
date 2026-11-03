@@ -1,8 +1,7 @@
-using WebsiteCollector.Infrastructure.Database;
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WorkerFramework.Data;
+using WebsiteCollector.Worker.Infrastructure.Database;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Features.WebsiteCollection.Repositories;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 
 /// <summary>
 /// Repository that adapts the generic WorkerFramework to website collection domain.

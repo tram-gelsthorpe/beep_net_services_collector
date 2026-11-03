@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Infrastructure.Events;
+namespace WebsiteCollector.Worker.Infrastructure.Events;
 
 /// <summary>
 /// Event aggregator for publishing domain events to registered subscribers.

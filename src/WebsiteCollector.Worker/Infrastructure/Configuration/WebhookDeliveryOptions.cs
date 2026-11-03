@@ -1,6 +1,6 @@
 using WorkerFramework.Configuration;
 
-namespace WebsiteCollector.Infrastructure.Configuration;
+namespace WebsiteCollector.Worker.Infrastructure.Configuration;
 
 /// <summary>
 /// Configuration options for webhook delivery worker.

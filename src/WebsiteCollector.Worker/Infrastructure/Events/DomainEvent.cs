@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Infrastructure.Events;
+namespace WebsiteCollector.Worker.Infrastructure.Events;
 
 /// <summary>
 /// Base class for domain events providing common event properties.

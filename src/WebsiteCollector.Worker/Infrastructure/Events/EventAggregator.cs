@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Infrastructure.Events;
+namespace WebsiteCollector.Worker.Infrastructure.Events;
 
 /// <summary>
 /// In-memory event aggregator that dispatches events to subscribed handlers.

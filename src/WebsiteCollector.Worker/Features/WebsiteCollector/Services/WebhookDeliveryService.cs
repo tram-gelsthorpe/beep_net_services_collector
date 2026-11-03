@@ -1,8 +1,8 @@
-using WebsiteCollector.Features.WebsiteCollection.Models;
-using WebsiteCollector.Features.WebsiteCollection.Repositories;
 using Microsoft.Extensions.Logging;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Features.WebsiteCollection.Services;
+namespace WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 
 public interface IWebhookDeliveryService
 {
