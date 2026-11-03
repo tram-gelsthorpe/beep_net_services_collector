@@ -9,3 +9,4 @@
 /src/WebsiteCollector.Worker/bin/Debug/net10.0
 /src/WorkerFramework/bin/Debug/net10.0
 /src/WorkerFramework/obj
+/NuGet.Config
