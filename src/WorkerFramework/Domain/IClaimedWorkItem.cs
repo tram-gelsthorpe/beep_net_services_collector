@@ -1,6 +1,6 @@
 using System;
 
-namespace WorkerFramework.Data;
+namespace WorkerFramework.Domain;
 
 /// <summary>
 /// Standard result from claiming work items.

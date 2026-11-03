@@ -1,4 +1,4 @@
-namespace WorkerFramework.Data;
+namespace WorkerFramework.Domain;
 
 /// <summary>
 /// Standard status values for any work item in the WorkerFramework.

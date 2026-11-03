@@ -1,6 +1,6 @@
 using System;
 
-namespace WorkerFramework.Data;
+namespace WorkerFramework.Domain;
 
 /// <summary>
 /// Single attempt record in a work item's history.

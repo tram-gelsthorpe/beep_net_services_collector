@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using WorkerFramework.Domain;
 
 namespace WorkerFramework.Data;
 
@@ -346,14 +347,5 @@ public class WorkItemRepository : IWorkItemRepository
 		}
 	}
 
-	/// <summary>
-	/// Internal implementation of IClaimedWorkItem for claim results.
-	/// </summary>
-	private sealed record ClaimedWorkItem(
-		Guid WorkItemId,
-		Guid DomainId,
-		string DomainType,
-		Guid LeaseToken,
-		int AttemptNumber,
-		int MaxAttempts) : IClaimedWorkItem;
+	
 }
