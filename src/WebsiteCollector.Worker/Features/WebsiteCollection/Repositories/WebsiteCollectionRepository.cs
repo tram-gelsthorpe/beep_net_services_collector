@@ -1,19 +1,83 @@
 using WebsiteCollector.Infrastructure.Database;
 using WebsiteCollector.Features.WebsiteCollection.Models;
+using WorkerFramework.Data;
 
 namespace WebsiteCollector.Features.WebsiteCollection.Repositories;
 
+/// <summary>
+/// Repository that adapts the generic WorkerFramework to website collection domain.
+/// Uses the generic WorkItems interface for all work claiming, leasing, and completion.
+/// </summary>
 public sealed class WebsiteCollectionRepository(Database db) : IWebsiteCollectionRepository
 {
-	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct) =>
-		await db.ClaimAsync(worker, count, lease, ct);
+	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
+	{
+		// Use generic WorkerFramework to claim items
+		var items = await db.WorkItems.ClaimAsync(
+			workerType: "SelectorCollector",
+			workerId: worker,
+			batchSize: count,
+			leaseSeconds: lease,
+			cancellationToken: ct);
 
-	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct) =>
-		await db.StartAsync(websiteSelectorsId, leaseToken, worker, ct);
+		// Map generic work items to domain-specific ClaimedWebsiteSelector
+		var result = new List<ClaimedWebsiteSelector>();
+		foreach (var item in items)
+		{
+			var selectors = await db.SelectorsAsync(item.DomainId, ct);
+			var selector = selectors.First();
 
-	public async Task<bool> RenewAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct) =>
-		await db.RenewAsync(websiteSelectorsId, leaseToken, leaseSeconds, ct);
+			result.Add(new ClaimedWebsiteSelector(
+				WebsiteSelectorsId: item.DomainId,
+				WebsitesId: selector.WebsitesId,
+				CollectionUrl: selector.CollectionUrl,
+				CollectionType: selector.CollectionType,
+				ContentSelector: selector.ContentSelector,
+				TableSelector: selector.TableSelector,
+				IntervalSeconds: selector.IntervalSeconds,
+				TimeoutSeconds: 30, // Default timeout
+				MaxAttempts: item.MaxAttempts,
+				AttemptCount: item.AttemptNumber - 1,
+				LeaseToken: item.LeaseToken));
+		}
 
-	public async Task<int> FinishAsync(Guid websiteSelectorsId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct) =>
-		await db.FinishAsync(websiteSelectorsId, leaseToken, success, httpStatus, error, hash, raw, extracted, ct);
+		return result.AsReadOnly();
+	}
+
+	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct)
+	{
+		// Record the attempt in WorkerFramework
+		await db.WorkItems.RecordAttemptAsync(
+			workItemId: websiteSelectorsId,
+			attemptNumber: 1,
+			statusSnapshot: "RUNNING",
+			cancellationToken: ct);
+	}
+
+	public async Task<bool> RenewAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct)
+	{
+		// Use generic WorkerFramework to renew lease
+		return await db.WorkItems.RenewLeaseAsync(
+			workItemId: websiteSelectorsId,
+			leaseToken: leaseToken,
+			leaseSeconds: leaseSeconds,
+			cancellationToken: ct);
+	}
+
+	public async Task<int> FinishAsync(Guid websiteSelectorsId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct)
+	{
+		// Use generic WorkerFramework to complete the work item
+		var resultData = success ? extracted : error;
+
+		var completed  = await db.WorkItems.CompleteAsync(
+			workItemId: websiteSelectorsId,
+			leaseToken: leaseToken,
+			succeeded: success,
+			error: error,
+			resultData: resultData,
+			backoffStrategy: "exponential",
+			cancellationToken: ct);
+
+		return completed ? 0 : -1;
+	}
 }

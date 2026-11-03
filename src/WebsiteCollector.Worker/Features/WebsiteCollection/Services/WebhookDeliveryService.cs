@@ -49,7 +49,7 @@ public sealed class WebhookDeliveryService(
 					delivery.DeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
 
 				// Mark as success
-				await repository.CompleteDeliveryAsync(delivery.DeliveryId, success: true, (int)response.StatusCode, null, ct);
+				await repository.RecordDeliveryResultAsync(delivery.DeliveryId, success: true, (int)response.StatusCode, null, ct);
 			}
 			else
 			{
@@ -58,7 +58,7 @@ public sealed class WebhookDeliveryService(
 					delivery.DeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
 
 				// Mark as failed (will retry or abandon based on attempt count)
-				await repository.CompleteDeliveryAsync(
+				await repository.RecordDeliveryResultAsync(
 					delivery.DeliveryId,
 					success: false,
 					(int)response.StatusCode,
@@ -70,12 +70,12 @@ public sealed class WebhookDeliveryService(
 		{
 			logger.LogWarning(
 				"Webhook delivery HTTP error. DeliveryId={DeliveryId}, Webhook={Webhook}, Error={Error}, Attempt={Attempt}",
-				delivery.DeliveryId, delivery.WebhookUrl, ex.Message, delivery.AttemptNumber);
+					delivery.DeliveryId, delivery.WebhookUrl, ex.Message, delivery.AttemptNumber);
 
-			await repository.CompleteDeliveryAsync(
-				delivery.DeliveryId,
-				success: false,
-				null,
+				await repository.RecordDeliveryResultAsync(
+					delivery.DeliveryId,
+					success: false,
+					null,
 				$"HTTP Error: {ex.Message}",
 				ct);
 		}
@@ -85,7 +85,7 @@ public sealed class WebhookDeliveryService(
 				"Webhook delivery timeout. DeliveryId={DeliveryId}, Webhook={Webhook}, Timeout={Timeout}s, Attempt={Attempt}",
 				delivery.DeliveryId, delivery.WebhookUrl, delivery.TimeoutSeconds, delivery.AttemptNumber);
 
-			await repository.CompleteDeliveryAsync(
+			await repository.RecordDeliveryResultAsync(
 				delivery.DeliveryId,
 				success: false,
 				null,
@@ -99,7 +99,7 @@ public sealed class WebhookDeliveryService(
 				"Unexpected error during webhook delivery. DeliveryId={DeliveryId}, Webhook={Webhook}, Attempt={Attempt}",
 				delivery.DeliveryId, delivery.WebhookUrl, delivery.AttemptNumber);
 
-			await repository.CompleteDeliveryAsync(
+			await repository.RecordDeliveryResultAsync(
 				delivery.DeliveryId,
 				success: false,
 				null,

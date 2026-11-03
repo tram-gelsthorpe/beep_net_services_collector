@@ -11,6 +11,7 @@ namespace WebsiteCollector.Infrastructure.Database;
 /// <summary>
 /// Database access layer for website collection domain models.
 /// Also provides access to WorkerFramework generic work item repository.
+/// All work claiming, lease management, and completion is handled through the generic WorkItems interface.
 /// </summary>
 public sealed class Database(IConfiguration config, ILogger<Database> logger, ILoggerFactory loggerFactory)
 {
@@ -22,31 +23,13 @@ public sealed class Database(IConfiguration config, ILogger<Database> logger, IL
 
 	/// <summary>
 	/// Generic work item repository for all workers to use.
+	/// Use this for claiming work, renewing leases, and completing work items.
 	/// </summary>
 	public IWorkItemRepository WorkItems => WorkItemRepository;
 
-	// ===== Domain-specific procedures for website collection =====
-
-	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
-	{
-		await using var conn = Open();
-		var rows = await conn.QueryAsync<ClaimedWebsiteSelector>(new CommandDefinition("dbo.ClaimWebsiteSelectors", new { WorkerId = worker, BatchSize = count, LeaseSeconds = lease }, commandType: CommandType.StoredProcedure, cancellationToken: ct));
-		return rows.AsList();
-	}
-
-	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct)
-	{
-		await using var conn = Open();
-		await conn.ExecuteAsync(new CommandDefinition("dbo.StartWebsiteSelectorExecution", new { WebsiteSelectorsId = websiteSelectorsId, LeaseToken = leaseToken, WorkerId = worker }, commandType: CommandType.StoredProcedure, cancellationToken: ct));
-	}
-
-	public async Task<bool> RenewAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct)
-	{
-		await using var conn = Open();
-		var result = await conn.ExecuteAsync(new CommandDefinition("dbo.RenewWebsiteSelectorLease", new { WebsiteSelectorsId = websiteSelectorsId, LeaseToken = leaseToken, LeaseSeconds = leaseSeconds }, commandType: CommandType.StoredProcedure, cancellationToken: ct));
-		return result == 1;
-	}
-
+	/// <summary>
+	/// Get details of a specific website selector for processing.
+	/// </summary>
 	public async Task<IReadOnlyList<WebsiteSelector>> SelectorsAsync(Guid websiteSelectorsId, CancellationToken ct)
 	{
 		await using var conn = Open();
@@ -57,22 +40,5 @@ public sealed class Database(IConfiguration config, ILogger<Database> logger, IL
 			""";
 		var rows = await conn.QueryAsync<WebsiteSelector>(new CommandDefinition(sql, new { WebsiteSelectorsId = websiteSelectorsId }, cancellationToken: ct));
 		return rows.AsList();
-	}
-
-	public async Task<int> FinishAsync(Guid websiteSelectorsId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct)
-	{
-		await using var conn = Open();
-		var p = new DynamicParameters();
-		p.Add("WebsiteSelectorsId", websiteSelectorsId);
-		p.Add("LeaseToken", leaseToken);
-		p.Add("Succeeded", success);
-		p.Add("HttpStatus", httpStatus);
-		p.Add("Error", error);
-		p.Add("ContentHash", hash, DbType.Binary, size: 32);
-		p.Add("ResponseContent", raw);
-		p.Add("ExtractedJson", extracted);
-		p.Add("ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
-		await conn.ExecuteAsync(new CommandDefinition("dbo.CompleteWebsiteSelector", p, commandType: CommandType.StoredProcedure, cancellationToken: ct));
-		return p.Get<int>("ReturnValue");
 	}
 }

@@ -27,7 +27,7 @@ internal sealed class DeliveryLeaseManager : ILeaseManager<PendingWebhookDeliver
 		int leaseSeconds,
 		CancellationToken ct)
 	{
-		var items = await _repository.ClaimPendingDeliveriesAsync(maxItems, ct);
+		var items = await _repository.GetPendingDeliveriesAsync(Guid.Empty, maxItems, ct);
 		return items
 			.Select(item => (IClaimedItem<PendingWebhookDelivery>)new ClaimedDeliveryItem(item, Guid.NewGuid()))
 			.ToList();
