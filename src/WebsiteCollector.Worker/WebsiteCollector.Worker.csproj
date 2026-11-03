@@ -24,7 +24,6 @@
 
   <ItemGroup>
     <Folder Include="Features\WebhookDelivery\" />
-    <Folder Include="Features\WebsiteCollection\Services\" />
   </ItemGroup>
 
 </Project>
