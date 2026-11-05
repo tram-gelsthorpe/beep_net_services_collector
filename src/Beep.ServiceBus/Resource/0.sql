@@ -13,7 +13,7 @@ SET QUOTED_IDENTIFIER ON;
 -- =====================================================
 -- Tracks the schema version and deployment information
 CREATE TABLE dbo.DatabaseVersion (
-	Id int PRIMARY KEY IDENTITY(1,1),
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
 	Version nvarchar(20) NOT NULL UNIQUE,  -- e.g., '0', '1'
 	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
@@ -21,26 +21,24 @@ CREATE TABLE dbo.DatabaseVersion (
 
 -- Insert initial database version
 INSERT INTO dbo.DatabaseVersion (Version)
-VALUES ('0', 'Initial ServiceBus schema with WorkItem, Attempt, and Heartbeat tables', NULL);
+VALUES ('0');
 
 -- WorkItem Statuses - Standard state machine for all workers
 CREATE TABLE dbo.WorkItemStatuses (
-	Id int PRIMARY KEY,
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
 	Name nvarchar(50) NOT NULL UNIQUE,
 	Description nvarchar(500)
 );
 
 -- Insert standard status values
-SET IDENTITY_INSERT dbo.WorkItemStatuses ON;
 INSERT INTO dbo.WorkItemStatuses (Id, Name, Description) VALUES
-	(1, 'PENDING', 'Waiting to be claimed by a worker'),
-	(2, 'CLAIMED', 'Actively leased by a worker'),
-	(3, 'RUNNING', 'Currently being processed'),
-	(4, 'SUCCEEDED', 'Completed successfully, no retry needed'),
-	(5, 'FAILED', 'Attempt failed, will be retried'),
-	(6, 'ABANDONED', 'Exceeded max retries or marked unrecoverable'),
-	(7, 'DEFERRED', 'Temporarily paused (e.g., circuit breaker open)');
-SET IDENTITY_INSERT dbo.WorkItemStatuses OFF;
+	(NEWID(), 'PENDING', 'Waiting to be claimed by a worker'),
+	(NEWID(), 'CLAIMED', 'Actively leased by a worker'),
+	(NEWID(), 'RUNNING', 'Currently being processed'),
+	(NEWID(), 'SUCCEEDED', 'Completed successfully, no retry needed'),
+	(NEWID(), 'FAILED', 'Attempt failed, will be retried'),
+	(NEWID(), 'ABANDONED', 'Exceeded max retries or marked unrecoverable'),
+	(NEWID(), 'DEFERRED', 'Temporarily paused (e.g., circuit breaker open)');
 
 -- Generic WorkItems table - tracks any work item across all workers
 CREATE TABLE dbo.WorkItems (
@@ -48,7 +46,7 @@ CREATE TABLE dbo.WorkItems (
 	WorkerType nvarchar(100) NOT NULL,  -- 'SelectorCollector', 'WebhookDelivery', etc.
 	DomainId uniqueidentifier NOT NULL,  -- Foreign key to domain-specific table (WebsiteSelectorsId, DeliveryId, etc.)
 	DomainType nvarchar(100) NOT NULL,  -- 'WebsiteSelector', 'WebhookDelivery', etc.
-	StatusId int NOT NULL DEFAULT 1,  -- PENDING
+	StatusId uniqueidentifier NOT NULL,  -- PENDING (will be set by trigger or default constraint)
 	LeaseOwner uniqueidentifier NULL,  -- Worker ID that owns the current lease
 	LeaseToken uniqueidentifier NULL,  -- Token proving ownership (used without worker ID for security)
 	LeaseUntil datetimeoffset(7) NULL,  -- When this lease expires
@@ -98,6 +96,21 @@ CREATE TABLE dbo.WorkItemHeartbeats (
 GO
 
 -- =====================================================
+-- Status Name Constants (to avoid hardcoding strings)
+-- =====================================================
+-- Define a view that provides easy access to status constants
+CREATE OR ALTER VIEW dbo.StatusConstants AS
+SELECT 
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'PENDING') as PENDING,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'CLAIMED') as CLAIMED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'RUNNING') as RUNNING,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'SUCCEEDED') as SUCCEEDED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'FAILED') as FAILED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'ABANDONED') as ABANDONED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'DEFERRED') as DEFERRED;
+GO
+
+-- =====================================================
 -- Generic Stored Procedures
 -- =====================================================
 
@@ -117,6 +130,9 @@ BEGIN
 		THROW 50001, 'Invalid claim settings: BatchSize must be 1-500, LeaseSeconds 60-3600', 1;
 
 	DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
+	DECLARE @pendingStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'PENDING');
+	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'FAILED');
+	DECLARE @claimedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'CLAIMED');
 
 	-- Atomically claim up to @BatchSize items that are ready and not leased
 	;WITH due AS (
@@ -128,7 +144,7 @@ BEGIN
 			MaxAttempts
 		FROM dbo.WorkItems
 		WHERE WorkerType = @WorkerType
-			AND StatusId IN (1, 5)  -- PENDING or FAILED (ready to retry)
+			AND StatusId IN (@pendingStatusId, @failedStatusId)  -- PENDING or FAILED (ready to retry)
 			AND (LeaseOwner IS NULL OR LeaseUntil <= @now)  -- Not leased or lease expired
 			AND NextRunAt <= @now  -- Due for processing
 		ORDER BY AttemptCount DESC, NextRunAt ASC, Id  -- Prioritize retries, then by due time
@@ -137,7 +153,7 @@ BEGIN
 	SET LeaseOwner = @WorkerId,
 		LeaseToken = NEWID(),
 		LeaseUntil = DATEADD(second, @LeaseSeconds, @now),
-		StatusId = 2,  -- CLAIMED
+		StatusId = @claimedStatusId,  -- CLAIMED
 		StartedAt = CASE WHEN StartedAt IS NULL THEN @now ELSE StartedAt END,
 		AttemptCount = AttemptCount + 1
 	OUTPUT inserted.Id as WorkItemId,
@@ -201,6 +217,13 @@ BEGIN
 	DECLARE @attempt int;
 	DECLARE @maxAttempts int;
 	DECLARE @nextRunAt datetimeoffset(7);
+	DECLARE @succeededStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'SUCCEEDED');
+	DECLARE @abandonedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'ABANDONED');
+	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'FAILED');
+	-- Status snapshot constants
+	DECLARE @statusSucceeded nvarchar(50) = 'SUCCEEDED';
+	DECLARE @statusAbandoned nvarchar(50) = 'ABANDONED';
+	DECLARE @statusFailed nvarchar(50) = 'FAILED';
 
 	BEGIN TRANSACTION;
 
@@ -220,7 +243,7 @@ BEGIN
 	BEGIN
 		-- SUCCESS: No more retries needed
 		UPDATE dbo.WorkItems
-		SET StatusId = 4,  -- SUCCEEDED
+		SET StatusId = @succeededStatusId,  -- SUCCEEDED
 			LeaseOwner = NULL,
 			LeaseToken = NULL,
 			LeaseUntil = NULL,
@@ -230,7 +253,7 @@ BEGIN
 
 		-- Record attempt
 		INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, FinishedAt)
-		VALUES (@WorkItemId, @attempt, 'SUCCEEDED', @now);
+		VALUES (@WorkItemId, @attempt, @statusSucceeded, @now);
 	END
 	ELSE
 	BEGIN
@@ -239,7 +262,7 @@ BEGIN
 		BEGIN
 			-- Max retries exceeded: ABANDON
 			UPDATE dbo.WorkItems
-			SET StatusId = 6,  -- ABANDONED
+			SET StatusId = @abandonedStatusId,  -- ABANDONED
 				LeaseOwner = NULL,
 				LeaseToken = NULL,
 				LeaseUntil = NULL,
@@ -248,7 +271,7 @@ BEGIN
 			WHERE Id = @WorkItemId;
 
 			INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, FinishedAt)
-			VALUES (@WorkItemId, @attempt, 'ABANDONED', @Error, @now);
+			VALUES (@WorkItemId, @attempt, @statusAbandoned, @Error, @now);
 		END
 		ELSE
 		BEGIN
@@ -283,7 +306,7 @@ BEGIN
 
 			-- Schedule retry: mark FAILED now, will return to PENDING for next claim
 			UPDATE dbo.WorkItems
-			SET StatusId = 5,  -- FAILED (temporarily; will be PENDING on next claim)
+			SET StatusId = @failedStatusId,  -- FAILED (temporarily; will be PENDING on next claim)
 				LeaseOwner = NULL,
 				LeaseToken = NULL,
 				LeaseUntil = NULL,
@@ -292,7 +315,7 @@ BEGIN
 			WHERE Id = @WorkItemId;
 
 			INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, FinishedAt)
-			VALUES (@WorkItemId, @attempt, 'FAILED', @Error, @now);
+			VALUES (@WorkItemId, @attempt, @statusFailed, @Error, @now);
 		END
 	END;
 
