@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Beep.ServiceBus.Database;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Beep.ServiceBus.Infrastructure

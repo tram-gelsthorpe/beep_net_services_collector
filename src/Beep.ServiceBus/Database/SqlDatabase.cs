@@ -3,6 +3,7 @@ using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Reflection;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -40,7 +41,7 @@ namespace Beep.ServiceBus.Database
 				}
 				else 
 				{
-					await Update(GetCurrentDatabaseVersion(), cancellationToken);
+					await Update(await GetCurrentDatabaseVersion(), cancellationToken);
 				}
 			}
 			catch
@@ -70,7 +71,7 @@ namespace Beep.ServiceBus.Database
 			_dbConnection.ChangeDatabase(_databaseName);
 
 			var command = _dbConnection.CreateCommand();
-			command.CommandText = LoadSchemaResource("0");
+			command.CommandText = LoadCreateSchemaResource();
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
 		}
@@ -83,11 +84,14 @@ namespace Beep.ServiceBus.Database
 
 			try
 			{
-				for (int version = currentVersion + 1; version <= 0; version++)
+				var version = currentVersion + 1;
+				var maxVersion = GetEmbeddedResourceCount();
+
+				while (version <= maxVersion)
 				{
-					var scriptContent = LoadSchemaResource($"{version}");
+					var scriptContent = LoadUpdateSchemaResource(version);
 					if (string.IsNullOrWhiteSpace(scriptContent))
-						continue;
+						break;
 
 					var command = _dbConnection.CreateCommand();
 					command.CommandText = scriptContent;
@@ -95,6 +99,8 @@ namespace Beep.ServiceBus.Database
 
 					await command.ExecuteNonQueryAsync(cancellationToken);
 				}
+
+				await UpdateCurrentDatabaseVersion(version);
 
 				transaction.Commit();
 			}
@@ -109,22 +115,44 @@ namespace Beep.ServiceBus.Database
 			}
 		}
 
-		private int GetCurrentDatabaseVersion()
+		private int GetEmbeddedResourceCount()
+		{
+			var assembly = Assembly.GetExecutingAssembly();
+			var resourceCount = assembly
+				.GetManifestResourceNames()
+				.Count(r => r.StartsWith("Beep.ServiceBus.Resource"));
+
+			return resourceCount;
+		}
+
+		private async Task<int> GetCurrentDatabaseVersion()
 		{
 			var command = _dbConnection.CreateCommand();
 			command.CommandText = "SELECT TOP 1 Version FROM dbo.DatabaseVersion ORDER BY Id DESC";
 
-			var result = command.ExecuteScalar();
-			return int.TryParse(result?.ToString(), out var version) ? version : 0;
+			var result = await command.ExecuteScalarAsync();
+
+			Int32.TryParse(result?.ToString(), out int version);
+			return version;
 		}
 
-		private string LoadSchemaResource(string name)
+		private async Task<int> UpdateCurrentDatabaseVersion(int version)
+		{
+			var command = _dbConnection.CreateCommand();
+			command.CommandText = "INSERT INTO dbo.DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
+			command.Parameters.Add(new SqlParameter("@version", version));
+			
+			var result = await command.ExecuteScalarAsync();
+			return int.TryParse(result?.ToString(), out var versionId) ? versionId : 0;
+		}
+
+		private string LoadCreateSchemaResource()
 		{
 			if (_schemaScript != null)
 				return _schemaScript;
 
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourceName = $"Beep.ServiceBus.Resource.{name}.sql";
+			var resourceName = $"Beep.ServiceBus.Resource.0.sql";
 
 			using (var stream = assembly.GetManifestResourceStream(resourceName))
 			{
@@ -138,6 +166,26 @@ namespace Beep.ServiceBus.Database
 			}
 
 			return _schemaScript;
+		}
+
+		private string LoadUpdateSchemaResource(int version)
+		{
+			var assembly = Assembly.GetExecutingAssembly();
+			var resourceName = $"Beep.ServiceBus.Resource.{version}.sql";
+			var result = "";
+
+			using (var stream = assembly.GetManifestResourceStream(resourceName))
+			{
+				if (stream == null)
+					throw new InvalidOperationException($"Embedded resource '{resourceName}' not found.");
+
+				using (var reader = new StreamReader(stream))
+				{
+					result = reader.ReadToEnd();
+				}
+			}
+
+			return result;
 		}
 
 		// Placeholder for Create_Database_Script constant
