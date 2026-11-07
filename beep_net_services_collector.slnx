@@ -12,7 +12,6 @@
     <File Path="sql/001_webhooks_table.sql" />
     <File Path="sql/002_new_schema.sql" />
     <File Path="sql/002_seed_example.sql" />
-    <File Path="sql/002_worker_framework_schema.sql" />
     <File Path="sql/003_operations.sql" />
 
   </Folder>
