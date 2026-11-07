@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Services;
 using WorkerFramework.Processing;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
+namespace WebsiteCollector.Worker.Features.WebhookDelivery.Adapters;
 
 /// <summary>
 /// Work processor implementation for webhook delivery

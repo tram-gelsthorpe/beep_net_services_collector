@@ -3,7 +3,7 @@ namespace WebsiteCollector.Worker.Infrastructure.Events;
 /// <summary>
 /// Base event interface for all events in the system.
 /// </summary>
-public interface IEvent
+public interface IDomainEvent
 {
 	/// <summary>
 	/// Unique identifier for this event instance.

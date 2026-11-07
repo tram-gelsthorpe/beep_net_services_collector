@@ -7,11 +7,11 @@ namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 /// <summary>
 /// Lease manager implementation for website selectors using IWebsiteCollectionService
 /// </summary>
-internal sealed class SelectorLeaseManager : ILeaseManager<ClaimedWebsiteSelector>
+internal sealed class CollectorLeaseManager : ILeaseManager<ClaimedWebsiteSelector>
 {
 	private readonly IWebsiteCollectionService _collectionService;
 
-	public SelectorLeaseManager(IWebsiteCollectionService collectionService)
+	public CollectorLeaseManager(IWebsiteCollectionService collectionService)
 	{
 		_collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
 	}

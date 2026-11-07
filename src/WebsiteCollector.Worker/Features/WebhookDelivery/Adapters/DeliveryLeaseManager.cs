@@ -1,8 +1,8 @@
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 using WorkerFramework.Leasing;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
+namespace WebsiteCollector.Worker.Features.WebhookDelivery.Adapters;
 
 /// <summary>
 /// Lease manager implementation for webhook deliveries using IWebhookDeliveryRepository

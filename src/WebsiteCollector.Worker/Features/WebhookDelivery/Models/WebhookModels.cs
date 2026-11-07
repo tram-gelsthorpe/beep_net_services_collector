@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+namespace WebsiteCollector.Worker.Features.WebhookDelivery.Models;
 
 /// <summary>
 /// Represents a registered webhook for collection notifications.

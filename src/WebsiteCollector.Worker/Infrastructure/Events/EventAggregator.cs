@@ -9,7 +9,7 @@ public sealed class EventAggregator : IEventAggregator
 	private readonly Dictionary<Type, List<Delegate>> _subscribers = new();
 	private readonly object _lock = new();
 
-	public void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class, IEvent
+	public void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class, IDomainEvent
 	{
 		if (handler == null)
 			throw new ArgumentNullException(nameof(handler));
@@ -24,7 +24,7 @@ public sealed class EventAggregator : IEventAggregator
 		}
 	}
 
-	public async Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default) where TEvent : class, IEvent
+	public async Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default) where TEvent : class, IDomainEvent
 	{
 		if (@event == null)
 			throw new ArgumentNullException(nameof(@event));
@@ -50,7 +50,7 @@ public sealed class EventAggregator : IEventAggregator
 	private static async Task InvokeHandlerSafely<TEvent>(
 		Func<TEvent, CancellationToken, Task> handler,
 		TEvent @event,
-		CancellationToken ct) where TEvent : class, IEvent
+		CancellationToken ct) where TEvent : class, IDomainEvent
 	{
 		try
 		{

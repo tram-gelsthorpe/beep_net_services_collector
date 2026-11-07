@@ -9,10 +9,10 @@ public interface IEventAggregator
 	/// <summary>
 	/// Subscribe a handler to a specific event type.
 	/// </summary>
-	void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class, IEvent;
+	void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class, IDomainEvent;
 
 	/// <summary>
 	/// Publish an event to all registered subscribers.
 	/// </summary>
-	Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default) where TEvent : class, IEvent;
+	Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default) where TEvent : class, IDomainEvent;
 }

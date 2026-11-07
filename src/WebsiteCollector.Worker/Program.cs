@@ -9,6 +9,8 @@ using WebsiteCollector.Worker.Infrastructure.Http;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Services;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection("Collector"));
