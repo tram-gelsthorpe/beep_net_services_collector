@@ -10,13 +10,13 @@ using Microsoft.Data.SqlClient;
 
 namespace Beep.ServiceBus.Database
 {
-	public sealed class SqlDatabase : IDatabase
+	public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 	{
 		private readonly DbConnection _dbConnection;
 		private readonly string _databaseName;
 		private string? _schemaScript;
 
-		public SqlDatabase(string connectionString)
+		public SqlServiceBusDatabase(string connectionString)
 		{
 			_databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
 			_dbConnection = new SqlConnection(new SqlConnectionStringBuilder(connectionString)

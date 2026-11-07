@@ -10,7 +10,7 @@ namespace Beep.ServiceBus.Infrastructure
 		public static async Task CreateDatabase(this IServiceProvider provider)
 		{
 			using var scope = provider.CreateScope();
-			var database = scope.ServiceProvider.GetRequiredService<IDatabase>();
+			var database = scope.ServiceProvider.GetRequiredService<IServiceBusDatabase>();
 
 			await database.Create();
 		}
