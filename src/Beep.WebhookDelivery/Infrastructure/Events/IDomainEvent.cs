@@ -1,0 +1,13 @@
+using System;
+
+namespace Beep.WebhookDelivery.Infrastructure.Events;
+
+/// <summary>
+/// Base interface for all domain events published by the webhook delivery system.
+/// </summary>
+public interface IDomainEvent
+{
+	Guid EventId { get; }
+	DateTimeOffset OccurredAt { get; }
+	string EventType { get; }
+}

@@ -12,3 +12,5 @@
 /NuGet.Config
 /src/Beep.ServiceBus/bin/Debug/net10.0
 /src/Beep.ServiceBus/obj
+/src/Beep.WebhookDelivery/bin/Debug/net10.0
+/src/Beep.WebhookDelivery/obj
