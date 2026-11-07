@@ -6,7 +6,7 @@ namespace Beep.WebhookBus.Domain;
 /// Represents a pending webhook delivery to be processed.
 /// Generic model suitable for any webhook event delivery workflow.
 /// </summary>
-public record PendingWebhookDelivery
+public record PendingWebhook
 {
 	public required Guid DeliveryId { get; init; }
 	public required Guid WebhookId { get; init; }

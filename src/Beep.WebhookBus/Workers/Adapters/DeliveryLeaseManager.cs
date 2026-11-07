@@ -13,7 +13,7 @@ namespace Beep.WebhookBus.Workers.Adapters;
 /// Lease manager adapter for webhook delivery work items.
 /// Abstracts the repository operations over ILeaseManager interface.
 /// </summary>
-public sealed class DeliveryLeaseManager : ILeaseManager<PendingWebhookDelivery>
+public sealed class DeliveryLeaseManager : ILeaseManager<PendingWebhook>
 {
 	private readonly IWebhookDeliveryRepository _repository;
 
@@ -22,7 +22,7 @@ public sealed class DeliveryLeaseManager : ILeaseManager<PendingWebhookDelivery>
 		_repository = repository ?? throw new ArgumentNullException(nameof(repository));
 	}
 
-	public async Task<IReadOnlyList<IClaimedItem<PendingWebhookDelivery>>> ClaimAsync(
+	public async Task<IReadOnlyList<IClaimedItem<PendingWebhook>>> ClaimAsync(
 		Guid workerIdent,
 		int maxItems,
 		int leaseSeconds,
@@ -31,7 +31,7 @@ public sealed class DeliveryLeaseManager : ILeaseManager<PendingWebhookDelivery>
 		var deliveries = await _repository.GetPendingDeliveriesAsync(maxItems, ct);
 		return [.. deliveries
 			.Select(d => new ClaimedDeliveryItem(d))
-			.Cast<IClaimedItem<PendingWebhookDelivery>>()];
+			.Cast<IClaimedItem<PendingWebhook>>()];
 	}
 
 	public async Task<bool> RenewAsync(object item, Guid leaseToken, int leaseSeconds, CancellationToken ct)

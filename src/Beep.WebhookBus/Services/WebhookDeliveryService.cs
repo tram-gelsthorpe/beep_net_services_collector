@@ -12,7 +12,7 @@ namespace Beep.WebhookBus.Services;
 
 public interface IWebhookDeliveryService
 {
-	Task DeliverAsync(PendingWebhookDelivery delivery, CancellationToken ct);
+	Task DeliverAsync(PendingWebhook delivery, CancellationToken ct);
 }
 
 /// <summary>
@@ -24,7 +24,7 @@ public sealed class WebhookDeliveryService(
 	IHttpClientFactory httpClientFactory,
 	ILogger<WebhookDeliveryService> logger) : IWebhookDeliveryService
 {
-	public async Task DeliverAsync(PendingWebhookDelivery delivery, CancellationToken ct)
+	public async Task DeliverAsync(PendingWebhook delivery, CancellationToken ct)
 	{
 		try
 		{

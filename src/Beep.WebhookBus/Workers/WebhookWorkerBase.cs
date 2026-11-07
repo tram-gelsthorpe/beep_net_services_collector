@@ -12,11 +12,11 @@ namespace Beep.WebhookBus.Workers;
 /// Base class for webhook delivery worker implementations.
 /// Provides the generic webhook delivery work loop that can be extended by domain-specific workers.
 /// </summary>
-public abstract class WebhookDeliveryWorkerBase : GenericWorkerBase<PendingWebhookDelivery>
+public abstract class WebhookWorkerBase : GenericWorkerBase<PendingWebhook>
 {
 	private readonly WebhookDeliveryOptions _options;
 
-	protected WebhookDeliveryWorkerBase(
+	protected WebhookWorkerBase(
 		DeliveryLeaseManager leaseManager,
 		DeliveryWorkProcessor workProcessor,
 		WebhookDeliveryOptions options,
