@@ -12,23 +12,23 @@ namespace Beep.WebhookBus.Workers.Adapters;
 /// Work processor adapter that delegates webhook delivery to WebhookDeliveryService.
 /// Bridges between the generic worker framework and domain-specific delivery logic.
 /// </summary>
-public sealed class DeliveryWorkProcessor : IWorkProcessor<PendingWebhook>
+public sealed class WebhookWorkProcessor : IWorkProcessor<PendingWebhookItem>
 {
-	private readonly IWebhookDeliveryService _service;
-	private readonly ILogger<DeliveryWorkProcessor> _logger;
+	private readonly IWebhookService _service;
+	private readonly ILogger<WebhookWorkProcessor> _logger;
 
 	public int HeartbeatIntervalSeconds => 30; // 30 seconds (1/10 of typical 5-minute lease)
 
-	public DeliveryWorkProcessor(
-		IWebhookDeliveryService service,
-		ILogger<DeliveryWorkProcessor> logger)
+	public WebhookWorkProcessor(
+		IWebhookService service,
+		ILogger<WebhookWorkProcessor> logger)
 	{
 		_service = service ?? throw new ArgumentNullException(nameof(service));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
 	public async Task InitializeAsync(
-		PendingWebhook item,
+		PendingWebhookItem item,
 		Guid leaseToken,
 		Guid workerIdent,
 		CancellationToken ct)
@@ -42,7 +42,7 @@ public sealed class DeliveryWorkProcessor : IWorkProcessor<PendingWebhook>
 	}
 
 	public async Task<ProcessingResult> ProcessAsync(
-		PendingWebhook item,
+		PendingWebhookItem item,
 		Guid leaseToken,
 		CancellationToken ct)
 	{
@@ -76,7 +76,7 @@ public sealed class DeliveryWorkProcessor : IWorkProcessor<PendingWebhook>
 	}
 
 	public async Task CompleteAsync(
-		PendingWebhook item,
+		PendingWebhookItem item,
 		Guid leaseToken,
 		ProcessingResult result,
 		CancellationToken ct)

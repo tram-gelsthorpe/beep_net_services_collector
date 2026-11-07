@@ -3,7 +3,7 @@ namespace Beep.WebhookBus.Domain;
 /// <summary>
 /// Status values for webhook delivery work items.
 /// </summary>
-public static class WebhookDeliveryStatus
+public static class WebhookItemStatus
 {
 	public const string Pending = "Pending";
 	public const string Delivering = "Delivering";

@@ -6,7 +6,7 @@ namespace Beep.WebhookBus.Domain;
 /// Represents delivery attempt metadata for a webhook delivery.
 /// Records the result of each attempt (success, failure, timeout, etc.)
 /// </summary>
-public record WebhookDeliveryAttempt
+public record WebhookItemAttempt
 {
 	public required Guid DeliveryId { get; init; }
 	public required int AttemptNumber { get; init; }

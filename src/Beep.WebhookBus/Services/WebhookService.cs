@@ -10,21 +10,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Beep.WebhookBus.Services;
 
-public interface IWebhookDeliveryService
-{
-	Task DeliverAsync(PendingWebhook delivery, CancellationToken ct);
-}
-
 /// <summary>
 /// Handles webhook delivery with HTTP POST, retry logic, and exponential backoff.
 /// Processes queued deliveries asynchronously with error handling and monitoring.
 /// </summary>
-public sealed class WebhookDeliveryService(
-	IWebhookDeliveryRepository repository,
+public sealed class WebhookService(
+	IWebhookRepository repository,
 	IHttpClientFactory httpClientFactory,
-	ILogger<WebhookDeliveryService> logger) : IWebhookDeliveryService
+	ILogger<WebhookService> logger) : IWebhookService
 {
-	public async Task DeliverAsync(PendingWebhook delivery, CancellationToken ct)
+	public async Task DeliverAsync(PendingWebhookItem delivery, CancellationToken ct)
 	{
 		try
 		{

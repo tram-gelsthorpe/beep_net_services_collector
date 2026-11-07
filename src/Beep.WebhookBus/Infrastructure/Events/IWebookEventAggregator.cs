@@ -5,9 +5,9 @@ namespace Beep.WebhookBus.Infrastructure.Events;
 /// <summary>
 /// Aggregates and dispatches domain events published during webhook delivery processing.
 /// </summary>
-public interface IEventAggregator
+public interface IWebookEventAggregator
 {
-	void RaiseEvent(IDomainEvent domainEvent);
-	IReadOnlyList<IDomainEvent> GetEvents();
+	void RaiseEvent(IWebhookEvent domainEvent);
+	IReadOnlyList<IWebhookEvent> GetEvents();
 	void ClearEvents();
 }

@@ -10,12 +10,12 @@ namespace Beep.WebhookBus.Repository;
 /// Generic repository abstraction for webhook delivery operations.
 /// Implementations handle storage and retrieval of webhook deliveries with dynamic payload support.
 /// </summary>
-public interface IWebhookDeliveryRepository
+public interface IWebhookRepository
 {
 	/// <summary>
 	/// Retrieves the next batch of pending webhook deliveries for processing.
 	/// </summary>
-	Task<IList<PendingWebhook>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
+	Task<IList<PendingWebhookItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
 
 	/// <summary>
 	/// Records the result of a delivery attempt (success or failure).
@@ -31,7 +31,7 @@ public interface IWebhookDeliveryRepository
 	/// <summary>
 	/// Retrieves a specific delivery for inspection or retries.
 	/// </summary>
-	Task<PendingWebhook?> GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct);
+	Task<PendingWebhookItem?> GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct);
 
 	/// <summary>
 	/// Marks a delivery as failed/abandoned (no more retry attempts).

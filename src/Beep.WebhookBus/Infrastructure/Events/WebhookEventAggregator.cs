@@ -7,11 +7,11 @@ namespace Beep.WebhookBus.Infrastructure.Events;
 /// In-process event aggregator for collecting domain events during webhook delivery operations.
 /// Events are stored in memory for eventual publication to external handlers.
 /// </summary>
-public sealed class EventAggregator : IEventAggregator
+public sealed class WebhookEventAggregator : IWebookEventAggregator
 {
-	private readonly List<IDomainEvent> _events = new();
+	private readonly List<IWebhookEvent> _events = new();
 
-	public void RaiseEvent(IDomainEvent domainEvent)
+	public void RaiseEvent(IWebhookEvent domainEvent)
 	{
 		if (domainEvent == null)
 		{
@@ -21,7 +21,7 @@ public sealed class EventAggregator : IEventAggregator
 		_events.Add(domainEvent);
 	}
 
-	public IReadOnlyList<IDomainEvent> GetEvents()
+	public IReadOnlyList<IWebhookEvent> GetEvents()
 	{
 		return _events.AsReadOnly();
 	}
