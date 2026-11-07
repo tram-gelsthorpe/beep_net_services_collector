@@ -307,7 +307,7 @@ public class WorkItemRepository : IWorkItemRepository
 			if (!await reader.ReadAsync(cancellationToken))
 				return null;
 
-			var attempts = new List<WorkItemAttemptRecord>();
+			var attempts = new List<WorkItemAttempt>();
 			var detail = new WorkItemDetail(
 				Id: reader.GetGuid(0),
 				WorkerType: reader.GetString(1),
@@ -329,7 +329,7 @@ public class WorkItemRepository : IWorkItemRepository
 			await reader.NextResultAsync(cancellationToken);
 			while (await reader.ReadAsync(cancellationToken))
 			{
-				attempts.Add(new WorkItemAttemptRecord(
+				attempts.Add(new WorkItemAttempt(
 					AttemptNumber: reader.GetInt32(0),
 					StartedAt: reader.GetDateTimeOffset(1),
 					FinishedAt: reader.IsDBNull(2) ? null : reader.GetDateTimeOffset(2),

@@ -20,5 +20,5 @@ public record WorkItemDetail(
 	DateTimeOffset CreatedAt,
 	DateTimeOffset? StartedAt,
 	DateTimeOffset? CompletedAt,
-	IReadOnlyList<WorkItemAttemptRecord> Attempts
+	IReadOnlyList<WorkItemAttempt> Attempts
 );
