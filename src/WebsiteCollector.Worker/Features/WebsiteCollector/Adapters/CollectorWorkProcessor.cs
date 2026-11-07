@@ -49,9 +49,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 		try
 		{
 			// Validate URL
-			if (!Uri.TryCreate(item.CollectionUrl, UriKind.Absolute, out var uri) ||
-				uri.Scheme != "https" ||
-				!_settings.AllowedHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))
+			if (!Uri.TryCreate(item.CollectionUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https")
 			{
 				return new ProcessingResult { Success = false, ErrorMessage = "URL is not an allowed HTTPS host" };
 			}

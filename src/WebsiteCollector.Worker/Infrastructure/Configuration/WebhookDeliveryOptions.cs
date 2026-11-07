@@ -8,6 +8,8 @@ namespace WebsiteCollector.Worker.Infrastructure.Configuration;
 /// </summary>
 public sealed class WebhookDeliveryOptions : WorkerOptions
 {
+	public const string Name = "WebhookDelivery";
+
 	public WebhookDeliveryOptions()
 	{
 		// Webhook deliveries are typically fast (seconds, not minutes)

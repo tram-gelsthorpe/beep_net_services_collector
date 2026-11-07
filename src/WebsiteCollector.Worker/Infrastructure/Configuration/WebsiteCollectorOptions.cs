@@ -8,11 +8,7 @@ namespace WebsiteCollector.Worker.Infrastructure.Configuration;
 /// </summary>
 public sealed class WebsiteCollectorOptions : WorkerOptions
 {
-	/// <summary>
-	/// HTTPS hosts that are allowed to be collected.
-	/// URLs with other hosts are rejected. Empty array = no hosts allowed.
-	/// </summary>
-	public string[] AllowedHosts { get; set; } = [];
+	public const string Name = "WebsiteCollector";
 
 	public WebsiteCollectorOptions()
 	{
@@ -27,8 +23,5 @@ public sealed class WebsiteCollectorOptions : WorkerOptions
 	public override void Validate()
 	{
 		base.Validate();
-
-		if (AllowedHosts.Length == 0)
-			throw new InvalidOperationException("AllowedHosts cannot be empty");
 	}
 }
