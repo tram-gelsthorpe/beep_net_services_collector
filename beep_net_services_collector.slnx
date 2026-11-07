@@ -18,7 +18,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Beep.ServiceBus/Beep.ServiceBus.csproj" />
-    <Project Path="src/Beep.WebhookDelivery/Beep.WebhookDelivery.csproj" />
+    <Project Path="src/Beep.WebhookDelivery/Beep.Webhook.csproj" />
     <Project Path="src/WebsiteCollector.Worker/WebsiteCollector.Worker.csproj" Id="c0092433-0e8a-4a89-ad5e-a2fb5d0c03d1" />
   </Folder>
   <Folder Name="/tests/">
