@@ -1,7 +1,7 @@
+using Beep.ServiceBus.Processing;
 using Microsoft.Extensions.Logging;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Services;
-using WorkerFramework.Processing;
 
 namespace WebsiteCollector.Worker.Features.WebhookDelivery.Adapters;
 

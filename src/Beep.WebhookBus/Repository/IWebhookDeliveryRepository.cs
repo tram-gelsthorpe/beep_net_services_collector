@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.WebhookDelivery.Domain;
+using Beep.WebhookBus.Domain;
 
-namespace Beep.WebhookDelivery.Repository;
+namespace Beep.WebhookBus.Repository;
 
 /// <summary>
 /// Generic repository abstraction for webhook delivery operations.

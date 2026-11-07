@@ -1,5 +1,5 @@
+using Beep.ServiceBus.Leasing;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using WorkerFramework.Leasing;
 
 namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 

@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.WebhookDelivery.Domain;
-using Beep.WebhookDelivery.Repository;
-using WorkerFramework.Leasing;
+using Beep.ServiceBus.Leasing;
+using Beep.WebhookBus.Domain;
+using Beep.WebhookBus.Repository;
 
-namespace Beep.WebhookDelivery.Workers.Adapters;
+namespace Beep.WebhookBus.Workers.Adapters;
 
 /// <summary>
 /// Lease manager adapter for webhook delivery work items.

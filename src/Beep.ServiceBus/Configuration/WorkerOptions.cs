@@ -1,6 +1,6 @@
 using System;
 
-namespace WorkerFramework.Configuration;
+namespace Beep.ServiceBus.Configuration;
 
 /// <summary>
 /// Default implementation of IWorkerConfiguration.

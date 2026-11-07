@@ -1,6 +1,6 @@
 using System;
 
-namespace WorkerFramework.Domain;
+namespace Beep.ServiceBus.Domain;
 
 /// <summary>
 /// Single attempt record in a work item's history.

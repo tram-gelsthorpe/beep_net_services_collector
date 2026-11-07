@@ -1,12 +1,12 @@
 using System;
-using Beep.WebhookDelivery.Domain;
-using Beep.WebhookDelivery.Infrastructure.Configuration;
-using Beep.WebhookDelivery.Workers.Adapters;
+using Beep.ServiceBus.Workers;
+using Beep.WebhookBus.Domain;
+using Beep.WebhookBus.Infrastructure.Configuration;
+using Beep.WebhookBus.Workers.Adapters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using WorkerFramework.Workers;
 
-namespace Beep.WebhookDelivery.Workers;
+namespace Beep.WebhookBus.Workers;
 
 /// <summary>
 /// Base class for webhook delivery worker implementations.

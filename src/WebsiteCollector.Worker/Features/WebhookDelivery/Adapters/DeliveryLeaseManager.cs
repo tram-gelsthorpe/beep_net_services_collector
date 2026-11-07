@@ -1,6 +1,6 @@
+using Beep.ServiceBus.Leasing;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
-using WorkerFramework.Leasing;
 
 namespace WebsiteCollector.Worker.Features.WebhookDelivery.Adapters;
 

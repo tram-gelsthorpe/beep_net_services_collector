@@ -1,3 +1,4 @@
+using Beep.ServiceBus.Workers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Adapters;
@@ -5,7 +6,6 @@ using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Services;
 using WebsiteCollector.Worker.Infrastructure.Configuration;
-using WorkerFramework.Workers;
 
 namespace WebsiteCollector.Worker;
 

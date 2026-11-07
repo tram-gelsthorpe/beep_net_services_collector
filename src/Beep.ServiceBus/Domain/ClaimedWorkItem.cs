@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace WorkerFramework.Domain
+namespace Beep.ServiceBus.Domain
 {
 	/// <summary>
 	/// Internal implementation of IClaimedWorkItem for claim results.

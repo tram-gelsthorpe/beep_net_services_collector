@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Beep.WebhookDelivery.Infrastructure.Events;
+namespace Beep.WebhookBus.Infrastructure.Events;
 
 /// <summary>
 /// In-process event aggregator for collecting domain events during webhook delivery operations.

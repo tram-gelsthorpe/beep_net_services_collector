@@ -1,6 +1,6 @@
 using System;
 
-namespace Beep.WebhookDelivery.Domain;
+namespace Beep.WebhookBus.Domain;
 
 /// <summary>
 /// Represents a pending webhook delivery to be processed.

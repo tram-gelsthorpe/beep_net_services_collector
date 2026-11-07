@@ -4,10 +4,10 @@ using System.Text.Json;
 using AngleSharp.Html.Parser;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using WorkerFramework.Processing;
 using WebsiteCollector.Worker.Infrastructure.Configuration;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using Beep.ServiceBus.Processing;
 
 namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 

@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
+using Beep.ServiceBus.Domain;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
-using WorkerFramework.Domain;
 
-namespace WorkerFramework.Data;
+namespace Beep.ServiceBus.Repository;
 
 /// <summary>
 /// SQL Server implementation of IWorkItemRepository.

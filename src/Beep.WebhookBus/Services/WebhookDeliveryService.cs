@@ -4,11 +4,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.WebhookDelivery.Domain;
-using Beep.WebhookDelivery.Repository;
+using Beep.WebhookBus.Domain;
+using Beep.WebhookBus.Repository;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.WebhookDelivery.Services;
+namespace Beep.WebhookBus.Services;
 
 public interface IWebhookDeliveryService
 {

@@ -1,8 +1,8 @@
 using System;
-using Beep.WebhookDelivery.Domain;
-using WorkerFramework.Leasing;
+using Beep.ServiceBus.Leasing;
+using Beep.WebhookBus.Domain;
 
-namespace Beep.WebhookDelivery.Workers.Adapters;
+namespace Beep.WebhookBus.Workers.Adapters;
 
 /// <summary>
 /// Represents a claimed webhook delivery work item with lease token.
