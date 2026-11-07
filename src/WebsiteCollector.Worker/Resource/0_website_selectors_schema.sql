@@ -1,0 +1,123 @@
+-- WebsiteCollector.Worker - WebsiteSelectors Base Schema
+-- Core tables for website collection and data tracking
+-- This schema manages website selectors, executions, and collected data
+-- 
+-- Webhook delivery schema is provided by Beep.WebhookBus:
+-- - dbo.Webhooks (mapped to WebsiteSelectorsWebhooks via foreign keys)
+-- - dbo.WebhookMonitor
+-- - dbo.WebhookDeliveries (mapped to WebsiteSelectorsWebhookDeliveries via foreign keys)
+
+SET XACT_ABORT ON;
+GO
+
+-- =====================================================
+-- Drop existing objects if they exist (in dependency order)
+-- =====================================================
+IF OBJECT_ID('dbo.WebsiteSelectorsCollectedData', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsCollectedData;
+GO
+IF OBJECT_ID('dbo.WebsiteSelectorsExecutions', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsExecutions;
+GO
+IF OBJECT_ID('dbo.WebsiteSelectorsMonitor', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsMonitor;
+GO
+IF OBJECT_ID('dbo.WebsiteSelectors', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectors;
+GO
+IF OBJECT_ID('dbo.Websites', 'U') IS NOT NULL DROP TABLE dbo.Websites;
+GO
+
+-- =====================================================
+-- Create Websites table - Main parent table
+-- =====================================================
+-- Stores website configurations that can have multiple selectors
+CREATE TABLE dbo.Websites (
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+	Name nvarchar(200) NOT NULL,
+	Url nvarchar(2048) NOT NULL,
+	IsEnabled bit NOT NULL DEFAULT 1,
+	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+-- =====================================================
+-- Create WebsiteSelectors table
+-- =====================================================
+-- Defines specific collection endpoints and selectors for each website
+CREATE TABLE dbo.WebsiteSelectors (
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+	WebsitesId uniqueidentifier NOT NULL REFERENCES dbo.Websites(Id) ON DELETE CASCADE,
+	CollectionUrl nvarchar(2048) NOT NULL,
+	CollectionType varchar(10) NOT NULL CONSTRAINT CK_Selector_Type CHECK (CollectionType IN ('HTML', 'JSON', 'XML', 'RAW')),
+	ContentSelector nvarchar(1000) NULL,
+	TableSelector nvarchar(1000) NULL,
+	IntervalSeconds int NOT NULL CONSTRAINT CK_Selector_Interval CHECK (IntervalSeconds BETWEEN 10 AND 2592000),
+	IsEnabled bit NOT NULL DEFAULT 1,
+	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	CONSTRAINT UQ_WebsiteSelectors_Unique UNIQUE (WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector)
+);
+GO
+
+CREATE INDEX IX_WebsiteSelectors_Website ON dbo.WebsiteSelectors(WebsitesId) WHERE IsEnabled = 1;
+GO
+
+-- =====================================================
+-- Create WebsiteSelectorsMonitor table
+-- =====================================================
+-- Tracks execution state, leasing, and scheduling for each selector
+CREATE TABLE dbo.WebsiteSelectorsMonitor (
+	Id uniqueidentifier PRIMARY KEY REFERENCES dbo.WebsiteSelectors(Id) ON DELETE CASCADE,
+	NextRunAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	TimeoutSeconds int NOT NULL DEFAULT 30 CONSTRAINT CK_Monitor_Timeout CHECK (TimeoutSeconds BETWEEN 1 AND 300),
+	MaxAttempts int NOT NULL DEFAULT 5 CONSTRAINT CK_Monitor_Attempts CHECK (MaxAttempts BETWEEN 1 AND 20),
+	AttemptCount int NOT NULL DEFAULT 0,
+	LeaseOwner uniqueidentifier NULL,
+	LeaseToken uniqueidentifier NULL,
+	LeaseUntil datetimeoffset(7) NULL,
+	LastStartedAt datetimeoffset(7) NULL,
+	LastSucceededAt datetimeoffset(7) NULL,
+	LastError nvarchar(2000) NULL,
+	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	RowVer rowversion NOT NULL
+);
+GO
+
+CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextRunAt, Id) WHERE LeaseOwner IS NULL;
+GO
+
+-- =====================================================
+-- Create WebsiteSelectorsExecutions table
+-- =====================================================
+-- Records individual execution attempts for each collection run
+CREATE TABLE dbo.WebsiteSelectorsExecutions (
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+	WebsiteSelectorsId uniqueidentifier NOT NULL REFERENCES dbo.WebsiteSelectors(Id) ON DELETE CASCADE,
+	LeaseToken uniqueidentifier NOT NULL UNIQUE,
+	WorkerId uniqueidentifier NOT NULL,
+	StartedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	FinishedAt datetimeoffset(7) NULL,
+	Status varchar(16) NOT NULL CONSTRAINT CK_Exec_Status CHECK (Status IN ('Running', 'Succeeded', 'Failed', 'Abandoned')),
+	AttemptNumber int NOT NULL,
+	HttpStatus int NULL,
+	ErrorMessage nvarchar(2000) NULL
+);
+GO
+
+CREATE INDEX IX_Exec_WebsiteSelectorsTime ON dbo.WebsiteSelectorsExecutions(WebsiteSelectorsId, StartedAt DESC);
+GO
+
+-- =====================================================
+-- Create WebsiteSelectorsCollectedData table
+-- =====================================================
+-- Stores collected content from successful executions
+CREATE TABLE dbo.WebsiteSelectorsCollectedData (
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+	WebsiteSelectorsExecutionsId uniqueidentifier NOT NULL REFERENCES dbo.WebsiteSelectorsExecutions(Id) ON DELETE CASCADE,
+	ContentHash binary(32) NOT NULL,
+	ResponseContent nvarchar(max) NOT NULL,
+	ExtractedJson nvarchar(max) NULL,
+	CollectedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	CONSTRAINT UQ_CollectedData_Hash UNIQUE(WebsiteSelectorsExecutionsId, ContentHash)
+);
+GO
+
+CREATE INDEX IX_CollectedData_Execution ON dbo.WebsiteSelectorsCollectedData(WebsiteSelectorsExecutionsId, CollectedAt DESC);
+GO
