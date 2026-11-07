@@ -6,11 +6,11 @@ namespace Beep.WebhookBus.Infrastructure.Configuration;
 /// Configuration options for webhook delivery worker.
 /// Webhook deliveries are typically fast, so defaults are optimized for quick processing.
 /// </summary>
-public sealed class WebhookDeliveryOptions : WorkerOptions
+public sealed class WebhookOptions : WorkerOptions
 {
-	public const string Name = "WebhookDelivery";
+	public const string Name = "Webhook";
 
-	public WebhookDeliveryOptions()
+	public WebhookOptions()
 	{
 		// Webhook deliveries are typically fast (seconds, not minutes)
 		// so we use faster polling and shorter leases than general collectors

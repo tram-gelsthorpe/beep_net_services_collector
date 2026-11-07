@@ -14,12 +14,12 @@ namespace Beep.WebhookBus.Workers;
 /// </summary>
 public abstract class WebhookWorkerBase : GenericWorkerBase<PendingWebhookItem>
 {
-	private readonly WebhookDeliveryOptions _options;
+	private readonly WebhookOptions _options;
 
 	protected WebhookWorkerBase(
 		WebhookLeaseManager leaseManager,
 		WebhookWorkProcessor workProcessor,
-		WebhookDeliveryOptions options,
+		WebhookOptions options,
 		ILogger logger)
 		: base(leaseManager, workProcessor, options, logger)
 	{
