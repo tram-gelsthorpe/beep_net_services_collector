@@ -1,7 +1,5 @@
-using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 using WebsiteCollector.Worker.Infrastructure.Events;
@@ -9,14 +7,15 @@ using WebsiteCollector.Worker.Infrastructure.Events;
 namespace WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 
 /// <summary>
-/// Subscriber that forwards collection notifications to registered webhooks.
-/// Executes asynchronously and non-blocking.
+/// Subscriber that queues webhook deliveries when collection notifications occur.
+/// Uses the generic Beep.WebhookBus delivery system with async, queued processing.
+/// Webhook actual HTTP delivery is handled by the WebhookDeliveryWorker via the generic framework.
 /// </summary>
 public sealed class WebsiteSelectorsSubscriber : ISubscriber
 {
 	private readonly IEventAggregator _eventAggregator;
 	private readonly IWebsiteSelectionWebhookRepository _webhookRepository;
-	private readonly IHttpClientFactory _httpClientFactory;
+	private readonly IWebhookDeliveryRepository _deliveryRepository;
 	private readonly ILogger<WebsiteSelectorsSubscriber> _logger;
 
 	public string Name => "WebsiteSelectorsSubscriber";
@@ -24,12 +23,12 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 	public WebsiteSelectorsSubscriber(
 		IEventAggregator eventAggregator,
 		IWebsiteSelectionWebhookRepository webhookRepository,
-		IHttpClientFactory httpClientFactory,
+		IWebhookDeliveryRepository deliveryRepository,
 		ILogger<WebsiteSelectorsSubscriber> logger)
 	{
 		_eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
 		_webhookRepository = webhookRepository ?? throw new ArgumentNullException(nameof(webhookRepository));
-		_httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+		_deliveryRepository = deliveryRepository ?? throw new ArgumentNullException(nameof(deliveryRepository));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -45,7 +44,7 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 		try
 		{
 			_logger.LogInformation(
-				"Collection completed for selector {SelectorId}, forwarding to webhooks",
+				"Collection completed for selector {SelectorId}, queueing webhook deliveries",
 				@event.WebsiteSelectorsId);
 
 			// Get all registered webhooks for this selector
@@ -59,91 +58,41 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 				return;
 			}
 
-			// Build notification payload
-			var payload = BuildPayload(@event);
+			// Queue a delivery for each webhook
+			// The generic webhook delivery system (Beep.WebhookBus) will handle actual HTTP delivery
+			foreach (var webhook in webhooks)
+			{
+				try
+				{
+					_logger.LogDebug(
+						"Queueing webhook delivery for {WebhookUrl} (webhook {WebhookId})",
+						webhook.WebhookUrl,
+						webhook.Id);
 
-			// Call all webhooks asynchronously (fire-and-forget)
-			var tasks = webhooks.Select(webhook => CallWebhookAsync(webhook, payload, ct));
-			await Task.WhenAll(tasks);
+					// Queue the delivery - actual HTTP POST will be handled by WebhookDeliveryWorker
+					await _deliveryRepository.QueueDeliveryAsync(webhook.Id, @event.CollectedDataId, ct);
+
+					_logger.LogInformation(
+						"Queued webhook delivery for selector {SelectorId} to webhook {WebhookUrl}",
+						@event.WebsiteSelectorsId,
+						webhook.WebhookUrl);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(
+						ex,
+						"Failed to queue webhook delivery for selector {SelectorId} and webhook {WebhookId}",
+						@event.WebsiteSelectorsId,
+						webhook.Id);
+				}
+			}
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error processing collection completed event for selector {SelectorId}", @event.WebsiteSelectorsId);
-		}
-	}
-
-	private static CollectionNotificationPayload BuildPayload(CollectionCompletedEvent @event)
-	{
-		return new CollectionNotificationPayload
-		{
-			EventId = @event.EventId,
-			WebsiteSelectorsId = @event.WebsiteSelectorsId,
-			IsSuccess = @event.IsSuccess,
-			HttpStatusCode = @event.HttpStatusCode,
-			Error = @event.Error,
-			ResponseContent = @event.ResponseContent,
-			ExtractedJson = @event.ExtractedJson,
-			ContentHashBase64 = @event.ContentHash != null ? Convert.ToBase64String(@event.ContentHash) : null,
-			CollectionStartedAt = @event.CollectionStartedAt,
-			CollectionFinishedAt = @event.CollectionFinishedAt,
-			AttemptNumber = @event.AttemptNumber,
-			NotificationSentAt = DateTimeOffset.UtcNow
-		};
-	}
-
-	private async Task CallWebhookAsync(
-		WebsiteSelectionWebhook webhook,
-		CollectionNotificationPayload payload,
-		CancellationToken ct)
-	{
-		try
-		{
-			using var client = _httpClientFactory.CreateClient("collector");
-
-			var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-			using var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-			_logger.LogDebug("Calling webhook {WebhookUrl} for selector {SelectorId}", webhook.WebhookUrl, webhook.WebsiteSelectorsId);
-
-			using var response = await client.PostAsync(webhook.WebhookUrl, content, ct);
-
-			int? statusCode = (int?)response.StatusCode;
-			string? errorMessage = null;
-
-			if (!response.IsSuccessStatusCode)
-			{
-				errorMessage = $"HTTP {statusCode}: {response.ReasonPhrase}";
-				_logger.LogWarning(
-					"Webhook call failed for {WebhookUrl}: {StatusCode} {Reason}",
-					webhook.WebhookUrl,
-					response.StatusCode,
-					response.ReasonPhrase);
-			}
-			else
-			{
-				_logger.LogInformation(
-					"Webhook call succeeded for {WebhookUrl} [{StatusCode}]",
-					webhook.WebhookUrl,
-					response.StatusCode);
-			}
-
-			// Update webhook status in database
-			await _webhookRepository.UpdateWebhookStatusAsync(webhook.Id, statusCode, errorMessage, ct);
-		}
-		catch (OperationCanceledException)
-		{
-			_logger.LogWarning("Webhook call to {WebhookUrl} was cancelled", webhook.WebhookUrl);
-			await _webhookRepository.UpdateWebhookStatusAsync(webhook.Id, null, "Cancelled", ct);
-		}
-		catch (HttpRequestException ex)
-		{
-			_logger.LogError(ex, "HTTP error calling webhook {WebhookUrl}", webhook.WebhookUrl);
-			await _webhookRepository.UpdateWebhookStatusAsync(webhook.Id, null, ex.Message, ct);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "Unexpected error calling webhook {WebhookUrl}", webhook.WebhookUrl);
-			await _webhookRepository.UpdateWebhookStatusAsync(webhook.Id, null, ex.Message, ct);
+			_logger.LogError(
+				ex,
+				"Error processing collection completed event for selector {SelectorId}",
+				@event.WebsiteSelectorsId);
 		}
 	}
 }
