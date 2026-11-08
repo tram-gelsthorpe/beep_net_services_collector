@@ -1,6 +1,6 @@
 using System;
 
-namespace Beep.WebhookBus.Infrastructure.Events;
+namespace Beep.Webhook.Infrastructure.Events;
 
 /// <summary>
 /// Base interface for all domain events published by the webhook delivery system.

@@ -1,4 +1,4 @@
-namespace Beep.WebhookBus.Domain;
+namespace Beep.Webhook.Domain;
 
 /// <summary>
 /// Status values for webhook delivery work items.

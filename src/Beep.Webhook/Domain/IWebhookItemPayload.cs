@@ -1,4 +1,4 @@
-namespace Beep.WebhookBus.Domain;
+namespace Beep.Webhook.Domain;
 
 /// <summary>
 /// Generic interface for webhook payloads.

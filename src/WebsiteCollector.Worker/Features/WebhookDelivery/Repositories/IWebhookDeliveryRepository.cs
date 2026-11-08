@@ -1,10 +1,10 @@
-﻿using Beep.WebhookBus.Domain;
+﻿using Beep.Webhook.Domain;
 
 namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories
 {
 	/// <summary>
 	/// Project-specific webhook delivery repository.
-	/// Provides a thin wrapper around generic Beep.WebhookBus IWebhookRepository
+	/// Provides a thin wrapper around generic Beep.Webhook IWebhookRepository
 	/// with project-specific queuing logic for WebsiteSelectors context.
 	/// </summary>
 	public interface IWebhookDeliveryRepository

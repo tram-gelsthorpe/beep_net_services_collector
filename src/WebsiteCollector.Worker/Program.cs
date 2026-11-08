@@ -1,6 +1,6 @@
-using Beep.WebhookBus.Infrastructure.Configuration;
-using Beep.WebhookBus.Repository;
-using Beep.WebhookBus.Services;
+using Beep.Webhook.Infrastructure.Configuration;
+using Beep.Webhook.Repository;
+using Beep.Webhook.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;

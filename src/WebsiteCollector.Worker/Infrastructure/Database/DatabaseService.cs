@@ -1,6 +1,7 @@
 using Beep.ServiceBus.Database;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Beep.Webhook.Database;
 
 namespace WebsiteCollector.Worker.Infrastructure.Database;
 

@@ -2,11 +2,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Beep.ServiceBus.Processing;
-using Beep.WebhookBus.Domain;
-using Beep.WebhookBus.Services;
+using Beep.Webhook.Domain;
+using Beep.Webhook.Services;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.WebhookBus.Workers.Adapters;
+namespace Beep.Webhook.Workers.Adapters;
 
 /// <summary>
 /// Work processor adapter that delegates webhook delivery to WebhookDeliveryService.

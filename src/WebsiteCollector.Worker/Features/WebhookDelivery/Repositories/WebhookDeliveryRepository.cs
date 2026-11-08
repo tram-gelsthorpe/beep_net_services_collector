@@ -1,8 +1,8 @@
-using Beep.WebhookBus.Domain;
-using Beep.WebhookBus.Repository;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Beep.Webhook.Domain;
+using Beep.Webhook.Repository;
 
 namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 

@@ -3,11 +3,11 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.WebhookBus.Domain;
-using Beep.WebhookBus.Repository;
+using Beep.Webhook.Domain;
+using Beep.Webhook.Repository;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.WebhookBus.Services;
+namespace Beep.Webhook.Services;
 
 /// <summary>
 /// Handles webhook delivery with HTTP POST, retry logic, and exponential backoff.

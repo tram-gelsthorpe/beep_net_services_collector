@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Beep.WebhookBus.Repository;
+using Beep.Webhook.Repository;
 
 namespace WebsiteCollector.Api.Controllers;
 

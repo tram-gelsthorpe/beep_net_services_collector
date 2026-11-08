@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 
-namespace Beep.ServiceBus.Database
+namespace Beep.Webhook.Database
 {
 	public sealed class SqlWebhookDatabase : IWebhookDatabase
 	{

@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace Beep.ServiceBus.Database
+namespace Beep.Webhook.Database
 {
 	public interface IWebhookDatabase
 	{

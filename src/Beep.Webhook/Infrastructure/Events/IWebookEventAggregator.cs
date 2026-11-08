@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Beep.WebhookBus.Infrastructure.Events;
+namespace Beep.Webhook.Infrastructure.Events;
 
 /// <summary>
 /// Aggregates and dispatches domain events published during webhook delivery processing.

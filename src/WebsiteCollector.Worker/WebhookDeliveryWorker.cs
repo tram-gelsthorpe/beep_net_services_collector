@@ -1,8 +1,8 @@
-using Beep.WebhookBus.Infrastructure.Configuration;
-using Beep.WebhookBus.Repository;
-using Beep.WebhookBus.Services;
-using Beep.WebhookBus.Workers;
-using Beep.WebhookBus.Workers.Adapters;
+using Beep.Webhook.Infrastructure.Configuration;
+using Beep.Webhook.Repository;
+using Beep.Webhook.Services;
+using Beep.Webhook.Workers;
+using Beep.Webhook.Workers.Adapters;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

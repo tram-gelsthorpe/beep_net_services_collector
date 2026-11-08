@@ -1,6 +1,6 @@
 using System;
 
-namespace Beep.WebhookBus.Domain;
+namespace Beep.Webhook.Domain;
 
 /// <summary>
 /// Represents delivery attempt metadata for a webhook delivery.

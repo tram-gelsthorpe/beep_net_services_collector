@@ -1,8 +1,8 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using Beep.WebhookBus.Domain;
+using Beep.Webhook.Domain;
 
-namespace Beep.WebhookBus.Services
+namespace Beep.Webhook.Services
 {
 	public interface IWebhookService
 	{
