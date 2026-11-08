@@ -1,9 +1,9 @@
+using Beep.ServiceBus;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using Beep.ServiceBus.Repository;
 
 namespace WebsiteCollector.Worker.Infrastructure.Database;
 

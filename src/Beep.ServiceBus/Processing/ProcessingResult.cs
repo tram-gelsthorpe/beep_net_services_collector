@@ -1,4 +1,4 @@
-namespace Beep.ServiceBus.Processing;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Represents the result of processing a work item.

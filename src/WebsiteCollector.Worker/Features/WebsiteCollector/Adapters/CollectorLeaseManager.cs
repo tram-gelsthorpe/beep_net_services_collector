@@ -1,4 +1,4 @@
-using Beep.ServiceBus.Leasing;
+using Beep.ServiceBus;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 

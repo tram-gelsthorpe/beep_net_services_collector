@@ -1,5 +1,5 @@
+using Beep.EventBus;
 using Microsoft.Extensions.Logging;
-using Beep.EventBus.Infrastructure.Events;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
@@ -15,7 +15,7 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 {
 	private readonly IEventAggregator _eventAggregator;
 	private readonly IWebsiteSelectionWebhookRepository _webhookRepository;
-	private readonly IWebhookDeliveryRepository _deliveryRepository;
+	private readonly IEventBusDeliveryRepository _deliveryRepository;
 	private readonly ILogger<WebsiteSelectorsSubscriber> _logger;
 
 	public string Name => "WebsiteSelectorsSubscriber";
@@ -23,7 +23,7 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 	public WebsiteSelectorsSubscriber(
 		IEventAggregator eventAggregator,
 		IWebsiteSelectionWebhookRepository webhookRepository,
-		IWebhookDeliveryRepository deliveryRepository,
+		IEventBusDeliveryRepository deliveryRepository,
 		ILogger<WebsiteSelectorsSubscriber> logger)
 	{
 		_eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));

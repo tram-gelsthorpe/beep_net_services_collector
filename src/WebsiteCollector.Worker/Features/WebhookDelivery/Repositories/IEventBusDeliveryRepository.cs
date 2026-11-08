@@ -1,4 +1,4 @@
-﻿using Beep.Webhook.Domain;
+﻿using Beep.EventBus;
 
 namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories
 {
@@ -7,7 +7,7 @@ namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories
 	/// Provides a thin wrapper around generic Beep.Webhook IWebhookRepository
 	/// with project-specific queuing logic for WebsiteSelectors context.
 	/// </summary>
-	public interface IWebhookDeliveryRepository
+	public interface IEventBusDeliveryRepository
 	{
 		/// <summary>
 		/// Queue a webhook delivery for processing.
@@ -23,6 +23,6 @@ namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories
 		/// <summary>
 		/// Get pending deliveries from the generic framework.
 		/// </summary>
-		Task<IList<PendingWebhookItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
+		Task<IList<PendingEventBus>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
 	}
 }

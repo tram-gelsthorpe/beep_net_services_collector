@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Beep.ServiceBus.Processing;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Processor for claimed work items.

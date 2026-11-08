@@ -1,5 +1,5 @@
 using System;
-using Beep.ServiceBus.Leasing;
+using Beep.ServiceBus;
 
 namespace Beep.EventBus;
 

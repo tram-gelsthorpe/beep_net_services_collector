@@ -1,5 +1,5 @@
+using Beep.EventBus;
 using Microsoft.AspNetCore.Mvc;
-using Beep.Webhook.Repository;
 
 namespace WebsiteCollector.Api.Controllers;
 
@@ -10,10 +10,10 @@ namespace WebsiteCollector.Api.Controllers;
 [Route("api/[controller]")]
 public class WebhookDeliveriesController : ControllerBase
 {
-	private readonly IWebhookRepository _webhookRepository;
+	private readonly IEventBusRepository _webhookRepository;
 	private readonly ILogger<WebhookDeliveriesController> _logger;
 
-	public WebhookDeliveriesController(IWebhookRepository webhookRepository, ILogger<WebhookDeliveriesController> logger)
+	public WebhookDeliveriesController(IEventBusRepository webhookRepository, ILogger<WebhookDeliveriesController> logger)
 	{
 		_webhookRepository = webhookRepository;
 		_logger = logger;

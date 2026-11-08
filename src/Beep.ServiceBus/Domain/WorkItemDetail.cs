@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Beep.ServiceBus.Domain;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Detailed information about a work item, including attempt history.

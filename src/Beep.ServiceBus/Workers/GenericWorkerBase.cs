@@ -3,13 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.ServiceBus.Configuration;
-using Beep.ServiceBus.Leasing;
-using Beep.ServiceBus.Processing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.ServiceBus.Workers;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Generic background worker that implements the claim/release pattern for any work item type.

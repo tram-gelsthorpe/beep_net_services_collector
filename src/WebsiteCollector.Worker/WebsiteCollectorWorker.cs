@@ -4,7 +4,7 @@ using WebsiteCollector.Worker.Infrastructure.Configuration;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
-using Beep.ServiceBus.Workers;
+using Beep.ServiceBus;
 
 public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {

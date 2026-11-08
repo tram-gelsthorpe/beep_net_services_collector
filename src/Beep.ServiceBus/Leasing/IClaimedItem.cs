@@ -1,6 +1,6 @@
 using System;
 
-namespace Beep.ServiceBus.Leasing;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Represents a claimed work item with lease information.

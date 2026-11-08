@@ -1,6 +1,5 @@
 using System;
-using Beep.EventBus.Infrastructure.Configuration;
-using Beep.ServiceBus.Workers;
+using Beep.ServiceBus;
 using Microsoft.Extensions.Logging;
 
 namespace Beep.EventBus;

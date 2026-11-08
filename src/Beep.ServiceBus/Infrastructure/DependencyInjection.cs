@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Beep.ServiceBus.Database;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Beep.ServiceBus.Infrastructure
-{
-	public static class DependencyInjection
-	{
-		public static async Task CreateDatabase(this IServiceProvider provider)
-		{
-			using var scope = provider.CreateScope();
-			var database = scope.ServiceProvider.GetRequiredService<IServiceBusDatabase>();
+namespace Beep.ServiceBus;
 
-			await database.Create();
-		}
+public static class DependencyInjection
+{
+	public static async Task CreateDatabase(this IServiceProvider provider)
+	{
+		using var scope = provider.CreateScope();
+		var database = scope.ServiceProvider.GetRequiredService<IServiceBusDatabase>();
+
+		await database.Create();
 	}
 }

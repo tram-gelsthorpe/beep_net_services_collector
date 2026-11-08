@@ -29,7 +29,7 @@ builder.Services.AddScoped<ICollectedDataRepository, CollectedDataRepository>();
 // Worker repositories
 builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();
 builder.Services.AddScoped<IWebsiteSelectionWebhookRepository, WebsiteSelectionWebhookRepository>();
-builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
+builder.Services.AddScoped<IEventBusDeliveryRepository, EventBusDeliveryRepository>();
 
 var app = builder.Build();
 

@@ -1,7 +1,7 @@
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
-using Beep.EventBus.Infrastructure.Events;
+using Beep.EventBus;
 
 namespace WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 

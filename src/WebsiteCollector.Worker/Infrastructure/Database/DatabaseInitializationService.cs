@@ -1,4 +1,4 @@
-using Beep.ServiceBus.Database;
+using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 

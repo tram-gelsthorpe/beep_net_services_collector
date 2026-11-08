@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.ServiceBus.Processing;
+using Beep.ServiceBus;
 using Microsoft.Extensions.Logging;
 
 namespace Beep.EventBus;

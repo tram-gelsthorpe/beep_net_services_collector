@@ -1,6 +1,6 @@
 using System;
 
-namespace Beep.ServiceBus.Domain;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Standard result from claiming work items.

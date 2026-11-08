@@ -1,6 +1,6 @@
-using Beep.ServiceBus.Configuration;
+using Beep.ServiceBus;
 
-namespace Beep.EventBus.Infrastructure.Configuration;
+namespace Beep.EventBus;
 
 /// <summary>
 /// Configuration options for webhook delivery worker.

@@ -1,7 +1,7 @@
-using Beep.ServiceBus.Database;
+using Beep.EventBus;
+using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Beep.Webhook.Database;
 
 namespace WebsiteCollector.Worker.Infrastructure.Database;
 
@@ -33,15 +33,15 @@ public sealed class DatabaseService(
 			await serviceBusDb.Create(cancellationToken);
 			logger.LogInformation("ServiceBus database initialized successfully");
 
-			// Initialize WebhookBus database (Webhooks and WebhookDeliveries tables)
+			// Initialize EventBus database (EventBus and EventBusDeliveries tables)
 			// If a separate Webhook database is configured, initialize it too
 			var webhookConnectionString = configuration.GetConnectionString("Webhook")
 				?? throw new InvalidOperationException("Missing Webhook connection string ");
 
-			logger.LogInformation("Initializing WebhookBus database...");
-			var webhookDb = new SqlWebhookDatabase(webhookConnectionString);
+			logger.LogInformation("Initializing EventBus database...");
+			var webhookDb = new SqlEventBusDatabase(webhookConnectionString);
 			await webhookDb.Create(cancellationToken);
-			logger.LogInformation("WebhookBus database initialized successfully");
+			logger.LogInformation("EventBus database initialized successfully");
 
 
 			// Initialize WebsiteCollector schema (WebsiteSelectors, WebsiteSelectionWebhooks, WebsiteSelectorsCollectedData)
@@ -49,7 +49,7 @@ public sealed class DatabaseService(
 				?? throw new InvalidOperationException("Missing Collector connection string ");
 
 			logger.LogInformation("Initializing WebsiteCollector database...");
-			var collectorDb = new SqlWebhookDatabase(collectorConnectionString);
+			var collectorDb = new SqlEventBusDatabase(collectorConnectionString);
 			await collectorDb.Create(cancellationToken);
 			logger.LogInformation("WebsiteCollector database initialized successfully");
 

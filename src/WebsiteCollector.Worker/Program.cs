@@ -1,8 +1,4 @@
-using System;
-using Beep.Webhook.Infrastructure.Configuration;
-using Beep.Webhook.Repository;
-using Beep.Webhook.Services;
-using Beep.EventBus.Infrastructure.Events;
+using Beep.EventBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
@@ -17,17 +13,17 @@ using WebsiteCollector.Worker.Infrastructure.Http;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
-builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection(WebhookOptions.Name));
+builder.Services.Configure<EventBusOptions>(builder.Configuration.GetSection(EventBusOptions.Name));
 
 builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
 builder.Services.AddScoped<DatabaseInitializationService>();
 
-// Beep.Webhook - Generic webhook infrastructure
-// WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IWebhookRepository (generic)
-builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
-builder.Services.AddScoped<IWebhookRepository>(sp => (IWebhookRepository)sp.GetRequiredService<IWebhookDeliveryRepository>());
-builder.Services.AddScoped<IWebhookService, WebhookService>();
+// Beep.EventBus - Generic event bus infrastructure
+// WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IEventBusRepository (generic)
+builder.Services.AddScoped<IEventBusDeliveryRepository, EventBusDeliveryRepository>();
+builder.Services.AddScoped<IEventBusRepository>(sp => (IEventBusRepository)sp.GetRequiredService<IEventBusDeliveryRepository>());
+builder.Services.AddScoped<IEventBusService, EventBusService>();
 
 // WebsiteCollector.Worker specific
 builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();

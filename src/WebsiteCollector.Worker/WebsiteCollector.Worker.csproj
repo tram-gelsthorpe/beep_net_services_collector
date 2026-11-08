@@ -16,8 +16,8 @@
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Beep.EventBus\Beep.EventBus.csproj" />
     <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
-    <ProjectReference Include="..\Beep.Webhook\Beep.EventBus.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\WebhookDelivery\Adapters\" />

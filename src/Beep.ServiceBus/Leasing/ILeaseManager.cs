@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Beep.ServiceBus.Leasing;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Manages lease lifecycle for work items: claiming, renewing, and releasing.

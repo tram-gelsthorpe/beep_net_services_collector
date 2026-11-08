@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Beep.ServiceBus.Domain;
 
-namespace Beep.ServiceBus.Repository;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Generic work item repository providing centralized work claiming,

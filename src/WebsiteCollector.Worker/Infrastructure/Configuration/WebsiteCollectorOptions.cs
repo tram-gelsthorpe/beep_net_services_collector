@@ -1,4 +1,4 @@
-using Beep.ServiceBus.Configuration;
+using Beep.ServiceBus;
 
 namespace WebsiteCollector.Worker.Infrastructure.Configuration;
 

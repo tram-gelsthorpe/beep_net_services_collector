@@ -1,10 +1,9 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace Beep.ServiceBus.Database
+namespace Beep.ServiceBus;
+
+public interface IServiceBusDatabase
 {
-	public interface IServiceBusDatabase
-	{
-		Task Create(CancellationToken cancellationToken = default);
-	}
+	Task Create(CancellationToken cancellationToken = default);
 }

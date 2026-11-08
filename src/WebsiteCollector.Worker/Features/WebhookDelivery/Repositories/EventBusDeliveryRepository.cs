@@ -1,17 +1,16 @@
+using Beep.EventBus;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Beep.Webhook.Domain;
-using Beep.Webhook.Repository;
 
 namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 
 /// <summary>
 /// Project-specific webhook delivery repository.
-/// Implements both IWebhookDeliveryRepository (project-specific queuing) and IWebhookRepository (generic delivery).
+/// Implements both IWebhookDeliveryRepository (project-specific queuing) and IEventBusRepository (generic delivery).
 /// Provides queuing and result tracking for WebsiteSelectors webhooks using generic dbo.WebhookDeliveries table.
 /// </summary>
-public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookDeliveryRepository, IWebhookRepository
+public sealed class EventBusDeliveryRepository(IConfiguration config) : IEventBusDeliveryRepository, IEventBusRepository
 {
 	private SqlConnection Open() => new(config.GetConnectionString("Default") ?? throw new InvalidOperationException("Missing Default connection string"));
 
@@ -39,7 +38,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// Record the result of a webhook delivery attempt.
 	/// Updates status and retry scheduling in the generic table.
 	/// </summary>
-	async Task IWebhookDeliveryRepository.RecordDeliveryResultAsync(Guid deliveryId, bool success, int? httpStatusCode, string? errorMessage, CancellationToken ct)
+	async Task IEventBusDeliveryRepository.RecordDeliveryResultAsync(Guid deliveryId, bool success, int? httpStatusCode, string? errorMessage, CancellationToken ct)
 	{
 		await RecordDeliveryResultAsync(deliveryId, success, httpStatusCode, errorMessage, null, ct);
 	}
@@ -48,7 +47,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// Record the result of a webhook delivery attempt.
 	/// Updates status and retry scheduling in the generic table.
 	/// </summary>
-	async Task IWebhookRepository.RecordDeliveryResultAsync(Guid deliveryId, bool isSuccessful, int? httpStatusCode, string? errorMessage, string? responseContent, CancellationToken ct)
+	async Task IEventBusRepository.RecordDeliveryResultAsync(Guid deliveryId, bool isSuccessful, int? httpStatusCode, string? errorMessage, string? responseContent, CancellationToken ct)
 	{
 		await RecordDeliveryResultAsync(deliveryId, isSuccessful, httpStatusCode, errorMessage, responseContent, ct);
 	}
@@ -94,7 +93,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// Get pending deliveries ready for processing from the generic table.
 	/// This implementation fetches pending deliveries with full webhook context.
 	/// </summary>
-	public async Task<IList<PendingWebhookItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct)
+	public async Task<IList<PendingEventBus>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """
@@ -117,7 +116,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 			ORDER BY d.NextRetryAt ASC, d.CreatedAt ASC
 			""";
 
-		var deliveries = await connection.QueryAsync<PendingWebhookItem>(
+		var deliveries = await connection.QueryAsync<PendingEventBus>(
 			new CommandDefinition(sql, new { BatchSize = batchSize }, cancellationToken: ct));
 
 		return deliveries.ToList();
@@ -126,7 +125,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// <summary>
 	/// Get a specific delivery by ID from the generic table.
 	/// </summary>
-	async Task<PendingWebhookItem?> IWebhookRepository.GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct)
+	async Task<PendingEventBus?> IEventBusRepository.GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """
@@ -146,14 +145,14 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 			WHERE d.Id = @DeliveryId
 			""";
 
-		return await connection.QueryFirstOrDefaultAsync<PendingWebhookItem>(
+		return await connection.QueryFirstOrDefaultAsync<PendingEventBus>(
 			new CommandDefinition(sql, new { DeliveryId = deliveryId }, cancellationToken: ct));
 	}
 
 	/// <summary>
 	/// Abandon a delivery (mark as failed/no more retries).
 	/// </summary>
-	async Task IWebhookRepository.AbandonDeliveryAsync(Guid deliveryId, string reason, CancellationToken ct)
+	async Task IEventBusRepository.AbandonDeliveryAsync(Guid deliveryId, string reason, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """
@@ -169,7 +168,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// <summary>
 	/// Get the current attempt count for a delivery.
 	/// </summary>
-	async Task<int> IWebhookRepository.GetDeliveryAttemptCountAsync(Guid deliveryId, CancellationToken ct)
+	async Task<int> IEventBusRepository.GetDeliveryAttemptCountAsync(Guid deliveryId, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """

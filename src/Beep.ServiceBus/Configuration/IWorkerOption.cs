@@ -1,4 +1,4 @@
-namespace Beep.ServiceBus.Configuration;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Defines the configuration contract for any GenericWorkerBase worker.

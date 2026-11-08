@@ -1,4 +1,4 @@
-namespace Beep.ServiceBus.Domain;
+namespace Beep.ServiceBus;
 
 /// <summary>
 /// Standard status values for any work item in the WorkerFramework.

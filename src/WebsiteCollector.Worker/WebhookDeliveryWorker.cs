@@ -1,8 +1,4 @@
-using Beep.Webhook.Infrastructure.Configuration;
-using Beep.Webhook.Repository;
-using Beep.Webhook.Services;
-using Beep.Webhook.Workers;
-using Beep.Webhook.Workers.Adapters;
+using Beep.EventBus;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -13,17 +9,17 @@ namespace WebsiteCollector.Worker;
 /// Inherits from the generic Beep.WebhookBus WebhookWorkerBase for all delivery processing.
 /// No project-specific logic - pure generic webhook delivery handling.
 /// </summary>
-public sealed class WebhookDeliveryWorker : WebhookWorkerBase
+public sealed class WebhookDeliveryWorker : EventBusWorkerBase
 {
 	public WebhookDeliveryWorker(
-		IWebhookRepository repository,
-		IWebhookService deliveryService,
-		IOptions<WebhookOptions> options,
+		IEventBusRepository repository,
+		IEventBusService deliveryService,
+		IOptions<EventBusOptions> options,
 		ILoggerFactory loggerFactory,
 		ILogger<WebhookDeliveryWorker> logger)
 		: base(
-			new WebhookLeaseManager(repository),
-			new WebhookWorkProcessor(deliveryService, loggerFactory.CreateLogger<WebhookWorkProcessor>()),
+			new EventBusLeaseManager(repository),
+			new EventBusWorkProcessor(deliveryService, loggerFactory.CreateLogger<EventBusWorkProcessor>()),
 			options.Value,
 			logger)
 	{
