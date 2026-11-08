@@ -1,25 +1,28 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using WebsiteCollector.Worker.Features.SelectorManagement.Services;
-using WebsiteCollector.Worker.Infrastructure.Events;
-using WebsiteCollector.Worker.Infrastructure.Configuration;
-using WebsiteCollector.Worker;
-using WebsiteCollector.Worker.Infrastructure.Database;
-using WebsiteCollector.Worker.Infrastructure.Http;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
+using Beep.WebhookBus.Infrastructure.Configuration;
 using Beep.WebhookBus.Repository;
 using Beep.WebhookBus.Services;
-using Beep.WebhookBus.Infrastructure.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using WebsiteCollector.Worker;
+using WebsiteCollector.Worker.Features.SelectorManagement.Services;
+using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
+using WebsiteCollector.Worker.Infrastructure.Configuration;
+using WebsiteCollector.Worker.Infrastructure.Database;
+using WebsiteCollector.Worker.Infrastructure.Events;
+using WebsiteCollector.Worker.Infrastructure.Http;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
 builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection(WebhookOptions.Name));
 
+builder.Services.AddScoped<DatabaseService>();
+
 builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
+
 
 // Beep.WebhookBus - Generic webhook infrastructure
 // WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IWebhookRepository (generic)
@@ -40,6 +43,10 @@ builder.Services.AddHostedService<WebsiteCollectorWorker>();
 builder.Services.AddHostedService<WebhookDeliveryWorker>();
 
 var host = builder.Build();
+
+// Initialize databases on startup before any services access them
+var dbInitializer = host.Services.GetRequiredService<DatabaseService>();
+await dbInitializer.InitializeAsync();
 
 // Initialize event subscribers on startup
 var subscribers = host.Services.GetRequiredService<IEnumerable<ISubscriber>>();
