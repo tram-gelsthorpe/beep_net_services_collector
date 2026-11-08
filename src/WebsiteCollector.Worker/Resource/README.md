@@ -4,87 +4,87 @@ This folder contains SQL migration scripts for setting up the WebsiteCollector.W
 
 ## Architecture Overview
 
-The WebsiteCollector.Worker uses a **No-Code-Duplication Strategy**:
+The WebsiteCollector.Worker uses a **Generic Webhook Schema Strategy** with semantic scoping:
 
 ```
-Beep.WebhookBus (Generic, Reusable)
-	↓ Used by
+Beep.WebhookBus (Generic, Reusable, Single Source of Truth)
+		 ↓
 WebsiteCollector.Worker
-	├── 0_website_selectors_schema.sql     (Core WebsiteSelectors tables)
-	└── 1_webhook_integration.sql          (Project-specific webhook mapping)
+   └── 0_website_selectors_schema.sql (Domain tables only, no webhook duplication)
 ```
+
+**Key Principle:** All webhook tables come from Beep.WebhookBus. WebsiteCollector.Worker only creates domain-specific tables (Websites, WebsiteSelectors, etc.).
 
 ## Migration Files
 
 ### 0_website_selectors_schema.sql
-**Purpose:** Creates the core WebsiteSelectors base schema
+**Purpose:** Creates the WebsiteSelectors domain schema (core business entities)
 
 **Tables Created:**
 - `dbo.Websites` - Website configurations
-- `dbo.WebsiteSelectors` - Collection endpoints with selectors
-- `dbo.WebsiteSelectorsMonitor` - Execution scheduling and leasing
-- `dbo.WebsiteSelectorsExecutions` - Individual execution records
-- `dbo.WebsiteSelectorsCollectedData` - Collected content and responses
+- `dbo.WebsiteSelectors` - Collection endpoints with selectors (CSS, XPath, JSON paths)
+- `dbo.WebsiteSelectorsMonitor` - Execution scheduling, leasing, and retry state
+- `dbo.WebsiteSelectorsExecutions` - Individual execution records with status and errors
+- `dbo.WebsiteSelectorsCollectedData` - Collected content, hash tracking, and extracted data
 
-**Execution Order:** Run first (no dependencies on other migrations)
+**Execution Order:** Run first
 
 **Dependencies:** None - This is the foundation
 
----
-
-### 1_webhook_integration.sql
-**Purpose:** Integrates Beep.WebhookBus webhooks with WebsiteSelectors
-
-**Tables Created:**
-- `dbo.WebsiteSelectorsWebhooks` - Links webhooks to WebsiteSelectors
-- `dbo.WebsiteSelectorsWebhookMonitor` - Webhook delivery health tracking
-- `dbo.WebsiteSelectorsWebhookDeliveries` - Records webhook delivery attempts
-
-**Execution Order:** Run second
-
-**Dependencies:**
-- Requires Beep.WebhookBus base schema
-- Requires `0_website_selectors_schema.sql` to be executed first
-
-**Key Design Decisions:**
-- Does NOT duplicate Beep.WebhookBus tables
-- Creates project-specific tables that follow Beep.WebhookBus patterns
-- Foreign keys to WebsiteSelectors (not to generic Webhooks table)
-- Webhook data flows: `WebsiteSelectors` → `WebsiteSelectorsWebhooks` → `WebsiteSelectorsWebhookDeliveries`
+**Does NOT Create:**
+- ❌ Webhook tables (use Beep.WebhookBus instead)
+- ❌ Webhook delivery tables (use Beep.WebhookBus instead)
+- ❌ Webhook monitor tables (use Beep.WebhookBus instead)
 
 ---
 
-## Deployment Sequence
+## Webhook Integration Pattern
+
+Webhooks are managed entirely through **Beep.WebhookBus generic tables**:
 
 ```sql
--- Step 1: Deploy Beep.WebhookBus generic schema
--- (handled by Beep.WebhookBus package/migrations)
-
--- Step 2: Deploy WebsiteCollector.Worker core schema
-EXEC sp_executesql N'
-<-- contents of 0_website_selectors_schema.sql -->
-'
-
--- Step 3: Deploy webhook integration
-EXEC sp_executesql N'
-<-- contents of 1_webhook_integration.sql -->
-'
+-- Generic tables (from Beep.WebhookBus)
+dbo.Webhooks                  -- Contains WebhooksOwnerId (references WebsiteSelectors.Id)
+dbo.WebhookMonitor            -- Health tracking and circuit breaker state
+dbo.WebhookDeliveries         -- Contains WebhooksOwnerCollectedDataId (references WebsiteSelectorsCollectedData.Id)
 ```
+
+**Data Flow:**
+```
+WebsiteSelector (Id)
+	↓ (referenced as)
+dbo.Webhooks.WebhooksOwnerId
+	↓
+dbo.WebhookDeliveries
+	↓ (references)
+WebsiteSelectorsCollectedData.Id (via WebhooksOwnerCollectedDataId)
+```
+
+**Benefits:**
+- ✅ Zero table duplication across projects
+- ✅ Single webhook infrastructure
+- ✅ Reusable across WebsiteCollector.Worker, Order Service, and other projects
+- ✅ Easy to reason about and maintain
+
+---
 
 ## Schema Relationships
 
 ### Data Flow: Collection to Delivery
 
 ```
-Website
+Website (root)
   ↓
 WebsiteSelector
-  ├→ WebsiteSelectorsMonitor (scheduling)
-  └→ WebsiteSelectorsExecutions
-	   └→ WebsiteSelectorsCollectedData
-			└→ WebsiteSelectorsWebhookDeliveries
-				 ├→ WebsiteSelectorsWebhooks
-				 └→ WebsiteSelectorsWebhookMonitor (delivery health)
+  ├→ WebsiteSelectorsMonitor (scheduling via worker framework)
+  ├→ WebsiteSelectorsExecutions (execution attempts)
+  │   └→ WebsiteSelectorsCollectedData (collected content)
+  │       └→ dbo.WebhookDeliveries* (delivery attempts via Beep.WebhookBus)
+  │           ├→ dbo.Webhooks* (endpoint configs via Beep.WebhookBus)
+  │           └→ dbo.WebhookMonitor* (delivery health via Beep.WebhookBus)
+  └→ Webhooks via dbo.Webhooks.WebhooksOwnerId* (Beep.WebhookBus)
+
+* Provided by Beep.WebhookBus (generic schema)
 ```
 
 ### Key Foreign Keys
@@ -95,45 +95,69 @@ WebsiteSelector
 | WebsiteSelectorsMonitor | WebsiteSelectors | Scheduling for each selector |
 | WebsiteSelectorsExecutions | WebsiteSelectors | Execution history |
 | WebsiteSelectorsCollectedData | WebsiteSelectorsExecutions | Data collected during execution |
-| WebsiteSelectorsWebhooks | WebsiteSelectors | Webhooks for each selector |
-| WebsiteSelectorsWebhookDeliveries | WebsiteSelectorsWebhooks, WebsiteSelectorsCollectedData | Delivery tracking |
+| dbo.Webhooks* | (none) | Generic webhook storing WebhooksOwnerId |
+| dbo.WebhookDeliveries* | dbo.Webhooks, WebsiteSelectorsCollectedData (via WebhooksOwnerCollectedDataId) | Delivery tracking |
+
+*From Beep.WebhookBus
 
 ---
 
-## No Code Duplication Strategy
+## Generic Schema with Semantic Scoping
 
-This project implements a **No-Code-Duplication Strategy** where:
+This architecture uses **Generic Schema with Semantic Scoping**:
 
-1. **Beep.WebhookBus** provides the generic webhook architecture
-   - Generic table structure
-   - Reusable patterns for retry logic, status tracking, monitoring
-   - Can be used by ANY project that needs webhooks
+1. **Generic Tables** (Beep.WebhookBus):
+   - `dbo.Webhooks` with generic `WebhooksOwnerId` and `WebhookUrl` columns
+   - `dbo.WebhookDeliveries` with generic `WebhooksId` and `WebhooksOwnerCollectedDataId` columns
+   - `dbo.WebhookMonitor` with generic monitoring state
 
-2. **WebsiteCollector.Worker** implements project-specific tables
-   - Never duplicates Beep.WebhookBus code
-   - Follows Beep.WebhookBus patterns and conventions
-   - Uses foreign keys to tie webhooks to WebsiteSelectors
-   - Can be replicated as a template for other projects (Order Service, etc.)
+2. **Semantic Scoping** (WebhookDeliveryRepository):
+   ```csharp
+   // Repository knows the context:
+   // - WebhooksOwnerId always references WebsiteSelectors.Id
+   // - WebhooksOwnerCollectedDataId always references WebsiteSelectorsCollectedData.Id
 
-3. **Benefits:**
-   - ✅ Webhook logic in one place (Beep.WebhookBus)
-   - ✅ Project-specific customization without duplication
-   - ✅ Easy to extend to other projects
-   - ✅ Reduces maintenance burden
+   WHERE d.WebhooksId = @WebhookId
+	 AND w.IsEnabled = 1
+	 AND d.Status IN ('PENDING', 'IN_PROGRESS')
+   ```
+
+3. **Reusability**:
+   - Order Service uses the same Beep.WebhookBus tables
+   - WebhooksOwnerId in Order Service references Orders.Id
+   - WebhooksOwnerCollectedDataId in Order Service references OrderData.Id
+   - No schema duplication needed
+
+---
+
+## Deployment Sequence
+
+```sql
+-- Step 1: Deploy Beep.WebhookBus generic schema
+-- (handled by Beep.WebhookBus package/migrations)
+
+-- Step 2: Deploy WebsiteCollector.Worker domain schema
+EXEC sp_executesql N'
+<-- contents of 0_website_selectors_schema.sql -->
+'
+```
+
+That's it! No separate webhook migration needed in WebsiteCollector.Worker.
 
 ---
 
 ## Related Code Components
 
 - **WebhookDeliveryRepository:** `Features/WebhookDelivery/Repositories/WebhookDeliveryRepository.cs`
-  - Uses WebsiteSelectorsWebhookDeliveries table
+  - Uses generic dbo.Webhooks and dbo.WebhookDeliveries from Beep.WebhookBus
+  - Scopes queries to WebsiteSelectors context (WHERE WebhooksId = @WebhookId)
   - Reference implementation for other projects
 
 - **WebhookDeliveryService:** `Features/WebhookDelivery/Services/WebhookDeliveryService.cs`
-  - Business logic for webhook processing
+  - Business logic for webhook HTTP delivery and retry handling
 
 - **DeliveryWorkProcessor:** `Features/WebhookDelivery/Adapters/DeliveryWorkProcessor.cs`
-  - Handles webhook execution pipeline
+  - Handles webhook execution pipeline (claim, deliver, update state)
 
 ---
 
@@ -142,6 +166,8 @@ This project implements a **No-Code-Duplication Strategy** where:
 - All tables use `uniqueidentifier` with `DEFAULT NEWID()` for primary keys
 - Timestamps use `datetimeoffset(7)` with `DEFAULT SYSUTCDATETIME()` for timezone awareness
 - Foreign key constraints cascade on delete for referential integrity
+- `dbo.Webhooks.WebhooksOwnerId` is nullable to support both scoped and global webhooks
+- `dbo.WebhookDeliveries.WebhooksOwnerCollectedDataId` is NOT NULL (always references collected data)
 - Delivery status is constrained to valid values: `PENDING`, `IN_PROGRESS`, `SUCCESS`, `FAILED`, `ABANDONED`
 - Leasing and work management uses row versioning for concurrency control
 - Indexes are optimized for common query patterns (pending deliveries, webhook history, etc.)
@@ -150,12 +176,25 @@ This project implements a **No-Code-Duplication Strategy** where:
 
 ## Extending to Other Projects
 
-To use webhooks in another project (e.g., Order Service):
+### Adding webhooks to Order Service:
 
-1. Deploy Beep.WebhookBus generic schema
-2. Create your project's core tables (similar to `0_website_selectors_schema.sql`)
-3. Create webhook integration (similar to `1_webhook_integration.sql`)
-4. Update your repository classes to reference your project-specific webhook tables
-5. Reuse the webhook delivery logic from WebsiteCollector.Worker as a template
+1. **Create Order Service domain schema** (similar structure):
+   ```sql
+   -- Orders, OrderMonitor, OrderExecutions, OrderData
+   ```
 
-This ensures **zero code duplication** while maintaining project-specific customization.
+2. **No additional webhook tables needed!**
+   - Reuse `dbo.Webhooks` from Beep.WebhookBus
+   - Reuse `dbo.WebhookDeliveries` from Beep.WebhookBus
+   - Set `WebhooksOwnerId = Orders.Id`
+   - Set `WebhooksOwnerCollectedDataId = OrderData.Id`
+
+3. **Update Order Service repositories**:
+   ```csharp
+   // Similar to WebsiteCollector.Worker
+   WHERE d.WebhooksId = @OrderWebhookId
+	 AND w.IsEnabled = 1
+   ```
+
+This ensures **zero code duplication** while maintaining project-specific customization and semantic clarity.
+

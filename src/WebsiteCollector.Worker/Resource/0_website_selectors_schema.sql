@@ -1,11 +1,15 @@
 -- WebsiteCollector.Worker - WebsiteSelectors Base Schema
--- Core tables for website collection and data tracking
--- This schema manages website selectors, executions, and collected data
--- 
--- Webhook delivery schema is provided by Beep.WebhookBus:
--- - dbo.Webhooks (mapped to WebsiteSelectorsWebhooks via foreign keys)
--- - dbo.WebhookMonitor
--- - dbo.WebhookDeliveries (mapped to WebsiteSelectorsWebhookDeliveries via foreign keys)
+-- Core domain tables for website collection and data tracking
+--
+-- WEBHOOK SCHEMA NOTE:
+-- Webhook tables (Webhooks, WebhookMonitor, WebhookDeliveries) are provided by the 
+-- generic Beep.WebhookBus schema. This project uses webhooks through:
+--   - dbo.Webhooks with WebhooksOwnerId = WebsiteSelectors.Id
+--   - dbo.WebhookDeliveries with WebhooksOwnerCollectedDataId = WebsiteSelectorsCollectedData.Id
+--
+-- Deployment order:
+-- 1. Beep.WebhookBus schema (creates generic webhook tables)
+-- 2. This file (creates WebsiteSelectors domain tables)
 
 SET XACT_ABORT ON;
 GO

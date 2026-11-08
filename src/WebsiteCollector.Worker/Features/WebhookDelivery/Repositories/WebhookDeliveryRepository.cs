@@ -12,33 +12,38 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	public async Task QueueDeliveryAsync(Guid webhookId, Guid collectedDataId, CancellationToken ct)
 	{
 		await using var connection = Open();
+		// Uses generic dbo.WebhookDeliveries table from Beep.WebhookBus
+		// WebhooksOwnerId context is provided through the webhookId (references WebsiteSelectorsWebhooks.Id)
+		// WebhooksOwnerCollectedDataId is the project-specific collected data reference (WebsiteSelectorsCollectedData.Id)
 		const string sql = """
-			INSERT INTO dbo.WebsiteSelectorsWebhookDeliveries 
-				(WebsiteSelectorsWebhooksId, CollectedDataId, Status, AttemptNumber, NextRetryAt, CreatedAt)
+			INSERT INTO dbo.WebhookDeliveries 
+				(WebhooksId, WebhooksOwnerCollectedDataId, Status, AttemptNumber, NextRetryAt, CreatedAt)
 			VALUES 
-				(@WebsiteSelectorsWebhooksId, @CollectedDataId, 'PENDING', 1, SYSUTCDATETIME(), SYSUTCDATETIME())
+				(@WebhooksId, @WebhooksOwnerCollectedDataId, 'PENDING', 1, SYSUTCDATETIME(), SYSUTCDATETIME())
 			""";
 		await connection.ExecuteAsync(
-			new CommandDefinition(sql, new { WebsiteSelectorsWebhooksId = webhookId, CollectedDataId = collectedDataId }, cancellationToken: ct));
+			new CommandDefinition(sql, new { WebhooksId = webhookId, WebhooksOwnerCollectedDataId = collectedDataId }, cancellationToken: ct));
 	}
 
 	public async Task<IReadOnlyList<PendingWebhookDelivery>> GetPendingDeliveriesAsync(Guid webhookId, int maxResults, CancellationToken ct)
 	{
 		await using var connection = Open();
+		// Uses generic dbo.WebhookDeliveries and dbo.Webhooks from Beep.WebhookBus
+		// Scoped to WebsiteSelectors context through webhookId parameter
 		const string sql = """
 			SELECT TOP (@MaxResults)
 				d.Id as DeliveryId,
-				d.WebsiteSelectorsWebhooksId,
-				d.CollectedDataId,
+				d.WebhooksId as WebsiteSelectorsWebhooksId,
+				d.WebhooksOwnerCollectedDataId as CollectedDataId,
 				d.AttemptNumber,
 				w.WebhookUrl,
 				w.TimeoutSeconds,
 				w.MaxRetryAttempts,
 				cd.ResponseContent as RawBody
-			FROM dbo.WebsiteSelectorsWebhookDeliveries d
-			INNER JOIN dbo.WebsiteSelectorsWebhooks w ON d.WebsiteSelectorsWebhooksId = w.Id
-			INNER JOIN dbo.WebsiteSelectorsCollectedData cd ON d.CollectedDataId = cd.Id
-			WHERE d.WebsiteSelectorsWebhooksId = @WebhookId
+			FROM dbo.WebhookDeliveries d
+			INNER JOIN dbo.Webhooks w ON d.WebhooksId = w.Id
+			INNER JOIN dbo.WebsiteSelectorsCollectedData cd ON d.WebhooksOwnerCollectedDataId = cd.Id
+			WHERE d.WebhooksId = @WebhookId
 			  AND d.Status = 'PENDING'
 			  AND d.NextRetryAt <= SYSUTCDATETIME()
 			  AND w.IsEnabled = 1
@@ -57,8 +62,9 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 
 		if (success)
 		{
+			// Uses generic dbo.WebhookDeliveries from Beep.WebhookBus
 			const string successSql = """
-				UPDATE dbo.WebsiteSelectorsWebhookDeliveries
+				UPDATE dbo.WebhookDeliveries
 				SET Status = 'SUCCESS', 
 					HttpStatusCode = @HttpStatusCode, 
 					DeliveredAt = SYSUTCDATETIME()
@@ -70,8 +76,9 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 		else
 		{
 			// Mark as FAILED and schedule retry with exponential backoff
+			// Uses generic dbo.WebhookDeliveries from Beep.WebhookBus
 			const string failSql = """
-				UPDATE dbo.WebsiteSelectorsWebhookDeliveries
+				UPDATE dbo.WebhookDeliveries
 				SET Status = 'FAILED', 
 					HttpStatusCode = @HttpStatusCode, 
 					ErrorMessage = @ErrorMessage,
