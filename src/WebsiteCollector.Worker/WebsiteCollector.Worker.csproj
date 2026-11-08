@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -20,6 +20,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\WebhookDelivery\Adapters\" />
-    <ProjectReference Include="..\Beep.WebhookBus\Beep.WebhookBus.csproj" />
+    <ProjectReference Include="..\Beep.WebhookBus\Beep.Webhook.csproj" />
   </ItemGroup>
 </Project>
