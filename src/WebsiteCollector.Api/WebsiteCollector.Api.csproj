@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Beep.Webhook\Beep.Webhook.csproj" />
+    <ProjectReference Include="..\Beep.Webhook\Beep.EventBus.csproj" />
     <ProjectReference Include="..\WebsiteCollector.Worker\WebsiteCollector.Worker.csproj" />
   </ItemGroup>
 

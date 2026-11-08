@@ -17,7 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
-    <ProjectReference Include="..\Beep.Webhook\Beep.Webhook.csproj" />
+    <ProjectReference Include="..\Beep.Webhook\Beep.EventBus.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\WebhookDelivery\Adapters\" />
