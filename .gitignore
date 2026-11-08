@@ -16,3 +16,5 @@
 /src/Beep.WebhookDelivery/obj
 /src/Beep.WebhookBus/bin/Debug/net10.0
 /src/Beep.WebhookBus/obj
+/src/WebsiteCollector.Api/bin/Debug/net10.0
+/src/WebsiteCollector.Api/obj
