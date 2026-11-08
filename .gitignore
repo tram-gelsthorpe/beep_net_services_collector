@@ -22,3 +22,5 @@
 /tests/WebsiteCollector.Worker.Tests.Integration/obj
 /src/Beep.Webhook/bin/Debug/net10.0
 /src/Beep.Webhook/obj
+/src/Beep.EventBus/bin/Debug/net10.0
+/src/Beep.EventBus/obj
