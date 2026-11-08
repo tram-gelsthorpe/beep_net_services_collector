@@ -4,7 +4,6 @@ using Beep.WebhookBus.Domain;
 using Beep.WebhookBus.Infrastructure.Configuration;
 using Beep.WebhookBus.Workers.Adapters;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Beep.WebhookBus.Workers;
 
