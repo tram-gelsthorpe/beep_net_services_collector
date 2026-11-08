@@ -10,20 +10,27 @@ using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Services;
+using Beep.WebhookBus.Repository;
+using Beep.WebhookBus.Services;
+using Beep.WebhookBus.Infrastructure.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
-builder.Services.Configure<WebhookDeliveryOptions>(builder.Configuration.GetSection(WebhookDeliveryOptions.Name));
+builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection(WebhookOptions.Name));
 
 builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
 
+// Beep.WebhookBus - Generic webhook infrastructure
+// WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IWebhookRepository (generic)
+builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
+builder.Services.AddScoped<IWebhookRepository>(sp => (IWebhookRepository)sp.GetRequiredService<IWebhookDeliveryRepository>());
+builder.Services.AddScoped<IWebhookService, WebhookService>();
+
+// WebsiteCollector.Worker specific
 builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();
 builder.Services.AddScoped<IWebsiteSelectionWebhookRepository, WebsiteSelectionWebhookRepository>();
-builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
 builder.Services.AddScoped<IWebsiteCollectionService, WebsiteCollectionService>();
-builder.Services.AddScoped<IWebhookDeliveryService, WebhookDeliveryService>();
 builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 
@@ -42,3 +49,5 @@ foreach (var subscriber in subscribers)
 }
 
 await host.RunAsync();
+
+

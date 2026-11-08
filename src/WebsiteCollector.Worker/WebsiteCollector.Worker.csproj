@@ -1,12 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.9.1" />
     <PackageReference Include="Dapper" Version="2.1.89" />
@@ -17,9 +15,11 @@
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.14" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <Folder Include="Features\WebhookDelivery\Adapters\" />
+    <ProjectReference Include="..\Beep.WebhookBus\Beep.WebhookBus.csproj" />
+  </ItemGroup>
 </Project>

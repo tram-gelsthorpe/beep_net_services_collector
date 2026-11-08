@@ -12,7 +12,7 @@ namespace Beep.WebhookBus.Workers.Adapters;
 /// Work processor adapter that delegates webhook delivery to WebhookDeliveryService.
 /// Bridges between the generic worker framework and domain-specific delivery logic.
 /// </summary>
-public sealed class WebhookWorkProcessor : IWorkProcessor<PendingWebhookItem>
+public sealed class WebhookWorkProcessor : IWorkProcessor<PendingDeliveryItem>
 {
 	private readonly IWebhookService _service;
 	private readonly ILogger<WebhookWorkProcessor> _logger;
@@ -28,7 +28,7 @@ public sealed class WebhookWorkProcessor : IWorkProcessor<PendingWebhookItem>
 	}
 
 	public async Task InitializeAsync(
-		PendingWebhookItem item,
+		PendingDeliveryItem item,
 		Guid leaseToken,
 		Guid workerIdent,
 		CancellationToken ct)
@@ -42,7 +42,7 @@ public sealed class WebhookWorkProcessor : IWorkProcessor<PendingWebhookItem>
 	}
 
 	public async Task<ProcessingResult> ProcessAsync(
-		PendingWebhookItem item,
+		PendingDeliveryItem item,
 		Guid leaseToken,
 		CancellationToken ct)
 	{
@@ -76,7 +76,7 @@ public sealed class WebhookWorkProcessor : IWorkProcessor<PendingWebhookItem>
 	}
 
 	public async Task CompleteAsync(
-		PendingWebhookItem item,
+		PendingDeliveryItem item,
 		Guid leaseToken,
 		ProcessingResult result,
 		CancellationToken ct)

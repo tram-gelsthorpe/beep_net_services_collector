@@ -15,7 +15,8 @@ public interface IWebhookRepository
 	/// <summary>
 	/// Retrieves the next batch of pending webhook deliveries for processing.
 	/// </summary>
-	Task<IList<PendingWebhookItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
+	Task<IList<PendingDeliveryItem>> GetPendingDeliveriesAsync(int batchSize
+		, CancellationToken ct);
 
 	/// <summary>
 	/// Records the result of a delivery attempt (success or failure).
@@ -31,7 +32,7 @@ public interface IWebhookRepository
 	/// <summary>
 	/// Retrieves a specific delivery for inspection or retries.
 	/// </summary>
-	Task<PendingWebhookItem?> GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct);
+	Task<PendingDeliveryItem?> GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct);
 
 	/// <summary>
 	/// Marks a delivery as failed/abandoned (no more retry attempts).

@@ -50,8 +50,7 @@ CREATE TABLE dbo.WebsiteSelectorsMonitor (
 );
 GO
 
-CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextRunAt, Id) 
-WHERE LeaseOwner IS NULL OR LeaseUntil <= SYSUTCDATETIME();
+CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextRunAt, Id);
 GO
 
 -- Create WebsiteExecutions table
