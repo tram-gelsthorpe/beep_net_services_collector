@@ -1,8 +1,3 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
-
 namespace WebsiteCollector.Api.Infrastructure.Authentication;
 
 /// <summary>

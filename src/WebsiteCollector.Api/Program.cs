@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using WebsiteCollector.Api.Infrastructure.Authentication;
 using WebsiteCollector.Api.Repositories;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;

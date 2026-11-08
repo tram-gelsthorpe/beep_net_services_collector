@@ -1,6 +1,5 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
 namespace WebsiteCollector.Api.Repositories;
