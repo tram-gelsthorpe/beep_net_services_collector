@@ -18,7 +18,7 @@ public sealed class WebhookService(
 	IHttpClientFactory httpClientFactory,
 	ILogger<WebhookService> logger) : IWebhookService
 {
-	public async Task DeliverAsync(PendingDeliveryItem delivery, CancellationToken ct)
+	public async Task DeliverAsync(PendingWebhookItem delivery, CancellationToken ct)
 	{
 		try
 		{

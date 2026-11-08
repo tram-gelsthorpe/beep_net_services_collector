@@ -23,6 +23,6 @@ namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories
 		/// <summary>
 		/// Get pending deliveries from the generic framework.
 		/// </summary>
-		Task<IList<PendingDeliveryItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
+		Task<IList<PendingWebhookItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct);
 	}
 }

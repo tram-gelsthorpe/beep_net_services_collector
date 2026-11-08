@@ -94,7 +94,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// Get pending deliveries ready for processing from the generic table.
 	/// This implementation fetches pending deliveries with full webhook context.
 	/// </summary>
-	public async Task<IList<PendingDeliveryItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct)
+	public async Task<IList<PendingWebhookItem>> GetPendingDeliveriesAsync(int batchSize, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """
@@ -117,7 +117,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 			ORDER BY d.NextRetryAt ASC, d.CreatedAt ASC
 			""";
 
-		var deliveries = await connection.QueryAsync<PendingDeliveryItem>(
+		var deliveries = await connection.QueryAsync<PendingWebhookItem>(
 			new CommandDefinition(sql, new { BatchSize = batchSize }, cancellationToken: ct));
 
 		return deliveries.ToList();
@@ -126,7 +126,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// <summary>
 	/// Get a specific delivery by ID from the generic table.
 	/// </summary>
-	async Task<PendingDeliveryItem?> IWebhookRepository.GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct)
+	async Task<PendingWebhookItem?> IWebhookRepository.GetDeliveryByIdAsync(Guid deliveryId, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """
@@ -146,7 +146,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 			WHERE d.Id = @DeliveryId
 			""";
 
-		return await connection.QueryFirstOrDefaultAsync<PendingDeliveryItem>(
+		return await connection.QueryFirstOrDefaultAsync<PendingWebhookItem>(
 			new CommandDefinition(sql, new { DeliveryId = deliveryId }, cancellationToken: ct));
 	}
 
@@ -169,7 +169,7 @@ public sealed class WebhookDeliveryRepository(IConfiguration config) : IWebhookD
 	/// <summary>
 	/// Get the current attempt count for a delivery.
 	/// </summary>
-	async Task<int> IWebhookRepository.GetAttemptCountAsync(Guid deliveryId, CancellationToken ct)
+	async Task<int> IWebhookRepository.GetDeliveryAttemptCountAsync(Guid deliveryId, CancellationToken ct)
 	{
 		await using var connection = Open();
 		const string sql = """

@@ -6,6 +6,6 @@ namespace Beep.WebhookBus.Services
 {
 	public interface IWebhookService
 	{
-		Task DeliverAsync(PendingDeliveryItem delivery, CancellationToken ct);
+		Task DeliverAsync(PendingWebhookItem delivery, CancellationToken ct);
 	}
 }

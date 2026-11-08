@@ -4,7 +4,7 @@ namespace Beep.WebhookBus.Domain;
 /// Generic interface for webhook payloads.
 /// Implementations can define the specific payload structure for different event types.
 /// </summary>
-public interface IDeliveryPayload
+public interface IWebhookItemPayload
 {
 	string Serialize();
 }
