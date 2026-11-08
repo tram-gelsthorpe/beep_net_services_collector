@@ -1,4 +1,10 @@
-namespace WebsiteCollector.Worker.Infrastructure.Events;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Beep.EventBus.Infrastructure.Events;
 
 /// <summary>
 /// In-memory event aggregator that dispatches events to subscribed handlers.

@@ -1,4 +1,8 @@
-namespace WebsiteCollector.Worker.Infrastructure.Events;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Beep.EventBus.Infrastructure.Events;
 
 /// <summary>
 /// Event aggregator for publishing domain events to registered subscribers.

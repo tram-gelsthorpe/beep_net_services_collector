@@ -1,4 +1,4 @@
-using WebsiteCollector.Worker.Infrastructure.Events;
+using Beep.EventBus.Infrastructure.Events;
 
 namespace WebsiteCollector.Worker.Features.WebsiteCollector.Events;
 

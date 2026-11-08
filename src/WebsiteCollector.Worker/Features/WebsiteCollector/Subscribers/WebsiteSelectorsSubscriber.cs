@@ -1,14 +1,14 @@
 using Microsoft.Extensions.Logging;
+using Beep.EventBus.Infrastructure.Events;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
-using WebsiteCollector.Worker.Infrastructure.Events;
 
 namespace WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 
 /// <summary>
 /// Subscriber that queues webhook deliveries when collection notifications occur.
-/// Uses the generic Beep.WebhookBus delivery system with async, queued processing.
+/// Uses the generic Beep.EventBus delivery system with async, queued processing.
 /// Webhook actual HTTP delivery is handled by the WebhookDeliveryWorker via the generic framework.
 /// </summary>
 public sealed class WebsiteSelectorsSubscriber : ISubscriber

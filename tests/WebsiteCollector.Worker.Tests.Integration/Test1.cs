@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WebsiteCollector.Worker.Infrastructure.Database;
-using WebsiteCollector.Worker.Infrastructure.Events;
+using Beep.EventBus.Infrastructure.Events;
 
 namespace WebsiteCollector.Worker.Tests.Integration;
 

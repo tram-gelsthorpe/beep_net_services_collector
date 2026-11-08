@@ -1,4 +1,6 @@
-namespace WebsiteCollector.Worker.Infrastructure.Events;
+using System;
+
+namespace Beep.EventBus.Infrastructure.Events;
 
 /// <summary>
 /// Base class for domain events providing common event properties.

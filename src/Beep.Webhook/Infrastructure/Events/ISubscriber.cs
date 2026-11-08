@@ -1,8 +1,11 @@
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Beep.EventBus.Infrastructure.Events;
 
 /// <summary>
-/// Contract for components that subscribe to collection events.
-/// Implementers handle side effects when collections complete.
+/// Contract for components that subscribe to domain events.
+/// Implementers handle side effects when events are published.
 /// </summary>
 public interface ISubscriber
 {

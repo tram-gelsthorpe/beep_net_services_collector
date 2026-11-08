@@ -1,4 +1,6 @@
-namespace WebsiteCollector.Worker.Infrastructure.Events;
+using System;
+
+namespace Beep.EventBus.Infrastructure.Events;
 
 /// <summary>
 /// Base event interface for all events in the system.

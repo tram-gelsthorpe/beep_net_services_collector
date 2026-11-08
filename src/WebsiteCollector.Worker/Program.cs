@@ -1,6 +1,8 @@
+using System;
 using Beep.Webhook.Infrastructure.Configuration;
 using Beep.Webhook.Repository;
 using Beep.Webhook.Services;
+using Beep.EventBus.Infrastructure.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
@@ -11,20 +13,17 @@ using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 using WebsiteCollector.Worker.Infrastructure.Configuration;
 using WebsiteCollector.Worker.Infrastructure.Database;
-using WebsiteCollector.Worker.Infrastructure.Events;
 using WebsiteCollector.Worker.Infrastructure.Http;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
 builder.Services.Configure<WebhookOptions>(builder.Configuration.GetSection(WebhookOptions.Name));
 
-builder.Services.AddScoped<DatabaseService>();
-
 builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
+builder.Services.AddScoped<DatabaseInitializationService>();
 
-
-// Beep.WebhookBus - Generic webhook infrastructure
+// Beep.Webhook - Generic webhook infrastructure
 // WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IWebhookRepository (generic)
 builder.Services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
 builder.Services.AddScoped<IWebhookRepository>(sp => (IWebhookRepository)sp.GetRequiredService<IWebhookDeliveryRepository>());
@@ -45,7 +44,7 @@ builder.Services.AddHostedService<WebhookDeliveryWorker>();
 var host = builder.Build();
 
 // Initialize databases on startup before any services access them
-var dbInitializer = host.Services.GetRequiredService<DatabaseService>();
+var dbInitializer = host.Services.GetRequiredService<DatabaseInitializationService>();
 await dbInitializer.InitializeAsync();
 
 // Initialize event subscribers on startup
@@ -55,6 +54,7 @@ foreach (var subscriber in subscribers)
     await subscriber.RegisterAsync(host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 }
 
+await host.RunAsync();
 await host.RunAsync();
 
 
