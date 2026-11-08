@@ -77,7 +77,7 @@ public sealed class CollectedDataRepository : ICollectedDataRepository
 		return (items.ToList(), total);
 	}
 
-	public async Task<WebsiteExecution?> GetExecutionByIdAsync(Guid executionId, CancellationToken cancellationToken)
+	public async Task<WebsiteSelectorsExecutions?> GetExecutionByIdAsync(Guid executionId, CancellationToken cancellationToken)
 	{
 		await using var connection = Open();
 		const string sql = @"
@@ -85,10 +85,10 @@ public sealed class CollectedDataRepository : ICollectedDataRepository
 			FROM dbo.WebsiteExecutions 
 			WHERE Id = @ExecutionId";
 
-		return await connection.QueryFirstOrDefaultAsync<WebsiteExecution>(sql, new { ExecutionId = executionId });
+		return await connection.QueryFirstOrDefaultAsync<WebsiteSelectorsExecutions>(sql, new { ExecutionId = executionId });
 	}
 
-	public async Task<IReadOnlyList<WebsiteExecution>> GetRecentExecutionsBySelectorIdAsync(Guid selectorId, int limit, CancellationToken cancellationToken)
+	public async Task<IReadOnlyList<WebsiteSelectorsExecutions>> GetRecentExecutionsBySelectorIdAsync(Guid selectorId, int limit, CancellationToken cancellationToken)
 	{
 		await using var connection = Open();
 		const string sql = @"
@@ -97,7 +97,7 @@ public sealed class CollectedDataRepository : ICollectedDataRepository
 			WHERE WebsiteSelectorsId = @SelectorId
 			ORDER BY StartedAt DESC";
 
-		var executions = await connection.QueryAsync<WebsiteExecution>(sql, new { SelectorId = selectorId, Limit = limit });
+		var executions = await connection.QueryAsync<WebsiteSelectorsExecutions>(sql, new { SelectorId = selectorId, Limit = limit });
 		return executions.ToList();
 	}
 

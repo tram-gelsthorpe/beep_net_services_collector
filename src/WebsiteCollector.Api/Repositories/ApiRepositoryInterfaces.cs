@@ -36,8 +36,8 @@ public interface ICollectedDataRepository
 	Task<WebsiteSelectorsCollectedData?> GetCollectedDataByExecutionIdAsync(Guid executionId, CancellationToken cancellationToken);
 	Task<WebsiteSelectorsCollectedData?> GetLatestCollectedDataBySelectorIdAsync(Guid selectorId, CancellationToken cancellationToken);
 	Task<(IReadOnlyList<WebsiteSelectorsCollectedData> Items, int Total)> GetCollectionHistoryAsync(Guid selectorId, int pageNumber, int pageSize, CancellationToken cancellationToken);
-	Task<WebsiteExecution?> GetExecutionByIdAsync(Guid executionId, CancellationToken cancellationToken);
-	Task<IReadOnlyList<WebsiteExecution>> GetRecentExecutionsBySelectorIdAsync(Guid selectorId, int limit, CancellationToken cancellationToken);
+	Task<WebsiteSelectorsExecutions?> GetExecutionByIdAsync(Guid executionId, CancellationToken cancellationToken);
+	Task<IReadOnlyList<WebsiteSelectorsExecutions>> GetRecentExecutionsBySelectorIdAsync(Guid selectorId, int limit, CancellationToken cancellationToken);
 	Task<IReadOnlyList<WebsiteSelectorsCollectedData>> SearchCollectedDataAsync(Guid? selectorId, string? searchTerm, DateTime? fromDate, DateTime? toDate, CancellationToken cancellationToken);
 	Task<object?> GetSelectorStatisticsAsync(Guid selectorId, CancellationToken cancellationToken);
 }
