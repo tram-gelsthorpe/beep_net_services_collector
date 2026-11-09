@@ -7,7 +7,7 @@ namespace Beep.EventBus;
 
 /// <summary>
 /// Generic repository abstraction for webhook delivery operations.
-/// Implementations handle storage and retrieval of webhook deliveries with dynamic payload support.
+/// Implementations handle storage and retrieval of EventBus deliveries with dynamic payload support.
 /// </summary>
 public interface IEventBusRepository
 {

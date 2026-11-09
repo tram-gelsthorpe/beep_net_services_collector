@@ -3,7 +3,7 @@ using System;
 namespace Beep.EventBus;
 
 /// <summary>
-/// Represents delivery attempt metadata for a webhook delivery.
+/// Represents delivery attempt metadata for a EventBus delivery.
 /// Records the result of each attempt (success, failure, timeout, etc.)
 /// </summary>
 public record EventBusAttempt

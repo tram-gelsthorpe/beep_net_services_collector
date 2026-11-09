@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Beep.EventBus;
 
 /// <summary>
-/// Handles webhook delivery with HTTP POST, retry logic, and exponential backoff.
+/// Handles EventBus delivery with HTTP POST, retry logic, and exponential backoff.
 /// Processes queued deliveries asynchronously with error handling and monitoring.
 /// </summary>
 public sealed class EventBusService(

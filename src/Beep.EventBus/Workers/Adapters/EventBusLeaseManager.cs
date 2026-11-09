@@ -8,7 +8,7 @@ using Beep.ServiceBus;
 namespace Beep.EventBus;
 
 /// <summary>
-/// Lease manager adapter for webhook delivery work items.
+/// Lease manager adapter for EventBus delivery work items.
 /// Abstracts the repository operations over ILeaseManager interface.
 /// </summary>
 public sealed class EventBusLeaseManager : ILeaseManager<PendingEventBus>
@@ -42,7 +42,7 @@ public sealed class EventBusLeaseManager : ILeaseManager<PendingEventBus>
 
 	public async Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct)
 	{
-		// Release is a no-op for webhook delivery; completion is recorded via repository
+		// Release is a no-op for EventBus delivery; completion is recorded via repository
 		await Task.CompletedTask;
 	}
 }
