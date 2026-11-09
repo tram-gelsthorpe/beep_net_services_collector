@@ -8,11 +8,11 @@ namespace Beep.EventBus;
 /// Base class for webhook delivery worker implementations.
 /// Provides the generic webhook delivery work loop that can be extended by domain-specific workers.
 /// </summary>
-public abstract class EventBusWorkerBase : GenericWorkerBase<PendingEventBus>
+public sealed class EventBusWorker : GenericWorkerBase<PendingEventBus>
 {
 	private readonly EventBusOptions _options;
 
-	protected EventBusWorkerBase(
+	public EventBusWorker(
 		EventBusLeaseManager leaseManager,
 		EventBusWorkProcessor workProcessor,
 		EventBusOptions options,
