@@ -1,7 +1,6 @@
 using Beep.EventBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using WebsiteCollector.Worker;
 using WebsiteCollector.Worker.Features.SelectorManagement.Services;
 using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
 using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
@@ -10,6 +9,7 @@ using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
 using WebsiteCollector.Worker.Infrastructure.Configuration;
 using WebsiteCollector.Worker.Infrastructure.Database;
 using WebsiteCollector.Worker.Infrastructure.Http;
+using WebsiteCollector.Worker.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
@@ -35,7 +35,7 @@ builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 builder.Services.AddCollectorHttpClient();
 
 builder.Services.AddHostedService<WebsiteCollectorWorker>();
-builder.Services.AddHostedService<WebhookDeliveryWorker>();
+builder.Services.AddHostedService<EventBusWorker>();
 
 var host = builder.Build();
 
