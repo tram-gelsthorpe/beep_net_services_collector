@@ -3,7 +3,7 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 
-namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Project-specific webhook delivery repository.

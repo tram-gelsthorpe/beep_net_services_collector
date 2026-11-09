@@ -1,7 +1,7 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace WebsiteCollector.Worker.Infrastructure.Http;
+namespace WebsiteCollector.Worker;
 
 public static class HttpClientConfiguration
 {

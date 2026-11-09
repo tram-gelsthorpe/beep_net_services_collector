@@ -1,7 +1,6 @@
 using Beep.ServiceBus;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Adapter for IClaimedItem to wrap ClaimedWebsiteSelector

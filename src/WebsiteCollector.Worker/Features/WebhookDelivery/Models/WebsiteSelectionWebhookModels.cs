@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Worker.Features.WebhookDelivery.Models;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Represents a webhook configuration for a website selector.

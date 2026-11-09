@@ -1,6 +1,4 @@
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+namespace WebsiteCollector.Worker;
 
 public interface IWebsiteCollectionRepository
 {

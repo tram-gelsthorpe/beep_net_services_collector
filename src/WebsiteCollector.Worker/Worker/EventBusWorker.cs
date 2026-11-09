@@ -2,7 +2,7 @@ using Beep.EventBus;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace WebsiteCollector.Worker.Worker;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Webhook delivery background worker for WebsiteCollector.Worker.

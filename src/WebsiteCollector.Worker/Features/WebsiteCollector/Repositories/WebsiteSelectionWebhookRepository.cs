@@ -1,10 +1,8 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
-
+namespace WebsiteCollector.Worker;
 
 
 public sealed class WebsiteSelectionWebhookRepository(IConfiguration config) : IWebsiteSelectionWebhookRepository

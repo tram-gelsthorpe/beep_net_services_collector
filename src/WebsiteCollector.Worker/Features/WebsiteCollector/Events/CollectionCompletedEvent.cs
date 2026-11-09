@@ -1,6 +1,6 @@
 using Beep.EventBus;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Events;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Event published when a website collection/selection completes.

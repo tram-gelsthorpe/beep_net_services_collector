@@ -3,9 +3,8 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
 
-namespace WebsiteCollector.Worker.Infrastructure.Database;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Database access layer for website collection domain models.

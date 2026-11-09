@@ -1,8 +1,6 @@
 using Beep.ServiceBus;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Lease manager implementation for website selectors using IWebsiteCollectionService

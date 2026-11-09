@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker;
 
 namespace WebsiteCollector.Api.Controllers;
 

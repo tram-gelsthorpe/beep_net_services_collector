@@ -1,6 +1,5 @@
-﻿using WebsiteCollector.Worker.Features.WebhookDelivery.Models;
-
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Repositories
+﻿
+namespace WebsiteCollector.Worker
 {
 	/// <summary>
 	/// Repository for managing website selection webhooks.

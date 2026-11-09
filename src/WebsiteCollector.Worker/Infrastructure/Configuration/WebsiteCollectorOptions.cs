@@ -1,6 +1,6 @@
 using Beep.ServiceBus;
 
-namespace WebsiteCollector.Worker.Infrastructure.Configuration;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Configuration for the website collector worker.

@@ -1,10 +1,7 @@
 using Beep.EventBus;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Subscriber that queues webhook deliveries when collection notifications occur.

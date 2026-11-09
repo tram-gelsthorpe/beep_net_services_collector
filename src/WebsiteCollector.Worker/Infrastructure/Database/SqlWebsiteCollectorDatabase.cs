@@ -3,7 +3,7 @@ using System.Data.Common;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
 
-namespace WebsiteCollector.Worker.Infrastructure.Database
+namespace WebsiteCollector.Worker
 {
 	public sealed class SqlWebsiteCollectorDatabase : IWebsiteCollectorDatabase
 	{

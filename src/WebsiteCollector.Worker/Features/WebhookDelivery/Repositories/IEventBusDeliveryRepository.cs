@@ -1,6 +1,6 @@
 ﻿using Beep.EventBus;
 
-namespace WebsiteCollector.Worker.Features.WebhookDelivery.Repositories
+namespace WebsiteCollector.Worker
 {
 	/// <summary>
 	/// Project-specific webhook delivery repository.

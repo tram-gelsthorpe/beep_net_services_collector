@@ -1,7 +1,4 @@
-using WebsiteCollector.Worker.Features.SelectorManagement.Models;
-using WebsiteCollector.Worker.Infrastructure.Database;
-
-namespace WebsiteCollector.Worker.Features.SelectorManagement.Services;
+namespace WebsiteCollector.Worker;
 
 public sealed class SelectorManagementService(Database db) : ISelectorManagementService
 {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using WebsiteCollector.Api.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+using WebsiteCollector.Worker;
 
 namespace WebsiteCollector.Api.Controllers;
 

@@ -1,7 +1,6 @@
 using WebsiteCollector.Api.Infrastructure.Authentication;
 using WebsiteCollector.Api.Repositories;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
+using WebsiteCollector.Worker;
 
 var builder = WebApplication.CreateBuilder(args);
 

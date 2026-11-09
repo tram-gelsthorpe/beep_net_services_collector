@@ -1,4 +1,4 @@
-﻿namespace WebsiteCollector.Worker.Infrastructure.Database
+﻿namespace WebsiteCollector.Worker
 {
 	public interface IWebsiteCollectorDatabase
 	{

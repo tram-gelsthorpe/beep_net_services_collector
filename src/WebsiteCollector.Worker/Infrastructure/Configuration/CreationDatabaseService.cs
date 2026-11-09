@@ -3,7 +3,7 @@ using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace WebsiteCollector.Worker.Infrastructure.Configuration;
+namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Initializes all required databases and schemas on application startup.

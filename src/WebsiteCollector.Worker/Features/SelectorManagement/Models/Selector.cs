@@ -1,3 +1,3 @@
-namespace WebsiteCollector.Worker.Features.SelectorManagement.Models;
+namespace WebsiteCollector.Worker;
 
 public sealed record Selector(string ContentSelector, string TableSelector);

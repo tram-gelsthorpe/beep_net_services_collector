@@ -1,6 +1,4 @@
-﻿using WebsiteCollector.Worker.Features.SelectorManagement.Models;
-
-namespace WebsiteCollector.Worker.Features.SelectorManagement.Services;
+﻿namespace WebsiteCollector.Worker;
 
 public interface ISelectorManagementService
 {

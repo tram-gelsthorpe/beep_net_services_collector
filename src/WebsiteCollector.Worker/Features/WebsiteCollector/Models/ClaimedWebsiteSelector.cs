@@ -1,4 +1,4 @@
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Models;
+namespace WebsiteCollector.Worker;
 
 public sealed record ClaimedWebsiteSelector(
 	Guid WebsiteSelectorsId,

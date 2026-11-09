@@ -1,10 +1,8 @@
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using WebsiteCollector.Worker.Infrastructure.Configuration;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Adapters;
 using Beep.ServiceBus;
+
+namespace WebsiteCollector.Worker;
 
 public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSelector>
 {

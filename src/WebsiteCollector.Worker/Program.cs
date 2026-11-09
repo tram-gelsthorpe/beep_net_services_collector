@@ -1,15 +1,7 @@
 using Beep.EventBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using WebsiteCollector.Worker.Features.SelectorManagement.Services;
-using WebsiteCollector.Worker.Features.WebhookDelivery.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Services;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Subscribers;
-using WebsiteCollector.Worker.Infrastructure.Configuration;
-using WebsiteCollector.Worker.Infrastructure.Database;
-using WebsiteCollector.Worker.Infrastructure.Http;
-using WebsiteCollector.Worker.Worker;
+using WebsiteCollector.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));

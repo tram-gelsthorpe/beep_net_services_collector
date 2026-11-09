@@ -1,9 +1,6 @@
-using WebsiteCollector.Worker.Features.WebsiteCollector.Models;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Repositories;
-using WebsiteCollector.Worker.Features.WebsiteCollector.Events;
 using Beep.EventBus;
 
-namespace WebsiteCollector.Worker.Features.WebsiteCollector.Services;
+namespace WebsiteCollector.Worker;
 
 public sealed class WebsiteCollectionService(
 	IWebsiteCollectionRepository repository,
