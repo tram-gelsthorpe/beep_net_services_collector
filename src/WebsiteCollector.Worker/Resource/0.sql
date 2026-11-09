@@ -15,18 +15,19 @@ SET XACT_ABORT ON;
 GO
 
 -- =====================================================
--- Drop existing objects if they exist (in dependency order)
+-- Database Version Tracking
 -- =====================================================
-IF OBJECT_ID('dbo.WebsiteSelectorsCollectedData', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsCollectedData;
-GO
-IF OBJECT_ID('dbo.WebsiteSelectorsExecutions', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsExecutions;
-GO
-IF OBJECT_ID('dbo.WebsiteSelectorsMonitor', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectorsMonitor;
-GO
-IF OBJECT_ID('dbo.WebsiteSelectors', 'U') IS NOT NULL DROP TABLE dbo.WebsiteSelectors;
-GO
-IF OBJECT_ID('dbo.Websites', 'U') IS NOT NULL DROP TABLE dbo.Websites;
-GO
+-- Tracks the schema version and deployment information
+CREATE TABLE dbo.DatabaseVersion (
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+	Version nvarchar(20) NOT NULL UNIQUE,  -- e.g., '0', '1'
+	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+-- Insert initial database version
+INSERT INTO dbo.DatabaseVersion (Version)
+VALUES ('0');
 
 -- =====================================================
 -- Create Websites table - Main parent table
@@ -56,6 +57,7 @@ CREATE TABLE dbo.WebsiteSelectors (
 	IntervalSeconds int NOT NULL CONSTRAINT CK_Selector_Interval CHECK (IntervalSeconds BETWEEN 10 AND 2592000),
 	IsEnabled bit NOT NULL DEFAULT 1,
 	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	CONSTRAINT UQ_WebsiteSelectors_Unique UNIQUE (WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector)
 );
 GO
@@ -80,6 +82,7 @@ CREATE TABLE dbo.WebsiteSelectorsMonitor (
 	LastSucceededAt datetimeoffset(7) NULL,
 	LastError nvarchar(2000) NULL,
 	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	RowVer rowversion NOT NULL
 );
 GO
