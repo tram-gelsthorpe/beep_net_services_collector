@@ -147,7 +147,7 @@ namespace WebsiteCollector.Worker.Infrastructure.Database
 				return _schemaScript;
 
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourceName = $"Beep.WebhookBus.Resource.0.sql";
+			var resourceName = $"Beep.EventBus.Resource.0.sql";
 
 			using (var stream = assembly.GetManifestResourceStream(resourceName))
 			{
@@ -166,7 +166,7 @@ namespace WebsiteCollector.Worker.Infrastructure.Database
 		private string LoadUpdateSchemaResource(int version)
 		{
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourceName = $"Beep.WebhookBus.Resource.{version}.sql";
+			var resourceName = $"Beep.EventBus.Resource.{version}.sql";
 			var result = "";
 
 			using (var stream = assembly.GetManifestResourceStream(resourceName))
