@@ -147,7 +147,7 @@ namespace WebsiteCollector.Worker.Infrastructure.Database
 				return _schemaScript;
 
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourceName = $"Beep.EventBus.Resource.0.sql";
+			var resourceName = $"Beep.WebsiteCollector.Resource.0.sql";
 
 			using (var stream = assembly.GetManifestResourceStream(resourceName))
 			{
