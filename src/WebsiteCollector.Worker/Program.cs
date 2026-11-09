@@ -15,9 +15,11 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.Configure<WebsiteCollectorOptions>(builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
 builder.Services.Configure<EventBusOptions>(builder.Configuration.GetSection(EventBusOptions.Name));
 
+builder.Services.AddScoped<CreationDatabaseService>();
+
 builder.Services.AddSingleton<Database>();
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
-builder.Services.AddScoped<DatabaseInitializationService>();
+
 
 // Beep.EventBus - Generic event bus infrastructure
 // WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IEventBusRepository (generic)
@@ -40,7 +42,7 @@ builder.Services.AddHostedService<EventBusWorker>();
 var host = builder.Build();
 
 // Initialize databases on startup before any services access them
-var dbInitializer = host.Services.GetRequiredService<DatabaseInitializationService>();
+var dbInitializer = host.Services.GetRequiredService<CreationDatabaseService>();
 await dbInitializer.InitializeAsync();
 
 // Initialize event subscribers on startup

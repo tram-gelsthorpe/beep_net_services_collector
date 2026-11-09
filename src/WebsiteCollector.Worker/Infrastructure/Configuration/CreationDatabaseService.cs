@@ -3,15 +3,15 @@ using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace WebsiteCollector.Worker.Infrastructure.Database;
+namespace WebsiteCollector.Worker.Infrastructure.Configuration;
 
 /// <summary>
 /// Initializes all required databases and schemas on application startup.
 /// Handles ServiceBus (WorkItems), WebhookBus (Webhooks), and WebsiteCollector schema creation.
 /// </summary>
-public sealed class DatabaseService(
+public sealed class CreationDatabaseService(
 	IConfiguration configuration,
-	ILogger<DatabaseService> logger)
+	ILogger<CreationDatabaseService> logger)
 {
 	/// <summary>
 	/// Initialize all databases and schemas.
