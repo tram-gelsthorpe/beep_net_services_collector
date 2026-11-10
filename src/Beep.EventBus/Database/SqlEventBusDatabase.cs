@@ -15,13 +15,36 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 {
 	private const string Create_Database_Script = """
 			IF NOT EXISTS (SELECT TOP 1 * FROM sys.databases WHERE name = @databaseName)
-				BEGIN
-					DECLARE @sql NVARCHAR(MAX);
+			BEGIN
+				DECLARE @sql NVARCHAR(MAX);
 
-					SET @sql = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
+				SET @sql = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
 
-					EXEC sp_executesql @sql;
-				END
+				EXEC sp_executesql @sql;
+
+				SELECT 1 AS Success;
+			END
+			ELSE
+			BEGIN
+				SELECT 0 AS Success;
+			END;
+		""";
+
+	private const string Drop_Database_Script = """
+			USE master;
+
+			DECLARE @SQL NVARCHAR(MAX);
+
+			IF DB_ID(@DatabaseName) IS NOT NULL
+			BEGIN
+				SET @SQL = N'
+					ALTER DATABASE ' + QUOTENAME(@DatabaseName) + N'
+					SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+
+					DROP DATABASE ' + QUOTENAME(@DatabaseName) + N';';
+
+				EXEC sp_executesql @SQL;
+			END
 		""";
 
 	private const string _prefix = "Beep.EventBus.Resource";
@@ -63,7 +86,8 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		}
 		catch
 		{
-			// Allow exceptions to propagate to the caller for handling
+			_logger.LogError("An error occurred while creating '{DatabaseName}' database.", _databaseName);
+
 			throw;
 		}
 		finally
@@ -81,8 +105,8 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 			command.CommandText = Create_Database_Script;
 			command.Parameters.Add(new SqlParameter("@databaseName", SqlDbType.NVarChar, 128) { Value = _databaseName });
 
-			await command.ExecuteNonQueryAsync(cancellationToken);
-			return true;
+			var result = await command.ExecuteScalarAsync(cancellationToken);
+			return Convert.ToInt32(result) > 0;
 		}
 		catch (SqlException ex) when (ex.Number == 1801) // Database already exists
 		{
@@ -91,19 +115,51 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		}
 		catch
 		{
-			_logger.LogError("An error occurred while creating the database.");
+			_logger.LogError("An error occurred while creating '{DatabaseName}' database.", _databaseName);
+
+			await Drop_Database(cancellationToken);
+
+			throw;
+		}
+	}
+
+	private async Task<bool> Drop_Database(CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			var command = _dbConnection.CreateCommand();
+			command.CommandText = Drop_Database_Script;
+			command.Parameters.Add(new SqlParameter("@databaseName", SqlDbType.NVarChar, 128) { Value = _databaseName });
+
+			await command.ExecuteNonQueryAsync(cancellationToken);
+			return true;
+		}
+		catch
+		{
+			_logger.LogError("An error occurred while dropping '{DatabaseName}' database.", _databaseName);
 			throw;
 		}
 	}
 
 	private async Task Create_Table(CancellationToken cancellationToken = default)
 	{
-		_dbConnection.ChangeDatabase(_databaseName);
+		try
+		{
+			_dbConnection.ChangeDatabase(_databaseName);
 
-		var command = _dbConnection.CreateCommand();
-		command.CommandText = LoadCreateSchemaResource();
+			var command = _dbConnection.CreateCommand();
+			command.CommandText = LoadCreateSchemaResource();
 
-		await command.ExecuteNonQueryAsync(cancellationToken);
+			await command.ExecuteNonQueryAsync(cancellationToken);
+		}
+		catch
+		{
+			_logger.LogError("An error occurred while create '{DatabaseName}' tables.", _databaseName);
+
+			await Drop_Database(cancellationToken);
+
+			throw;
+		}
 	}
 
 	private async Task Update(int currentVersion, CancellationToken cancellationToken = default)
@@ -117,7 +173,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 			var version = currentVersion + 1;
 			var maxVersion = GetEmbeddedResourceCount();
 
-			while (version <= maxVersion)
+			while (version < maxVersion)
 			{
 				var scriptContent = LoadUpdateSchemaResource(version);
 				if (string.IsNullOrWhiteSpace(scriptContent))
@@ -130,7 +186,10 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 				await command.ExecuteNonQueryAsync(cancellationToken);
 			}
 
-			await UpdateCurrentDatabaseVersion(version);
+			if (version != maxVersion)
+			{
+				await UpdateCurrentDatabaseVersion(version);
+			}
 
 			transaction.Commit();
 		}
@@ -157,6 +216,8 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 
 	private async Task<int> GetCurrentDatabaseVersion()
 	{
+		_dbConnection.ChangeDatabase(_databaseName);
+
 		var command = _dbConnection.CreateCommand();
 		command.CommandText = "SELECT TOP 1 Version FROM dbo.DatabaseVersion ORDER BY Id DESC";
 
@@ -168,6 +229,8 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 
 	private async Task<int> UpdateCurrentDatabaseVersion(int version)
 	{
+		_dbConnection.ChangeDatabase(_databaseName);
+
 		var command = _dbConnection.CreateCommand();
 		command.CommandText = "INSERT INTO dbo.DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
 		command.Parameters.Add(new SqlParameter("@version", version));
@@ -187,7 +250,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		using (var stream = assembly.GetManifestResourceStream(resourceName))
 		{
 			if (stream == null)
-				throw new InvalidOperationException($"Embedded resource '{resourceName}' not found.");
+				return string.Empty;
 
 			using (var reader = new StreamReader(stream))
 			{

@@ -1,6 +1,4 @@
-using System.Security.Cryptography;
 using Beep.EventBus;
-using Beep.Log.NLog;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
