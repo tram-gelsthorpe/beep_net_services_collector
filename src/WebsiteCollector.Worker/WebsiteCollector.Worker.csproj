@@ -7,12 +7,16 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="appsettings.json" />
+    <None Remove="Resource\0.sql" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resource\0.sql" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.9.1" />

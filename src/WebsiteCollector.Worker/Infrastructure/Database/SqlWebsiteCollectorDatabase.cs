@@ -42,7 +42,7 @@ namespace WebsiteCollector.Worker
 			END
 			""";
 
-		private const string _prefix = "Beep.WebsiteCollector.Worker.Resource";
+		private const string _prefix = "WebsiteCollector.Worker.Resource";
 		private readonly DbConnection _dbConnection;
 		private readonly string _databaseName;
 		private readonly ILogger _logger;
