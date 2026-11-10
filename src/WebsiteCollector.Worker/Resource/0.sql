@@ -12,7 +12,6 @@
 -- 2. This file (creates WebsiteSelectors domain tables)
 
 SET XACT_ABORT ON;
-GO
 
 -- =====================================================
 -- Database Version Tracking
@@ -41,7 +40,6 @@ CREATE TABLE dbo.Websites (
 	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
 );
-GO
 
 -- =====================================================
 -- Create WebsiteSelectors table
@@ -60,10 +58,8 @@ CREATE TABLE dbo.WebsiteSelectors (
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	CONSTRAINT UQ_WebsiteSelectors_Unique UNIQUE (WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector)
 );
-GO
 
 CREATE INDEX IX_WebsiteSelectors_Website ON dbo.WebsiteSelectors(WebsitesId) WHERE IsEnabled = 1;
-GO
 
 -- =====================================================
 -- Create WebsiteSelectorsMonitor table
@@ -85,10 +81,8 @@ CREATE TABLE dbo.WebsiteSelectorsMonitor (
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	RowVer rowversion NOT NULL
 );
-GO
 
 CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextRunAt, Id) WHERE LeaseOwner IS NULL;
-GO
 
 -- =====================================================
 -- Create WebsiteSelectorsExecutions table
@@ -106,10 +100,8 @@ CREATE TABLE dbo.WebsiteSelectorsExecutions (
 	HttpStatus int NULL,
 	ErrorMessage nvarchar(2000) NULL
 );
-GO
 
 CREATE INDEX IX_Exec_WebsiteSelectorsTime ON dbo.WebsiteSelectorsExecutions(WebsiteSelectorsId, StartedAt DESC);
-GO
 
 -- =====================================================
 -- Create WebsiteSelectorsCollectedData table
@@ -124,7 +116,5 @@ CREATE TABLE dbo.WebsiteSelectorsCollectedData (
 	CollectedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	CONSTRAINT UQ_CollectedData_Hash UNIQUE(WebsiteSelectorsExecutionsId, ContentHash)
 );
-GO
 
 CREATE INDEX IX_CollectedData_Execution ON dbo.WebsiteSelectorsCollectedData(WebsiteSelectorsExecutionsId, CollectedAt DESC);
-GO

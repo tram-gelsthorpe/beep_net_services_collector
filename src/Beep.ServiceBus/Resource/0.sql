@@ -93,29 +93,30 @@ CREATE TABLE dbo.WorkItemHeartbeats (
 	INDEX IX_WorkItemHeartbeats_WorkItem (WorkItemId, RenewedAt DESC)
 );
 
-GO
 
 -- =====================================================
 -- Status Name Constants (to avoid hardcoding strings)
 -- =====================================================
 -- Define a view that provides easy access to status constants
-CREATE OR ALTER VIEW dbo.StatusConstants AS
+
+EXEC(N'CREATE OR ALTER VIEW dbo.StatusConstants AS
 SELECT 
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'PENDING') as PENDING,
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'CLAIMED') as CLAIMED,
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'RUNNING') as RUNNING,
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'SUCCEEDED') as SUCCEEDED,
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'FAILED') as FAILED,
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'ABANDONED') as ABANDONED,
-	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'DEFERRED') as DEFERRED;
-GO
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''PENDING'') as PENDING,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''CLAIMED'') as CLAIMED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''RUNNING'') as RUNNING,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''SUCCEEDED'') as SUCCEEDED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''FAILED'') as FAILED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''ABANDONED'') as ABANDONED,
+	(SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''DEFERRED'') as DEFERRED;');
+
 
 -- =====================================================
 -- Generic Stored Procedures
 -- =====================================================
 
 -- Claim a batch of work items atomically
-CREATE OR ALTER PROCEDURE dbo.ClaimWorkItems
+
+EXEC(N'CREATE OR ALTER PROCEDURE dbo.ClaimWorkItems
 	@WorkerType nvarchar(100),
 	@WorkerId uniqueidentifier,
 	@BatchSize int,
@@ -127,12 +128,12 @@ BEGIN
 	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 	IF @BatchSize NOT BETWEEN 1 AND 500 OR @LeaseSeconds NOT BETWEEN 60 AND 3600
-		THROW 50001, 'Invalid claim settings: BatchSize must be 1-500, LeaseSeconds 60-3600', 1;
+		THROW 50001, ''Invalid claim settings: BatchSize must be 1-500, LeaseSeconds 60-3600'', 1;
 
 	DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
-	DECLARE @pendingStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'PENDING');
-	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'FAILED');
-	DECLARE @claimedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'CLAIMED');
+	DECLARE @pendingStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''PENDING'');
+	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''FAILED'');
+	DECLARE @claimedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''CLAIMED'');
 
 	-- Atomically claim up to @BatchSize items that are ready and not leased
 	;WITH due AS (
@@ -162,11 +163,12 @@ BEGIN
 		   inserted.LeaseToken,
 		   inserted.AttemptCount,
 		   inserted.MaxAttempts;
-END;
-GO
+END;');
+
 
 -- Renew an active lease (called during heartbeat)
-CREATE OR ALTER PROCEDURE dbo.RenewWorkItemLease
+
+EXEC(N'CREATE OR ALTER PROCEDURE dbo.RenewWorkItemLease
 	@WorkItemId uniqueidentifier,
 	@LeaseToken uniqueidentifier,
 	@LeaseSeconds int
@@ -196,17 +198,18 @@ BEGIN
 		-- Lease not found or expired
 		SELECT CAST(0 as bit) as Success;
 	END
-END;
-GO
+END;');
+
 
 -- Complete a work item (record final status)
-CREATE OR ALTER PROCEDURE dbo.CompleteWorkItem
+
+EXEC(N'CREATE OR ALTER PROCEDURE dbo.CompleteWorkItem
 	@WorkItemId uniqueidentifier,
 	@LeaseToken uniqueidentifier,
 	@Succeeded bit,
 	@Error nvarchar(2000) = NULL,
 	@ResultData nvarchar(max) = NULL,
-	@BackoffStrategyName nvarchar(50) = 'exponential'  -- 'exponential', 'linear', 'fixed'
+	@BackoffStrategyName nvarchar(50) = ''exponential''  -- ''exponential'', ''linear'', ''fixed''
 AS
 BEGIN
 	SET NOCOUNT ON;
@@ -217,13 +220,13 @@ BEGIN
 	DECLARE @attempt int;
 	DECLARE @maxAttempts int;
 	DECLARE @nextRunAt datetimeoffset(7);
-	DECLARE @succeededStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'SUCCEEDED');
-	DECLARE @abandonedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'ABANDONED');
-	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = 'FAILED');
+	DECLARE @succeededStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''SUCCEEDED'');
+	DECLARE @abandonedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''ABANDONED'');
+	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''FAILED'');
 	-- Status snapshot constants
-	DECLARE @statusSucceeded nvarchar(50) = 'SUCCEEDED';
-	DECLARE @statusAbandoned nvarchar(50) = 'ABANDONED';
-	DECLARE @statusFailed nvarchar(50) = 'FAILED';
+	DECLARE @statusSucceeded nvarchar(50) = ''SUCCEEDED'';
+	DECLARE @statusAbandoned nvarchar(50) = ''ABANDONED'';
+	DECLARE @statusFailed nvarchar(50) = ''FAILED'';
 
 	BEGIN TRANSACTION;
 
@@ -235,7 +238,7 @@ BEGIN
 	IF @attempt IS NULL
 	BEGIN
 		ROLLBACK;
-		THROW 50002, 'Work item not found or lease token invalid', 1;
+		THROW 50002, ''Work item not found or lease token invalid'', 1;
 	END;
 
 	-- Determine next status and delay
@@ -276,20 +279,20 @@ BEGIN
 		ELSE
 		BEGIN
 			-- Calculate backoff delay based on strategy
-			IF @BackoffStrategyName = 'exponential'
+			IF @BackoffStrategyName = ''exponential''
 			BEGIN
 				-- 2^n seconds with jitter (capped at 1 hour)
 				SET @delay = CONVERT(int, POWER(2, IIF(@attempt > 10, 10, @attempt - 1)) * 1) 
 					+ ABS(CHECKSUM(NEWID()) % 30);
 				IF @delay > 3600 SET @delay = 3600;
 			END
-			ELSE IF @BackoffStrategyName = 'linear'
+			ELSE IF @BackoffStrategyName = ''linear''
 			BEGIN
 				-- n * 60 seconds (linear growth)
 				SET @delay = @attempt * 60;
 				IF @delay > 3600 SET @delay = 3600;
 			END
-			ELSE IF @BackoffStrategyName = 'fixed'
+			ELSE IF @BackoffStrategyName = ''fixed''
 			BEGIN
 				-- Always 60 seconds
 				SET @delay = 60;
@@ -321,11 +324,12 @@ BEGIN
 
 	COMMIT TRANSACTION;
 	SELECT CAST(1 as bit) as Success;
-END;
-GO
+END;');
+
 
 -- Record a heartbeat / status update without changing the lease
-CREATE OR ALTER PROCEDURE dbo.RecordWorkItemAttempt
+
+EXEC(N'CREATE OR ALTER PROCEDURE dbo.RecordWorkItemAttempt
 	@WorkItemId uniqueidentifier,
 	@AttemptNumber int,
 	@StatusSnapshot nvarchar(50),
@@ -337,11 +341,12 @@ BEGIN
 
 	INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, ResultData, FinishedAt)
 	VALUES (@WorkItemId, @AttemptNumber, @StatusSnapshot, @ErrorMessage, @ResultData, SYSUTCDATETIME());
-END;
-GO
+END;');
+
 
 -- Release a lease without changing status (for graceful timeout/cancellation)
-CREATE OR ALTER PROCEDURE dbo.ReleaseWorkItemLease
+
+EXEC(N'CREATE OR ALTER PROCEDURE dbo.ReleaseWorkItemLease
 	@WorkItemId uniqueidentifier,
 	@LeaseToken uniqueidentifier
 AS
@@ -356,11 +361,12 @@ BEGIN
 	WHERE Id = @WorkItemId AND LeaseToken = @LeaseToken;
 
 	SELECT CAST(@@ROWCOUNT as bit) as Success;
-END;
-GO
+END;');
+
 
 -- Get work item details for display/debugging
-CREATE OR ALTER PROCEDURE dbo.GetWorkItem
+
+EXEC(N'CREATE OR ALTER PROCEDURE dbo.GetWorkItem
 	@WorkItemId uniqueidentifier
 AS
 BEGIN
@@ -394,5 +400,4 @@ BEGIN
 	FROM dbo.WorkItemAttempts
 	WHERE WorkItemId = @WorkItemId
 	ORDER BY AttemptNumber DESC;
-END;
-GO
+END;');

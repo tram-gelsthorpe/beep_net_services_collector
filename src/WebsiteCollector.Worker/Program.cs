@@ -1,9 +1,14 @@
+using System.Security.Cryptography;
 using Beep.EventBus;
+using Beep.Log.NLog;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+//Logs
+//builder.Services.RegisterBeepLog(builder.Configuration);
 
 // Options
 builder.Services.Configure<WebsiteCollectorOptions>(
@@ -39,18 +44,31 @@ builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 
 var host = builder.Build();
 
-// Initialize databases on startup before any services access them
-var dbInitializer = host.Services.GetRequiredService<CreationDatabaseService>();
-await dbInitializer.InitializeAsync();
-
-// Initialize event subscribers on startup
-var subscribers = host.Services.GetRequiredService<IEnumerable<ISubscriber>>();
-foreach (var subscriber in subscribers)
+// Initialize database
+using (var scope = host.Services.CreateScope())
 {
-    await subscriber.RegisterAsync(host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
+	// Initialize logging
+	//var logger = scope.ServiceProvider
+	//	.CreateDatabase();
+
+	// Initialize database
+	var dbInitializer = scope.ServiceProvider
+		.GetRequiredService<CreationDatabaseService>();
+
+	await dbInitializer.InitializeAsync();
+
+	// Register subscribers
+	var subscribers = scope.ServiceProvider
+		.GetServices<ISubscriber>();
+
+	foreach (var subscriber in subscribers)
+	{
+		await subscriber.RegisterAsync(
+			host.Services
+				.GetRequiredService<IHostApplicationLifetime>()
+				.ApplicationStopping);
+	}
 }
 
+// Run host once
 await host.RunAsync();
-await host.RunAsync();
-
-

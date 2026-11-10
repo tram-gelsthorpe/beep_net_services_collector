@@ -2,25 +2,30 @@ using System.Data;
 using System.Data.Common;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace WebsiteCollector.Worker
 {
 	public sealed class SqlWebsiteCollectorDatabase : IWebsiteCollectorDatabase
 	{
-		private const string Create_Database_Script = @"
-			IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName)
-			BEGIN
-				CREATE DATABASE [@databaseName];
-			END
-		";
+		private const string Create_Database_Script = """
+			IF NOT EXISTS (SELECT TOP 1 * FROM sys.databases WHERE name = @databaseName)
+				BEGIN
+					DECLARE @sql NVARCHAR(MAX);
+
+					SET @sql = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
+
+					EXEC sp_executesql @sql;
+				END
+		""";
 
 		private const string _prefix = "Beep.WebsiteCollector.Worker.Resource";
 		private readonly DbConnection _dbConnection;
 		private readonly string _databaseName;
+		private readonly ILogger _logger;
 		private string? _schemaScript;
 		
-
-		public SqlWebsiteCollectorDatabase(string connectionString)
+		public SqlWebsiteCollectorDatabase(string connectionString, ILogger _logger)
 		{
 			_databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
 			_dbConnection = new SqlConnection(new SqlConnectionStringBuilder(connectionString)
@@ -28,6 +33,8 @@ namespace WebsiteCollector.Worker
 				InitialCatalog = "master"
 			}
 			.ToString());
+
+			_logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 		}
 
 		public async Task Create(CancellationToken cancellationToken = default)
@@ -62,12 +69,25 @@ namespace WebsiteCollector.Worker
 
 		private async Task<bool> Create_Database(CancellationToken cancellationToken = default)
 		{
-			var command = _dbConnection.CreateCommand();
-			command.CommandText = Create_Database_Script;
-			command.Parameters.Add(new SqlParameter("@databaseName", _databaseName));
+			try
+			{
+				var command = _dbConnection.CreateCommand();
+				command.CommandText = Create_Database_Script;
+				command.Parameters.Add(new SqlParameter("@databaseName", SqlDbType.NVarChar, 128) { Value = _databaseName });
 
-			var result = await command.ExecuteNonQueryAsync(cancellationToken);
-			return result > 0;
+				await command.ExecuteNonQueryAsync(cancellationToken);
+				return true;
+			}
+			catch (SqlException ex) when (ex.Number == 1801) // Database already exists
+			{
+				_logger.LogInformation("Database '{DatabaseName}' already exists.", _databaseName);
+				return false;
+			}
+			catch
+			{
+				_logger.LogError("An error occurred while creating the database.");
+				throw;
+			}
 		}
 
 		private async Task Create_Table(CancellationToken cancellationToken = default)

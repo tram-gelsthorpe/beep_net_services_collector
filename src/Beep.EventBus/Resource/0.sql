@@ -44,7 +44,6 @@ CREATE TABLE dbo.EventBus (
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	CONSTRAINT UQ_EventBus_Unique UNIQUE (EventBusOwnerId, EventBusUrl)
 );
-GO
 
 -- Create EventBusMonitor table
 CREATE TABLE dbo.EventBusMonitor (
@@ -57,7 +56,6 @@ CREATE TABLE dbo.EventBusMonitor (
 	IsCircuitBreakerOpen bit NOT NULL DEFAULT 0,
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
 );
-GO
 
 -- Create EventBusDeliveries table
 -- EventBusOwnerCollectedDataId: Foreign key to the owner's collected data entity
@@ -77,7 +75,6 @@ CREATE TABLE dbo.EventBusDeliveries (
 	CONSTRAINT UQ_Delivery_Unique UNIQUE (EventBusId, EventBusOwnerCollectedDataId, AttemptNumber),
 	CONSTRAINT CK_Delivery_Status CHECK (Status IN ('PENDING', 'IN_PROGRESS', 'SUCCESS', 'FAILED', 'ABANDONED'))
 );
-GO
 
 -- Indexes for EventBusDeliveries
 -- Note: Index names should be globally unique. When deploying in different projects,
@@ -89,4 +86,3 @@ CREATE INDEX IX_EventBusDeliveries_Pending ON dbo.EventBusDeliveries(EventBusId,
 CREATE INDEX IX_EventBusDeliveries_EventBus ON dbo.EventBusDeliveries(EventBusId, DeliveredAt DESC);
 
 CREATE INDEX IX_EventBusDeliveries_CollectedData ON dbo.EventBusDeliveries(EventBusOwnerCollectedDataId, CreatedAt DESC);
-GO

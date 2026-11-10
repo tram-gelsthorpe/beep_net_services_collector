@@ -29,7 +29,7 @@ public sealed class CreationDatabaseService(
 
 			// Initialize ServiceBus database (WorkItems table and stored procedures)
 			logger.LogInformation("Initializing ServiceBus database...");
-			var serviceBusDb = new SqlServiceBusDatabase(connectionString);
+			var serviceBusDb = new SqlServiceBusDatabase(connectionString, logger);
 			await serviceBusDb.Create(cancellationToken);
 			logger.LogInformation("ServiceBus database initialized successfully");
 
@@ -39,7 +39,7 @@ public sealed class CreationDatabaseService(
 				?? throw new InvalidOperationException("Missing EventBus connection string ");
 
 			logger.LogInformation("Initializing EventBus database...");
-			var eventBusDb = new SqlEventBusDatabase(eventBusConnectionString);
+			var eventBusDb = new SqlEventBusDatabase(eventBusConnectionString, logger);
 			await eventBusDb.Create(cancellationToken);
 			logger.LogInformation("EventBus database initialized successfully");
 
@@ -49,7 +49,7 @@ public sealed class CreationDatabaseService(
 				?? throw new InvalidOperationException("Missing Collector connection string ");
 
 			logger.LogInformation("Initializing WebsiteCollector database...");
-			var collectorDb = new SqlEventBusDatabase(collectorConnectionString);
+			var collectorDb = new SqlWebsiteCollectorDatabase(collectorConnectionString, logger);
 			await collectorDb.Create(cancellationToken);
 			logger.LogInformation("WebsiteCollector database initialized successfully");
 
