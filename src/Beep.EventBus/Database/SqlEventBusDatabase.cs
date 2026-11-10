@@ -54,7 +54,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 	private readonly ILogger _logger;
 	private string? _schemaScript;
 
-	public SqlEventBusDatabase(string connectionString, ILogger _logger)
+	public SqlEventBusDatabase(string connectionString, ILogger logger)
 	{
 		_databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
 		_dbConnection = new SqlConnection(new SqlConnectionStringBuilder(connectionString)
@@ -63,7 +63,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		}
 		.ToString());
 
-		_logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
 	public async Task Create(CancellationToken cancellationToken = default)

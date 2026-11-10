@@ -48,7 +48,7 @@ namespace WebsiteCollector.Worker
 		private readonly ILogger _logger;
 		private string? _schemaScript;
 		
-		public SqlWebsiteCollectorDatabase(string connectionString, ILogger _logger)
+		public SqlWebsiteCollectorDatabase(string connectionString, ILogger logger)
 		{
 			_databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
 			_dbConnection = new SqlConnection(new SqlConnectionStringBuilder(connectionString)
@@ -57,7 +57,7 @@ namespace WebsiteCollector.Worker
 			}
 			.ToString());
 
-			_logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
+			_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
 		public async Task Create(CancellationToken cancellationToken = default)
