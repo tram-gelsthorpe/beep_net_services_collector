@@ -142,7 +142,12 @@ BEGIN
 			DomainId, 
 			DomainType,
 			AttemptCount,
-			MaxAttempts
+			MaxAttempts,
+			LeaseOwner,
+			LeaseToken,
+			LeaseUntil,
+			StatusId,
+			StartedAt
 		FROM dbo.WorkItems
 		WHERE WorkerType = @WorkerType
 			AND StatusId IN (@pendingStatusId, @failedStatusId)  -- PENDING or FAILED (ready to retry)
