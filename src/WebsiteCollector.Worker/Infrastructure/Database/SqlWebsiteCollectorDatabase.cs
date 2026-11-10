@@ -7,9 +7,18 @@ namespace WebsiteCollector.Worker
 {
 	public sealed class SqlWebsiteCollectorDatabase : IWebsiteCollectorDatabase
 	{
+		private const string Create_Database_Script = @"
+			IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName)
+			BEGIN
+				CREATE DATABASE [@databaseName];
+			END
+		";
+
+		private const string _prefix = "Beep.WebsiteCollector.Worker.Resource";
 		private readonly DbConnection _dbConnection;
 		private readonly string _databaseName;
 		private string? _schemaScript;
+		
 
 		public SqlWebsiteCollectorDatabase(string connectionString)
 		{
@@ -115,7 +124,7 @@ namespace WebsiteCollector.Worker
 			var assembly = Assembly.GetExecutingAssembly();
 			var resourceCount = assembly
 				.GetManifestResourceNames()
-				.Count(r => r.StartsWith("WebsiteCollector.Worker.Resource"));
+				.Count(r => r.StartsWith(_prefix));
 
 			return resourceCount;
 		}
@@ -147,7 +156,7 @@ namespace WebsiteCollector.Worker
 				return _schemaScript;
 
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourceName = $"Beep.WebsiteCollector.Resource.0.sql";
+			var resourceName = $"{_prefix}.0.sql";
 
 			using (var stream = assembly.GetManifestResourceStream(resourceName))
 			{
@@ -166,7 +175,7 @@ namespace WebsiteCollector.Worker
 		private string LoadUpdateSchemaResource(int version)
 		{
 			var assembly = Assembly.GetExecutingAssembly();
-			var resourceName = $"Beep.EventBus.Resource.{version}.sql";
+			var resourceName = $"{_prefix}.{version}.sql";
 			var result = "";
 
 			using (var stream = assembly.GetManifestResourceStream(resourceName))
@@ -182,14 +191,5 @@ namespace WebsiteCollector.Worker
 
 			return result;
 		}
-
-		// Placeholder for Create_Database_Script constant
-		// This needs to be defined separately if it's used in Create_Database method
-		private const string Create_Database_Script = @"
-			IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName)
-			BEGIN
-				CREATE DATABASE [@databaseName];
-			END
-		";
 	}
 }

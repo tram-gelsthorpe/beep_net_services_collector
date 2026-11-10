@@ -7,7 +7,7 @@ namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Initializes all required databases and schemas on application startup.
-/// Handles ServiceBus (WorkItems), WebhookBus (Webhooks), and WebsiteCollector schema creation.
+/// Handles ServiceBus (WorkItems), EventBus (Deliveries), and WebsiteCollector schema creation.
 /// </summary>
 public sealed class CreationDatabaseService(
 	IConfiguration configuration,
@@ -35,12 +35,12 @@ public sealed class CreationDatabaseService(
 
 			// Initialize EventBus database (EventBus and EventBusDeliveries tables)
 			// If a separate Webhook database is configured, initialize it too
-			var webhookConnectionString = configuration.GetConnectionString("Webhook")
-				?? throw new InvalidOperationException("Missing Webhook connection string ");
+			var eventBusConnectionString = configuration.GetConnectionString("EventBus")
+				?? throw new InvalidOperationException("Missing EventBus connection string ");
 
 			logger.LogInformation("Initializing EventBus database...");
-			var webhookDb = new SqlEventBusDatabase(webhookConnectionString);
-			await webhookDb.Create(cancellationToken);
+			var eventBusDb = new SqlEventBusDatabase(eventBusConnectionString);
+			await eventBusDb.Create(cancellationToken);
 			logger.LogInformation("EventBus database initialized successfully");
 
 

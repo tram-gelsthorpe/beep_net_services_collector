@@ -12,6 +12,14 @@ namespace Beep.ServiceBus;
 
 public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 {
+	private const string Create_Database_Script = @"
+			IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName)
+			BEGIN
+				CREATE DATABASE [@databaseName];
+			END
+		";
+
+	private const string _prefix = "Beep.ServiceBus.Resource";
 	private readonly DbConnection _dbConnection;
 	private readonly string _databaseName;
 	private string? _schemaScript;
@@ -120,7 +128,7 @@ public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 		var assembly = Assembly.GetExecutingAssembly();
 		var resourceCount = assembly
 			.GetManifestResourceNames()
-			.Count(r => r.StartsWith("Beep.ServiceBus.Resource"));
+			.Count(r => r.StartsWith(_prefix));
 
 		return resourceCount;
 	}
@@ -152,7 +160,7 @@ public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 			return _schemaScript;
 
 		var assembly = Assembly.GetExecutingAssembly();
-		var resourceName = $"Beep.ServiceBus.Resource.0.sql";
+		var resourceName = $"{_prefix}.0.sql";
 
 		using (var stream = assembly.GetManifestResourceStream(resourceName))
 		{
@@ -171,7 +179,7 @@ public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 	private string LoadUpdateSchemaResource(int version)
 	{
 		var assembly = Assembly.GetExecutingAssembly();
-		var resourceName = $"Beep.ServiceBus.Resource.{version}.sql";
+		var resourceName = $"{_prefix}.{version}.sql";
 		var result = "";
 
 		using (var stream = assembly.GetManifestResourceStream(resourceName))
@@ -187,13 +195,4 @@ public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 
 		return result;
 	}
-
-	// Placeholder for Create_Database_Script constant
-	// This needs to be defined separately if it's used in Create_Database method
-	private const string Create_Database_Script = @"
-			IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName)
-			BEGIN
-				CREATE DATABASE [@databaseName];
-			END
-		";
 }
