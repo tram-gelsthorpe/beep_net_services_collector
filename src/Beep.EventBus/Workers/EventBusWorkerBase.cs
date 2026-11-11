@@ -16,8 +16,7 @@ public sealed class EventBusWorker : GenericWorkerBase<PendingEventBus>
 		EventBusLeaseManager leaseManager,
 		EventBusWorkProcessor workProcessor,
 		EventBusOptions options,
-		ILogger logger)
-		: base(leaseManager, workProcessor, options, logger)
+		ILogger logger) : base(leaseManager, workProcessor, options, logger)
 	{
 		_options = options ?? throw new ArgumentNullException(nameof(options));
 		_options.Validate();
