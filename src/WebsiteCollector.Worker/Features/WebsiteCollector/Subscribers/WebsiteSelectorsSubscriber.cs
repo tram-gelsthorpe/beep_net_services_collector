@@ -33,6 +33,7 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 	{
 		_eventAggregator.Subscribe<CollectionCompletedEvent>(OnCollectionCompletedAsync);
 		_logger.LogInformation("Registered WebsiteSelectorsSubscriber to collection completed events");
+
 		await Task.CompletedTask;
 	}
 

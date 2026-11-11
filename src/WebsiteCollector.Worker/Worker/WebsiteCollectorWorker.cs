@@ -14,7 +14,7 @@ public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSel
 		IOptions<WebsiteCollectorOptions> options,
 		ILogger<WebsiteCollectorWorker> logger)
 		: base(
-			new CollectorLeaseManager(collectionService),
+			new CollectorLeaseManager(collectionService), 
 			new CollectorWorkProcessor(collectionService, httpClientFactory, options, logger),
 			options.Value,
 			logger)
