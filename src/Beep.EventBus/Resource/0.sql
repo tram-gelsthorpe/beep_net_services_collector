@@ -33,7 +33,7 @@ CREATE TABLE dbo.EventBus (
     EventBusOwnerUrl nvarchar(2048) NOT NULL,
     EventBusOwnerUrlHash AS
         CONVERT(binary(32),
-            HASHBYTES('SHA2_256', EventBusUrl)
+            HASHBYTES('SHA2_256', EventBusOwnerUrl)
         ) PERSISTED,
     IsEnabled bit NOT NULL DEFAULT 1,
     TimeoutSeconds int NOT NULL DEFAULT 30
