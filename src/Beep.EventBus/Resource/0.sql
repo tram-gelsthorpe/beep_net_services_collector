@@ -30,8 +30,8 @@ VALUES ('0');
 CREATE TABLE dbo.EventBus (
     Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
     EventBusOwnerId uniqueidentifier NOT NULL,
-    EventBusUrl nvarchar(2048) NOT NULL,
-    EventBusUrlHash AS
+    EventBusOwnerUrl nvarchar(2048) NOT NULL,
+    EventBusOwnerUrlHash AS
         CONVERT(binary(32),
             HASHBYTES('SHA2_256', EventBusUrl)
         ) PERSISTED,
@@ -45,7 +45,7 @@ CREATE TABLE dbo.EventBus (
     CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT UQ_EventBus_Unique
-        UNIQUE (EventBusOwnerId, EventBusUrlHash)
+        UNIQUE (EventBusOwnerId, EventBusOwnerUrlHash)
 );
 
 -- =====================================================
@@ -61,6 +61,7 @@ CREATE TABLE dbo.EventBusMonitor (
     LastErrorMessage nvarchar(2000) NULL,
     ConsecutiveFailures int NOT NULL DEFAULT 0,
     IsCircuitBreakerOpen bit NOT NULL DEFAULT 0,
+    CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
