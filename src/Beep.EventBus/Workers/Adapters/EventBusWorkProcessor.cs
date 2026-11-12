@@ -33,8 +33,8 @@ public sealed class EventBusWorkProcessor : IWorkProcessor<PendingEventBus>
 	{
 		// Initialization: log that processing is starting
 		_logger.LogDebug(
-			"Initializing webhook delivery. DeliveryId={DeliveryId}, Webhook={Webhook}, Worker={Worker}",
-			item.DeliveryId, item.WebhookUrl, workerIdent);
+			"Initializing EventBus delivery. EventBusDeliveryId={EventBusDeliveryId}, EventBusId={EventBusId}, Worker={Worker}",
+			item.EventBusDeliveryId, item.EventBusId, workerIdent);
 
 		await Task.CompletedTask;
 	}
@@ -47,23 +47,23 @@ public sealed class EventBusWorkProcessor : IWorkProcessor<PendingEventBus>
 		try
 		{
 			_logger.LogDebug(
-				"Processing webhook delivery. DeliveryId={DeliveryId}, Attempt={Attempt}",
-				item.DeliveryId, item.AttemptNumber);
+				"Processing EventBus delivery. EventBusDeliveryId={EventBusDeliveryId}, Attempt={Attempt}",
+				item.EventBusDeliveryId, item.AttemptNumber);
 
 			await _service.DeliverAsync(item, ct);
 
 			return new ProcessingResult
 			{
 				Success = true,
-				ResultData = new { DeliveryId = item.DeliveryId }
+				ResultData = new { DeliveryId = item.EventBusDeliveryId }
 			};
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(
 				ex,
-				"Error processing webhook delivery. DeliveryId={DeliveryId}",
-				item.DeliveryId);
+				"Error processing EventBus delivery. EventBusDeliveryId={EventBusDeliveryId}",
+				item.EventBusDeliveryId);
 
 			return new ProcessingResult
 			{
@@ -83,14 +83,14 @@ public sealed class EventBusWorkProcessor : IWorkProcessor<PendingEventBus>
 		if (result.Success)
 		{
 			_logger.LogDebug(
-				"Webhook delivery processing completed successfully. DeliveryId={DeliveryId}",
-				item.DeliveryId);
+				"EventBus delivery processing completed successfully. EventBusDeliveryId={EventBusDeliveryId}",
+				item.EventBusDeliveryId);
 		}
 		else
 		{
 			_logger.LogWarning(
-				"Webhook delivery processing completed with error. DeliveryId={DeliveryId}, Error={Error}",
-				item.DeliveryId, result.ErrorMessage);
+				"EventBus delivery processing completed with error. EventBusDeliveryId={EventBusDeliveryId}, Error={Error}",
+				item.EventBusDeliveryId, result.ErrorMessage);
 		}
 
 		await Task.CompletedTask;

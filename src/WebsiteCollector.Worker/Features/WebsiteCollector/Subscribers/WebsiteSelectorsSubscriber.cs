@@ -11,16 +11,17 @@ namespace WebsiteCollector.Worker;
 public sealed class WebsiteSelectorsSubscriber : ISubscriber
 {
 	private readonly IEventAggregator _eventAggregator;
+	private readonly IEventBusRepository _deliveryRepository;
 	private readonly IWebsiteSelectionWebhookRepository _webhookRepository;
-	private readonly IEventBusDeliveryRepository _deliveryRepository;
+	
 	private readonly ILogger<WebsiteSelectorsSubscriber> _logger;
 
 	public string Name => "WebsiteSelectorsSubscriber";
 
 	public WebsiteSelectorsSubscriber(
 		IEventAggregator eventAggregator,
+		IEventBusRepository deliveryRepository,
 		IWebsiteSelectionWebhookRepository webhookRepository,
-		IEventBusDeliveryRepository deliveryRepository,
 		ILogger<WebsiteSelectorsSubscriber> logger)
 	{
 		_eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));

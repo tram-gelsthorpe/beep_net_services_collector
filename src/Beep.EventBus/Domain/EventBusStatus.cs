@@ -1,7 +1,7 @@
 namespace Beep.EventBus;
 
 /// <summary>
-/// Status values for webhook delivery work items.
+/// Status values for EventBus delivery work items.
 /// </summary>
 public static class EventBusStatus
 {

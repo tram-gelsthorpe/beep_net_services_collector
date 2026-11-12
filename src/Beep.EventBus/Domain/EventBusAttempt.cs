@@ -8,7 +8,7 @@ namespace Beep.EventBus;
 /// </summary>
 public record EventBusAttempt
 {
-	public required Guid DeliveryId { get; init; }
+	public required Guid EventBusDeliveryId { get; init; }
 	public required int AttemptNumber { get; init; }
 	public required DateTimeOffset AttemptedAt { get; init; }
 	public required bool IsSuccessful { get; init; }

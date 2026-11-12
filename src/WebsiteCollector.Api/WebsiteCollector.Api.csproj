@@ -13,9 +13,4 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Beep.EventBus\Beep.EventBus.csproj" />
-    <ProjectReference Include="..\WebsiteCollector.Worker\WebsiteCollector.Worker.csproj" />
-  </ItemGroup>
-
 </Project>

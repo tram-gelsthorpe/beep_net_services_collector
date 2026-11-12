@@ -32,11 +32,11 @@ public sealed class EventBusService(
 			{
 				logger.LogInformation(
 					"Webhook delivered successfully. DeliveryId={DeliveryId}, Webhook={Webhook}, StatusCode={StatusCode}, Attempt={Attempt}",
-					delivery.DeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
+					delivery.EventBusDeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
 
 				// Mark as success
 				await repository.RecordDeliveryResultAsync(
-					delivery.DeliveryId,
+					delivery.EventBusDeliveryId,
 					isSuccessful: true,
 					(int)response.StatusCode,
 					errorMessage: null,
@@ -47,14 +47,14 @@ public sealed class EventBusService(
 			{
 				logger.LogWarning(
 					"Webhook delivery failed (non-2xx). DeliveryId={DeliveryId}, Webhook={Webhook}, StatusCode={StatusCode}, Attempt={Attempt}",
-					delivery.DeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
+					delivery.EventBusDeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
 
 				// Read response content for diagnostics
 				var responseContent = await response.Content.ReadAsStringAsync(ct);
 
 				// Mark as failed (will retry or abandon based on attempt count)
 				await repository.RecordDeliveryResultAsync(
-					delivery.DeliveryId,
+					delivery.EventBusDeliveryId,
 					isSuccessful: false,
 					(int)response.StatusCode,
 					errorMessage: $"HTTP {(int)response.StatusCode}",
@@ -66,10 +66,10 @@ public sealed class EventBusService(
 		{
 			logger.LogWarning(
 				"Webhook delivery HTTP error. DeliveryId={DeliveryId}, Webhook={Webhook}, Error={Error}, Attempt={Attempt}",
-				delivery.DeliveryId, delivery.WebhookUrl, ex.Message, delivery.AttemptNumber);
+				delivery.EventBusDeliveryId, delivery.WebhookUrl, ex.Message, delivery.AttemptNumber);
 
 			await repository.RecordDeliveryResultAsync(
-				delivery.DeliveryId,
+				delivery.EventBusDeliveryId,
 				isSuccessful: false,
 				httpStatusCode: null,
 				errorMessage: $"HTTP Error: {ex.Message}",
@@ -80,10 +80,10 @@ public sealed class EventBusService(
 		{
 			logger.LogWarning(
 				"Webhook delivery timeout. DeliveryId={DeliveryId}, Webhook={Webhook}, Timeout={Timeout}s, Attempt={Attempt}",
-				delivery.DeliveryId, delivery.WebhookUrl, delivery.TimeoutSeconds, delivery.AttemptNumber);
+				delivery.EventBusDeliveryId, delivery.WebhookUrl, delivery.TimeoutSeconds, delivery.AttemptNumber);
 
 			await repository.RecordDeliveryResultAsync(
-				delivery.DeliveryId,
+				delivery.EventBusDeliveryId,
 				isSuccessful: false,
 				httpStatusCode: null,
 				errorMessage: $"Timeout after {delivery.TimeoutSeconds}s",
@@ -95,10 +95,10 @@ public sealed class EventBusService(
 			logger.LogError(
 				ex,
 				"Unexpected error during webhook delivery. DeliveryId={DeliveryId}, Webhook={Webhook}, Attempt={Attempt}",
-				delivery.DeliveryId, delivery.WebhookUrl, delivery.AttemptNumber);
+				delivery.EventBusDeliveryId, delivery.WebhookUrl, delivery.AttemptNumber);
 
 			await repository.RecordDeliveryResultAsync(
-				delivery.DeliveryId,
+				delivery.EventBusDeliveryId,
 				isSuccessful: false,
 				httpStatusCode: null,
 				errorMessage: $"Unexpected error: {ex.Message}",

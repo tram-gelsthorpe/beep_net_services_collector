@@ -52,8 +52,8 @@ CREATE TABLE dbo.WebsiteSelectors (
 	CollectionType varchar(10) NOT NULL CONSTRAINT CK_Selector_Type CHECK (CollectionType IN ('HTML', 'JSON', 'XML', 'RAW')),
 	ContentSelector nvarchar(1000) NULL,
 	TableSelector nvarchar(1000) NULL,
-	IntervalSeconds int NOT NULL CONSTRAINT CK_Selector_Interval CHECK (IntervalSeconds BETWEEN 10 AND 2592000),
-	IsEnabled bit NOT NULL DEFAULT 1,
+	TimeoutSeconds int NOT NULL DEFAULT 30 CONSTRAINT CK__WebsiteSelectors_Timeout CHECK (TimeoutSeconds BETWEEN 1 AND 300),
+	MaxAttempts int NOT NULL DEFAULT 5 CONSTRAINT CK__WebsiteSelectors_MaxAttempts CHECK (MaxAttempts BETWEEN 1 AND 20),
 	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	CONSTRAINT UQ_WebsiteSelectors_Unique UNIQUE (WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector)
@@ -68,8 +68,8 @@ CREATE INDEX IX_WebsiteSelectors_Website ON dbo.WebsiteSelectors(WebsitesId) WHE
 CREATE TABLE dbo.WebsiteSelectorsMonitor (
 	Id uniqueidentifier PRIMARY KEY REFERENCES dbo.WebsiteSelectors(Id) ON DELETE CASCADE,
 	NextRunAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-	TimeoutSeconds int NOT NULL DEFAULT 30 CONSTRAINT CK_Monitor_Timeout CHECK (TimeoutSeconds BETWEEN 1 AND 300),
-	MaxAttempts int NOT NULL DEFAULT 5 CONSTRAINT CK_Monitor_Attempts CHECK (MaxAttempts BETWEEN 1 AND 20),
+	TimeoutSeconds int NOT NULL,
+	MaxAttempts int NOT NULL,
 	AttemptCount int NOT NULL DEFAULT 0,
 	LeaseOwner uniqueidentifier NULL,
 	LeaseToken uniqueidentifier NULL,
@@ -95,7 +95,7 @@ CREATE TABLE dbo.WebsiteSelectorsExecutions (
 	WorkerId uniqueidentifier NOT NULL,
 	StartedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	FinishedAt datetimeoffset(7) NULL,
-	Status varchar(16) NOT NULL CONSTRAINT CK_Exec_Status CHECK (Status IN ('Running', 'Succeeded', 'Failed', 'Abandoned')),
+	Status varchar(16) NOT NULL CONSTRAINT CK_WebsiteSelectorsExecutions_Status CHECK (Status IN ('Running', 'Succeeded', 'Failed', 'Abandoned')),
 	AttemptNumber int NOT NULL,
 	HttpStatus int NULL,
 	ErrorMessage nvarchar(2000) NULL
