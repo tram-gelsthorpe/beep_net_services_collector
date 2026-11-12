@@ -13,6 +13,21 @@ namespace Beep.EventBus
 	{
 		private SqlConnection Open() => new(config.GetConnectionString("EventBus") ?? throw new InvalidOperationException("Missing EventBus connection string"));
 
+		public async Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId, CancellationToken ct)
+		{
+			await using var conn = Open();
+			const string sql = """
+				SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxRetryAttempts
+				FROM dbo.EventBus
+				WHERE EventBusOwnerId = @EventBusOwnerId AND IsEnabled = 1
+			""";
+
+			var rows = await conn.QueryAsync<EventBusDomain>(
+				new CommandDefinition(sql, new { EventBusOwnerId = eventBusOwnerId }, cancellationToken: ct));
+
+			return rows.AsList();
+		}
+
 		public async Task AbandonDeliveryAsync(Guid eventBusDeliveryId, String reason, CancellationToken ct)
 		{
 			await using var connection = Open();

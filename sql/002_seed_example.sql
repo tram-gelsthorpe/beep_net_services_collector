@@ -13,6 +13,6 @@ VALUES (@WebsiteSelectorsId, @WebsiteId, N'https://www.vietcombank.com.vn/en/Per
 
 Use EventBus;
 
-INSERT INTO dbo.EventBus (Id, EventBusOwnerId, EventBusOwnerUrl, TimeoutSeconds, MaxRetryAttempts)
-SELECT NEWID(), Id, CollectionUrl, TimeoutSeconds, MaxAttempts FROM dbo.WebsiteSelectors
+INSERT INTO dbo.EventBus (Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, TimeoutSeconds, MaxRetryAttempts)
+SELECT NEWID(), @WebsiteSelectorsId, "https://localhost:8080/", TimeoutSeconds, MaxAttempts FROM dbo.WebsiteSelectors
 WHERE Id = @WebsiteSelectorsId AND IsEnabled = 1;

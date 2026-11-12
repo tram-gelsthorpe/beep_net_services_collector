@@ -12,8 +12,6 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 {
 	private readonly IEventAggregator _eventAggregator;
 	private readonly IEventBusRepository _deliveryRepository;
-	private readonly IWebsiteSelectionWebhookRepository _webhookRepository;
-	
 	private readonly ILogger<WebsiteSelectorsSubscriber> _logger;
 
 	public string Name => "WebsiteSelectorsSubscriber";
@@ -21,11 +19,9 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 	public WebsiteSelectorsSubscriber(
 		IEventAggregator eventAggregator,
 		IEventBusRepository deliveryRepository,
-		IWebsiteSelectionWebhookRepository webhookRepository,
 		ILogger<WebsiteSelectorsSubscriber> logger)
 	{
 		_eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
-		_webhookRepository = webhookRepository ?? throw new ArgumentNullException(nameof(webhookRepository));
 		_deliveryRepository = deliveryRepository ?? throw new ArgumentNullException(nameof(deliveryRepository));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
@@ -46,43 +42,43 @@ public sealed class WebsiteSelectorsSubscriber : ISubscriber
 				"Collection completed for selector {SelectorId}, queueing webhook deliveries",
 				@event.WebsiteSelectorsId);
 
-			// Get all registered webhooks for this selector
-			var webhooks = await _webhookRepository.GetByWebsiteSelectorsIdAsync(@event.WebsiteSelectorsId, ct);
+			// Get all registered EventBus for this selector
+			var eventBusCollection = await _deliveryRepository.GetByOwnerIdAsync(@event.WebsiteSelectorsId, ct);
 
-			if (!webhooks.Any())
+			if (!eventBusCollection.Any())
 			{
 				_logger.LogDebug(
-					"No webhooks registered for selector {SelectorId}",
+					"No EventBus registered for selector {SelectorId}",
 					@event.WebsiteSelectorsId);
 				return;
 			}
 
-			// Queue a delivery for each webhook
-			// The generic webhook delivery system (Beep.WebhookBus) will handle actual HTTP delivery
-			foreach (var webhook in webhooks)
+			// Queue a delivery for each EventBus registered for this selector
+			// The generic EventBus delivery system (Beep.EventBus) will handle actual HTTP delivery
+			foreach (var eventBus in eventBusCollection)
 			{
 				try
 				{
 					_logger.LogDebug(
-						"Queueing webhook delivery for {WebhookUrl} (webhook {WebhookId})",
-						webhook.WebhookUrl,
-						webhook.Id);
+						"Queueing EventBus delivery for {EventBusOwnerUrl} (EventBus {EventBusId})",
+						eventBus.EventBusOwnerUrl,
+						eventBus.Id);
 
-					// Queue the delivery - actual HTTP POST will be handled by WebhookDeliveryWorker
-					await _deliveryRepository.QueueDeliveryAsync(webhook.Id, @event.CollectedDataId, ct);
+					// Queue the delivery - actual HTTP POST will be handled by EventBusDeliveryWorker
+					await _deliveryRepository.QueueDeliveryAsync(eventBus.Id, @event.CollectedDataId, ct);
 
 					_logger.LogInformation(
-						"Queued webhook delivery for selector {SelectorId} to webhook {WebhookUrl}",
+						"Queued EventBus delivery for selector {SelectorId} to EventBus {EventBusOwnerUrl}",
 						@event.WebsiteSelectorsId,
-						webhook.WebhookUrl);
+						eventBus.EventBusOwnerUrl);
 				}
 				catch (Exception ex)
 				{
 					_logger.LogError(
 						ex,
-						"Failed to queue webhook delivery for selector {SelectorId} and webhook {WebhookId}",
+						"Failed to queue EventBus delivery for selector {SelectorId} and EventBus {EventBusId}",
 						@event.WebsiteSelectorsId,
-						webhook.Id);
+						eventBus.Id);
 				}
 			}
 		}

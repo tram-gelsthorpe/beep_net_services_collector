@@ -30,10 +30,10 @@ VALUES ('0');
 CREATE TABLE dbo.EventBus (
     Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
     EventBusOwnerId uniqueidentifier NOT NULL,
-    EventBusOwnerUrl nvarchar(2048) NOT NULL,
+    EventBusOwnerDeliveryUrl nvarchar(2048) NOT NULL,
     EventBusOwnerUrlHash AS
         CONVERT(binary(32),
-            HASHBYTES('SHA2_256', EventBusOwnerUrl)
+            HASHBYTES('SHA2_256', EventBusOwnerDeliveryUrl)
         ) PERSISTED,
     IsEnabled bit NOT NULL DEFAULT 1,
     TimeoutSeconds int NOT NULL DEFAULT 30

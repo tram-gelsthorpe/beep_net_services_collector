@@ -12,6 +12,12 @@ namespace Beep.EventBus;
 public interface IEventBusRepository
 {
 	/// <summary>
+	/// Get all enabled EventBus entries for a specific EventBus owner.
+	/// </summary>
+	Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId
+		, CancellationToken ct);
+
+	/// <summary>
 	///	Queues a new EventBus delivery for processing, given the EventBus ID and the associated collected data ID. 
 	/// </summary>
 	/// <param name="eventBusId"></param>
