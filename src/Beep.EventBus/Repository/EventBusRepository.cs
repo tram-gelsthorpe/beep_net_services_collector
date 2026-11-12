@@ -90,14 +90,15 @@ namespace Beep.EventBus
 				SELECT TOP (@BatchSize)
 					d.Id as EventBusDeliveryId,
 					d.EventBusId as EventBusId,
-					d.EventBusOwnerCollectedDataId as EventBusOwnerCollectedDataId,
+					d.EventBusOwnerCollectedDataId,
 					d.AttemptNumber,
-					e.EventBusOwnerUrl as RawPayload,
-					e.TimeoutSeconds,
-					e.MaxRetryAttempts,
 					d.CreatedAt,
 					d.NextRetryAt,
-					d.Status
+					d.Status,
+					e.EventBusOwnerId,
+					e.EventBusOwnerDeliveryUrl,
+					e.TimeoutSeconds,
+					e.MaxRetryAttempts,
 				FROM dbo.EventBusDeliveries d
 				INNER JOIN dbo.EventBus e ON d.EventBusId = e.Id
 				WHERE d.Status = 'PENDING'
@@ -106,7 +107,7 @@ namespace Beep.EventBus
 				ORDER BY d.NextRetryAt ASC, d.CreatedAt ASC
 				""";
 
-			var deliveries = await connection.QueryAsync<PendingEventBus>(
+		var deliveries = await connection.QueryAsync<PendingEventBus>(
 				new CommandDefinition(sql, new { BatchSize = batchSize }, cancellationToken: ct));
 
 			return deliveries.ToList();

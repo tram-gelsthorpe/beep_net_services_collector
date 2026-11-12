@@ -24,15 +24,16 @@ public sealed class EventBusService(
 			httpClient.Timeout = TimeSpan.FromSeconds(delivery.TimeoutSeconds);
 
 			// Send POST request with raw payload
-			var content = new StringContent(delivery.RawPayload, Encoding.UTF8, "application/json");
-			var response = await httpClient.PostAsync(delivery.WebhookUrl, content, ct);
+			var rawPayLoad = new { EventBusOwnerCollectedDataId = delivery.EventBusOwnerCollectedDataId };
+			var content = new StringContent(delivery.EventBusOwnerCollectedDataId.ToString(), Encoding.UTF8, "application/json");
+			var response = await httpClient.PostAsync(delivery.EventBusOwnerDeliveryUrl, content, ct);
 
 			// Log result
 			if (response.IsSuccessStatusCode)
 			{
 				logger.LogInformation(
-					"Webhook delivered successfully. DeliveryId={DeliveryId}, Webhook={Webhook}, StatusCode={StatusCode}, Attempt={Attempt}",
-					delivery.EventBusDeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
+					"EventBus delivered successfully. EventBusDeliveryId={EventBusDeliveryId}, EventBusOwnerDeliveryUrl={EventBusOwnerDeliveryUrl}, StatusCode={StatusCode}, Attempt={Attempt}",
+					delivery.EventBusDeliveryId, delivery.EventBusOwnerDeliveryUrl, (int)response.StatusCode, delivery.AttemptNumber);
 
 				// Mark as success
 				await repository.RecordDeliveryResultAsync(
@@ -46,8 +47,8 @@ public sealed class EventBusService(
 			else
 			{
 				logger.LogWarning(
-					"Webhook delivery failed (non-2xx). DeliveryId={DeliveryId}, Webhook={Webhook}, StatusCode={StatusCode}, Attempt={Attempt}",
-					delivery.EventBusDeliveryId, delivery.WebhookUrl, (int)response.StatusCode, delivery.AttemptNumber);
+					"Webhook delivery failed (non-2xx). EventBusDeliveryId={EventBusDeliveryId}, EventBusOwnerDeliveryUrl={EventBusOwnerDeliveryUrl}, StatusCode={StatusCode}, Attempt={Attempt}",
+					delivery.EventBusDeliveryId, delivery.EventBusOwnerDeliveryUrl, (int)response.StatusCode, delivery.AttemptNumber);
 
 				// Read response content for diagnostics
 				var responseContent = await response.Content.ReadAsStringAsync(ct);
@@ -65,8 +66,8 @@ public sealed class EventBusService(
 		catch (HttpRequestException ex)
 		{
 			logger.LogWarning(
-				"Webhook delivery HTTP error. DeliveryId={DeliveryId}, Webhook={Webhook}, Error={Error}, Attempt={Attempt}",
-				delivery.EventBusDeliveryId, delivery.WebhookUrl, ex.Message, delivery.AttemptNumber);
+				"Webhook delivery HTTP error. EventBusDeliveryId={EventBusDeliveryId}, EventBusOwnerDeliveryUrl={EventBusOwnerDeliveryUrl}, Error={Error}, Attempt={Attempt}",
+				delivery.EventBusDeliveryId, delivery.EventBusOwnerDeliveryUrl, ex.Message, delivery.AttemptNumber);
 
 			await repository.RecordDeliveryResultAsync(
 				delivery.EventBusDeliveryId,
@@ -79,8 +80,8 @@ public sealed class EventBusService(
 		catch (OperationCanceledException)
 		{
 			logger.LogWarning(
-				"Webhook delivery timeout. DeliveryId={DeliveryId}, Webhook={Webhook}, Timeout={Timeout}s, Attempt={Attempt}",
-				delivery.EventBusDeliveryId, delivery.WebhookUrl, delivery.TimeoutSeconds, delivery.AttemptNumber);
+				"Webhook delivery timeout. EventBusDeliveryId={EventBusDeliveryId}, EventBusOwnerDeliveryUrl={EventBusOwnerDeliveryUrl}, Timeout={Timeout}s, Attempt={Attempt}",
+				delivery.EventBusDeliveryId, delivery.EventBusOwnerDeliveryUrl, delivery.TimeoutSeconds, delivery.AttemptNumber);
 
 			await repository.RecordDeliveryResultAsync(
 				delivery.EventBusDeliveryId,
@@ -94,8 +95,8 @@ public sealed class EventBusService(
 		{
 			logger.LogError(
 				ex,
-				"Unexpected error during webhook delivery. DeliveryId={DeliveryId}, Webhook={Webhook}, Attempt={Attempt}",
-				delivery.EventBusDeliveryId, delivery.WebhookUrl, delivery.AttemptNumber);
+				"Unexpected error during webhook delivery. EventBusDeliveryId={EventBusDeliveryId}, EventBusOwnerDeliveryUrl={EventBusOwnerDeliveryUrl}, Attempt={Attempt}",
+				delivery.EventBusDeliveryId, delivery.EventBusOwnerDeliveryUrl, delivery.AttemptNumber);
 
 			await repository.RecordDeliveryResultAsync(
 				delivery.EventBusDeliveryId,

@@ -1,6 +1,5 @@
 using WebsiteCollector.Api.Infrastructure.Authentication;
 using WebsiteCollector.Api.Repositories;
-using WebsiteCollector.Worker;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,14 +20,8 @@ builder.Services.AddCors(options =>
 });
 
 // API repositories
-builder.Services.AddScoped<IWebsiteRepository, WebsiteRepository>();
-builder.Services.AddScoped<ISelectorRepository, SelectorRepository>();
-builder.Services.AddScoped<ICollectedDataRepository, CollectedDataRepository>();
+builder.Services.AddScoped<ICurrencyRateRepository, ICurrencyRateRepository>();
 
-// Worker repositories
-builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();
-builder.Services.AddScoped<IWebsiteSelectionWebhookRepository, WebsiteSelectionWebhookRepository>();
-builder.Services.AddScoped<IEventBusDeliveryRepository, EventBusDeliveryRepository>();
 
 var app = builder.Build();
 
@@ -49,4 +42,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-

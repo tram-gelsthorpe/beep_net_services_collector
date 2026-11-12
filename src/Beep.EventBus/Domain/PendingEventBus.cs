@@ -8,12 +8,12 @@ namespace Beep.EventBus;
 /// </summary>
 public record PendingEventBus
 {
-	public required Guid EventBusDeliveryId { get; init; }
 	public required Guid EventBusId { get; init; }
-	public required Guid EventId { get; init; }
-	public required int AttemptNumber { get; init; }
-	public required string WebhookUrl { get; init; }
+	public required Guid EventBusDeliveryId { get; init; }
+	public required Guid EventBusOwnerCollectedDataId { get; init; }
+	public required Guid EventBusOwnerId { get; init; }
+	public required string EventBusOwnerDeliveryUrl { get; init; }
 	public required int TimeoutSeconds { get; init; }
+	public required int AttemptNumber { get; init; }
 	public required int MaxRetryAttempts { get; init; }
-	public required string RawPayload { get; init; }
 }

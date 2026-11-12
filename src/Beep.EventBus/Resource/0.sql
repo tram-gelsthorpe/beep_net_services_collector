@@ -82,13 +82,13 @@ CREATE TABLE dbo.EventBusDeliveries (
     CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
     QueuedAt datetimeoffset(7) NULL,
     DeliveredAt datetimeoffset(7) NULL,
-    CONSTRAINT UQ_Delivery_Unique
+    CONSTRAINT UQ_EventBusDeliveries_Unique
         UNIQUE (
             EventBusId,
             EventBusOwnerCollectedDataId,
             AttemptNumber
         ),
-    CONSTRAINT CK_Delivery_Status
+    CONSTRAINT CK_EventBusDeliveries_Status
         CHECK (
             Status IN (
                 'PENDING',
