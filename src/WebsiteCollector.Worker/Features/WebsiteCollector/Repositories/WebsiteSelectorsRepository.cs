@@ -4,12 +4,12 @@ namespace WebsiteCollector.Worker;
 /// Repository that adapts the generic WorkerFramework to website selectors domain.
 /// Uses the generic WorkItems interface for all work claiming, leasing, and completion.
 /// </summary>
-public sealed class WebsiteSelectorsRepository(Database db) : IWebsiteSelectorsRepository
+public sealed class WebsiteSelectorsRepository(SelectorManagementRepository selectorManagementRepository) : IWebsiteSelectorsRepository
 {
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
 	{
 		// Use generic WorkerFramework to claim items
-		var items = await db.WorkItems.ClaimAsync(
+		var items = await selectorManagementRepository.WorkItems.ClaimAsync(
 			workerType: "SelectorCollector",
 			workerId: worker,
 			batchSize: count,
@@ -20,7 +20,7 @@ public sealed class WebsiteSelectorsRepository(Database db) : IWebsiteSelectorsR
 		var result = new List<ClaimedWebsiteSelector>();
 		foreach (var item in items)
 		{
-			var selectors = await db.SelectorsAsync(item.DomainId, ct);
+			var selectors = await selectorManagementRepository.GetWebsiteSelectorAsync(item.DomainId, ct);
 			var selector = selectors.First();
 
 			result.Add(new ClaimedWebsiteSelector(
@@ -43,7 +43,7 @@ public sealed class WebsiteSelectorsRepository(Database db) : IWebsiteSelectorsR
 	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct)
 	{
 		// Record the attempt in WorkerFramework
-		await db.WorkItems.RecordAttemptAsync(
+		await selectorManagementRepository.WorkItems.RecordAttemptAsync(
 			workItemId: websiteSelectorsId,
 			attemptNumber: 1,
 			statusSnapshot: "RUNNING",
@@ -53,7 +53,7 @@ public sealed class WebsiteSelectorsRepository(Database db) : IWebsiteSelectorsR
 	public async Task<bool> RenewAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct)
 	{
 		// Use generic WorkerFramework to renew lease
-		return await db.WorkItems.RenewLeaseAsync(
+		return await selectorManagementRepository.WorkItems.RenewLeaseAsync(
 			workItemId: websiteSelectorsId,
 			leaseToken: leaseToken,
 			leaseSeconds: leaseSeconds,
@@ -65,7 +65,7 @@ public sealed class WebsiteSelectorsRepository(Database db) : IWebsiteSelectorsR
 		// Use generic WorkerFramework to complete the work item
 		var resultData = success ? extracted : error;
 
-		var completed  = await db.WorkItems.CompleteAsync(
+		var completed  = await selectorManagementRepository.WorkItems.CompleteAsync(
 			workItemId: websiteSelectorsId,
 			leaseToken: leaseToken,
 			succeeded: success,

@@ -19,7 +19,7 @@ public sealed class WebsiteCollectorIntegrationTests
 
 	private IWebsiteSelectorsService? _collectionService;
 	private IWebsiteSelectorsRepository? _repository;
-	private Database? _database;
+	private SelectorManagementRepository? _database;
 	private IEventAggregator? _eventAggregator;
 
 	[TestInitialize]
@@ -49,7 +49,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		// Setup service and repository
 		_eventAggregator = new EventAggregator();
 		var loggerFactory = LoggerFactory.Create(b => { });
-		_database = new Database(_configuration, loggerFactory.CreateLogger<Database>(), loggerFactory);
+		_database = new SelectorManagementRepository(_configuration, loggerFactory.CreateLogger<SelectorManagementRepository>(), loggerFactory);
 		_repository = new WebsiteSelectorsRepository(_database);
 		_collectionService = new WebsiteSelectorsService(_repository, _eventAggregator);
 	}
