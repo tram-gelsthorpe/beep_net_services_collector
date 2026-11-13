@@ -1,19 +1,10 @@
 <Solution>
-  <Folder Name="/docs/">
-    <File Path="docs/README.md" />
-    <File Path="docs/REFACTORING_COMPLETE.md" />
-  </Folder>
+  <Folder Name="/docs/" />
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
   <Folder Name="/sql/">
-    <File Path="sql/000_unified_schema.sql" />
-    <File Path="sql/001_schema.sql" />
-    <File Path="sql/001_webhooks_table.sql" />
-    <File Path="sql/002_new_schema.sql" />
-    <File Path="sql/002_seed_example.sql" />
-    <File Path="sql/003_operations.sql" />
-
+    <File Path="sql/001_seed_example.sql" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Beep.EventBus/Beep.EventBus.csproj" />
