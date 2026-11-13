@@ -22,6 +22,7 @@ builder.Services.AddScoped<CreationDatabaseService>();
 // EventBus Infrastructure
 builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
 builder.Services.AddScoped<IEventBusService, EventBusService>();
+builder.Services.AddScoped<IEventBusRepository, EventBusRepository>();
 
 // WebsiteCollector.Worker specific
 builder.Services.AddScoped<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>();
