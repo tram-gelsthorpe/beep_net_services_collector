@@ -3,13 +3,13 @@ using Beep.ServiceBus;
 namespace WebsiteCollector.Worker;
 
 /// <summary>
-/// Lease manager implementation for website selectors using IWebsiteCollectionService
+/// Lease manager implementation for website selectors using IWebsiteSelectorsService
 /// </summary>
 internal sealed class CollectorLeaseManager : ILeaseManager<ClaimedWebsiteSelector>
 {
-	private readonly IWebsiteCollectionService _collectionService;
+	private readonly IWebsiteSelectorsService _collectionService;
 
-	public CollectorLeaseManager(IWebsiteCollectionService collectionService)
+	public CollectorLeaseManager(IWebsiteSelectorsService collectionService)
 	{
 		_collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
 	}

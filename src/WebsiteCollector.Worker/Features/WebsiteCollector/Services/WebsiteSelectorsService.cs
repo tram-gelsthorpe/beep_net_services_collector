@@ -2,9 +2,9 @@ using Beep.EventBus;
 
 namespace WebsiteCollector.Worker;
 
-public sealed class WebsiteCollectionService(
+public sealed class WebsiteSelectorsService(
 	IWebsiteSelectorsRepository repository,
-	IEventAggregator eventAggregator) : IWebsiteCollectionService
+	IEventAggregator eventAggregator) : IWebsiteSelectorsService
 {
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimSelectorsAsync(Guid worker, int count, int lease, CancellationToken ct) =>
 		await repository.ClaimAsync(worker, count, lease, ct);

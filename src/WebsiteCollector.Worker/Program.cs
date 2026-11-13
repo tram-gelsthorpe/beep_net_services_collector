@@ -25,7 +25,7 @@ builder.Services.AddScoped<IEventBusService, EventBusService>();
 
 // WebsiteCollector.Worker specific
 builder.Services.AddScoped<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>();
-builder.Services.AddScoped<IWebsiteCollectionService, WebsiteCollectionService>();
+builder.Services.AddScoped<IWebsiteSelectorsService, WebsiteSelectorsService>();
 builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
 
 // Subscribers

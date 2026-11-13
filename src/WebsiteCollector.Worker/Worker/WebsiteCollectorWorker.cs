@@ -9,7 +9,7 @@ public sealed class WebsiteCollectorWorker : GenericWorkerBase<ClaimedWebsiteSel
 	private readonly WebsiteCollectorOptions _collectorOptions;
 
 	public WebsiteCollectorWorker(
-		IWebsiteCollectionService collectionService,
+		IWebsiteSelectorsService collectionService,
 		IHttpClientFactory httpClientFactory,
 		IOptions<WebsiteCollectorOptions> options,
 		ILogger<WebsiteCollectorWorker> logger)

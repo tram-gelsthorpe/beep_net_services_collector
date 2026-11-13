@@ -1,7 +1,7 @@
 ﻿
 namespace WebsiteCollector.Worker
 {
-	public interface IWebsiteCollectionService
+	public interface IWebsiteSelectorsService
 	{
 		Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimSelectorsAsync(Guid worker, int count, int lease, CancellationToken ct);
 		Task StartExecutionAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct);

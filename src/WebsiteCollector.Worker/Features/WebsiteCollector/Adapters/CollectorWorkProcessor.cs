@@ -13,7 +13,7 @@ namespace WebsiteCollector.Worker;
 /// </summary>
 internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSelector>
 {
-	private readonly IWebsiteCollectionService _collectionService;
+	private readonly IWebsiteSelectorsService _collectionService;
 	private readonly IHttpClientFactory _httpClientFactory;
 	private readonly WebsiteCollectorOptions _settings;
 	private readonly ILogger _logger;
@@ -21,7 +21,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 	public int HeartbeatIntervalSeconds { get; }
 
 	public CollectorWorkProcessor(
-		IWebsiteCollectionService collectionService,
+		IWebsiteSelectorsService collectionService,
 		IHttpClientFactory httpClientFactory,
 		IOptions<WebsiteCollectorOptions> settings,
 		ILogger logger)
