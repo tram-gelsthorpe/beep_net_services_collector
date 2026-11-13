@@ -11,7 +11,8 @@ namespace WebsiteCollector.Worker;
 /// Also provides access to WorkerFramework generic work item repository.
 /// All work claiming, lease management, and completion is handled through the generic WorkItems interface.
 /// </summary>
-public sealed class SelectorManagementRepository(IConfiguration config, ILogger<SelectorManagementRepository> logger, ILoggerFactory loggerFactory)
+public sealed class SelectorManagementRepository(IConfiguration config, 
+	ILogger<SelectorManagementRepository> logger, ILoggerFactory loggerFactory)
 {
 	private IWorkItemRepository WorkItemRepository { get; } = new WorkItemRepository(
 		config.GetConnectionString("Default") ?? throw new InvalidOperationException("Missing Default connection string"),
