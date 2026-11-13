@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 namespace WebsiteCollector.Worker
 {
 	/// <summary>
-	/// Repository interface for website collection domain operations.
-	/// Adapts the generic WorkerFramework to collection-specific concerns.
+	/// Repository interface for website selectors domain operations.
+	/// Adapts the generic WorkerFramework to selector-specific concerns.
 	/// </summary>
-	public interface IWebsiteCollectionRepository
+	public interface IWebsiteSelectorsRepository
 	{
 		/// <summary>
 		/// Claim a batch of website selectors ready for collection.

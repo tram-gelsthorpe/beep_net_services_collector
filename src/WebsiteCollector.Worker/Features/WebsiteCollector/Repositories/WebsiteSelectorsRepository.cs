@@ -1,10 +1,10 @@
 namespace WebsiteCollector.Worker;
 
 /// <summary>
-/// Repository that adapts the generic WorkerFramework to website collection domain.
+/// Repository that adapts the generic WorkerFramework to website selectors domain.
 /// Uses the generic WorkItems interface for all work claiming, leasing, and completion.
 /// </summary>
-public sealed class WebsiteCollectionRepository(Database db) : IWebsiteCollectionRepository
+public sealed class WebsiteSelectorsRepository(Database db) : IWebsiteSelectorsRepository
 {
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
 	{

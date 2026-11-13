@@ -18,7 +18,7 @@ public sealed class WebsiteCollectorIntegrationTests
 	private TestDataFixture? _dataFixture;
 
 	private IWebsiteCollectionService? _collectionService;
-	private IWebsiteCollectionRepository? _repository;
+	private IWebsiteSelectorsRepository? _repository;
 	private Database? _database;
 	private IEventAggregator? _eventAggregator;
 
@@ -50,7 +50,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		_eventAggregator = new EventAggregator();
 		var loggerFactory = LoggerFactory.Create(b => { });
 		_database = new Database(_configuration, loggerFactory.CreateLogger<Database>(), loggerFactory);
-		_repository = new WebsiteCollectionRepository(_database);
+		_repository = new WebsiteSelectorsRepository(_database);
 		_collectionService = new WebsiteCollectionService(_repository, _eventAggregator);
 	}
 
