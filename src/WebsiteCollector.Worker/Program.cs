@@ -1,4 +1,5 @@
 using Beep.EventBus;
+using Beep.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
@@ -18,27 +19,22 @@ builder.Services.Configure<EventBusOptions>(
 //Services
 builder.Services.AddScoped<CreationDatabaseService>();
 
-//builder.Services.AddSingleton<Database>();
-//builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
+// EventBus Infrastructure
+builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
+builder.Services.AddScoped<IEventBusService, EventBusService>();
 
+// WebsiteCollector.Worker specific
+builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();
+builder.Services.AddScoped<IWebsiteCollectionService, WebsiteCollectionService>();
+builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
 
-//// Beep.EventBus - Generic event bus infrastructure
-//// WebhookDeliveryRepository implements both IWebhookDeliveryRepository (project-specific) and IEventBusRepository (generic)
-//builder.Services.AddScoped<IEventBusDeliveryRepository, EventBusDeliveryRepository>();
-//builder.Services.AddScoped<IEventBusRepository>(sp => (IEventBusRepository)sp.GetRequiredService<IEventBusDeliveryRepository>());
-//builder.Services.AddScoped<IEventBusService, EventBusService>();
-
-//// WebsiteCollector.Worker specific
-//builder.Services.AddScoped<IWebsiteCollectionRepository, WebsiteCollectionRepository>();
-//builder.Services.AddScoped<IWebsiteSelectionWebhookRepository, WebsiteSelectionWebhookRepository>();
-//builder.Services.AddScoped<IWebsiteCollectionService, WebsiteCollectionService>();
-//builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
+// Subscribers
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 
-//builder.Services.AddCollectorHttpClient();
+builder.Services.AddCollectorHttpClient();
 
-//builder.Services.AddHostedService<WebsiteCollectorWorker>();
-//builder.Services.AddHostedService<EventBusWorker>();
+builder.Services.AddHostedService<WebsiteCollectorWorker>();
+builder.Services.AddHostedService<EventBusWorker>();
 
 var host = builder.Build();
 

@@ -64,8 +64,8 @@ public sealed class EventAggregator : IEventAggregator
 		}
 		catch (Exception ex)
 		{
-			// Log but don't throw - other subscribers should still execute
-			System.Diagnostics.Debug.WriteLine($"Event handler error: {ex.Message}");
+			// Log or handle exception - don't allow one handler to break others
+			System.Diagnostics.Debug.WriteLine($"Event handler failed: {ex.Message}");
 		}
 	}
 }

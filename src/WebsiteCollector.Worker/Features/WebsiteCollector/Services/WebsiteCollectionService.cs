@@ -26,6 +26,7 @@ public sealed class WebsiteCollectionService(
 		string? extracted,
 		CancellationToken ct,
 		Guid? websiteId = null,
+		Guid? collectedDataId = null,
 		DateTimeOffset? startedAt = null,
 		int? attemptNumber = null)
 	{
@@ -36,6 +37,7 @@ public sealed class WebsiteCollectionService(
 		{
 			WebsiteSelectorsId = websiteSelectorsId,
 			WebsiteId = websiteId ?? Guid.Empty,
+			CollectedDataId = collectedDataId ?? Guid.Empty,
 			IsSuccess = success,
 			HttpStatusCode = httpStatus,
 			Error = error,
