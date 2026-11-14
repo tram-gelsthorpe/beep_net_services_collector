@@ -5,13 +5,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace Beep.EventBus
 {
-	public sealed class EventBusRepository(IConfiguration config) : IEventBusRepository
+	public sealed class EventBusRepository : IEventBusRepository
 	{
-		private SqlConnection Open() => new(config.GetConnectionString("EventBus") ?? throw new InvalidOperationException("Missing EventBus connection string"));
+		private readonly string _connectionString;
+		private SqlConnection Open() => new(_connectionString);
+
+		public EventBusRepository(string connectionString)
+		{
+			if (string.IsNullOrWhiteSpace(connectionString)) 
+				throw new ArgumentException("EventBus connection string cannot be null or whitespace.", nameof(connectionString));
+
+			_connectionString = connectionString;
+		}
 
 		public async Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId, CancellationToken ct)
 		{

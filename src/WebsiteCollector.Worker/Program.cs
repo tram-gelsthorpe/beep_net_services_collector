@@ -1,5 +1,4 @@
 using Beep.EventBus;
-using Beep.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
@@ -9,25 +8,14 @@ var builder = Host.CreateApplicationBuilder(args);
 //Logs
 //builder.Services.RegisterBeepLog(builder.Configuration);
 
-// Options
-builder.Services.Configure<WebsiteCollectorOptions>(
-	builder.Configuration.GetSection(WebsiteCollectorOptions.Name));
-
-builder.Services.Configure<EventBusOptions>(
-	builder.Configuration.GetSection(EventBusOptions.Name));
-
-//Services
+//Create databases
 builder.Services.AddScoped<CreationDatabaseService>();
 
-// EventBus Infrastructure
-builder.Services.AddSingleton<IEventAggregator, EventAggregator>();
-builder.Services.AddScoped<IEventBusService, EventBusService>();
-builder.Services.AddScoped<IEventBusRepository, EventBusRepository>();
+//ServiceBus Infrastructure
+builder.Services.RegisterServiceBus(builder.Configuration);
 
-// WebsiteCollector.Worker specific
-builder.Services.AddScoped<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>();
-builder.Services.AddScoped<IWebsiteSelectorsService, WebsiteSelectorsService>();
-builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
+// EventBus Infrastructure
+builder.Services.RegisterEventBus(builder.Configuration);
 
 // Subscribers
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();

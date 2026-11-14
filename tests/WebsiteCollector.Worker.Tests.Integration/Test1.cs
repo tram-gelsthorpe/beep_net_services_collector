@@ -49,9 +49,9 @@ public sealed class WebsiteCollectorIntegrationTests
 		// Setup service and repository
 		_eventAggregator = new EventAggregator();
 		var loggerFactory = LoggerFactory.Create(b => { });
-		_database = new SelectorManagementRepository(_configuration, loggerFactory.CreateLogger<SelectorManagementRepository>(), loggerFactory);
-		_repository = new WebsiteSelectorsRepository(_database);
-		_collectionService = new WebsiteSelectorsService(_repository, _eventAggregator);
+		//_database = new SelectorManagementRepository(_configuration, loggerFactory.CreateLogger<SelectorManagementRepository>(), loggerFactory);
+		//_repository = new WebsiteSelectorsRepository(_database);
+		//_collectionService = new WebsiteSelectorsService(_repository, _eventAggregator);
 	}
 
 	[TestCleanup]

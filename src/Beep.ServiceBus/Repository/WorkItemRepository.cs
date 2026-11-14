@@ -12,7 +12,7 @@ namespace Beep.ServiceBus;
 /// SQL Server implementation of IWorkItemRepository.
 /// Uses stored procedures defined in WorkerFramework schema.
 /// </summary>
-public class WorkItemRepository : IWorkItemRepository
+public sealed class WorkItemRepository : IWorkItemRepository
 {
 	private readonly string _connectionString;
 	private readonly ILogger<WorkItemRepository> _logger;
