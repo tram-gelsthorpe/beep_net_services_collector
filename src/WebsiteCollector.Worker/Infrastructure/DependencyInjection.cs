@@ -21,6 +21,10 @@ namespace WebsiteCollector.Worker
 
 		public static IServiceCollection RegisterServiceBus(this IServiceCollection services, IConfiguration configuration)
 		{
+			var websiteCollectorOption = configuration.GetSection(WebsiteCollectorOptions.Name);
+			services.Configure<WebsiteCollectorOptions>(websiteCollectorOption);
+			services.AddScoped(provider => websiteCollectorOption);
+
 			// WebsiteCollector.Worker specific
 			services.AddScoped<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>
 				(p => new WebsiteSelectorsRepository(configuration, ServiceBusDatabaseName, SelectorDatabaseName, p.GetRequiredService<ILoggerFactory>()));
@@ -34,8 +38,8 @@ namespace WebsiteCollector.Worker
 		public static IServiceCollection RegisterEventBus(this IServiceCollection services, 
 			IConfiguration configuration)
 		{
-			var eventBusOptions = configuration.GetSection(EventBusOptions.Name);
-			services.Configure<EventBusOptions>(eventBusOptions);
+			var eventBusOptions = new EventBusOptions();
+			configuration.GetSection(EventBusOptions.Name).Bind(eventBusOptions);
 			services.AddScoped(provider => eventBusOptions);
 
 			services.AddScoped<IEventBusRepository, EventBusRepository>
