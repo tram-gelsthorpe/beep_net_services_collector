@@ -1,4 +1,5 @@
 using Beep.EventBus;
+using Beep.Log.NLog;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
@@ -6,7 +7,7 @@ using WebsiteCollector.Worker;
 var builder = Host.CreateApplicationBuilder(args);
 
 //Logs
-//builder.Services.RegisterBeepLog(builder.Configuration);
+builder.Services.RegisterBeepLog(builder.Configuration);
 
 //Create databases
 builder.Services.AddScoped<CreationDatabaseService>();
@@ -31,8 +32,8 @@ var host = builder.Build();
 using (var scope = host.Services.CreateScope())
 {
 	// Initialize logging
-	//var logger = scope.ServiceProvider
-	//	.CreateDatabase();
+	var logger = scope.ServiceProvider
+		.CreateNLogDatabase();
 
 	// Initialize database
 	var dbInitializer = scope.ServiceProvider
