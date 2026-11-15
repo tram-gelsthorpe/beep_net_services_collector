@@ -10,6 +10,7 @@ namespace WebsiteCollector.Worker;
 /// </summary>
 public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 {
+	private const string WorkerType = "WebsiteCollector";
 	private IWorkItemRepository _workItemRepository;
 	private SelectorManagementRepository _selectorManagementRepository;
 
@@ -25,7 +26,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
 	{
 		var items = await _workItemRepository.ClaimAsync(
-			workerType: "SelectorCollector",
+			workerType: WorkerType,
 			workerId: worker,
 			batchSize: count,
 			leaseSeconds: lease,

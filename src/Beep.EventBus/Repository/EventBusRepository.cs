@@ -106,7 +106,7 @@ namespace Beep.EventBus
 					e.EventBusOwnerId,
 					e.EventBusOwnerDeliveryUrl,
 					e.TimeoutSeconds,
-					e.MaxRetryAttempts,
+					e.MaxRetryAttempts
 				FROM dbo.EventBusDeliveries d
 				INNER JOIN dbo.EventBus e ON d.EventBusId = e.Id
 				WHERE d.Status = 'PENDING'
