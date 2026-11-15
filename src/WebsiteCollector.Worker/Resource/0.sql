@@ -49,14 +49,19 @@ CREATE TABLE dbo.WebsiteSelectors (
 	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
 	WebsitesId uniqueidentifier NOT NULL REFERENCES dbo.Websites(Id) ON DELETE CASCADE,
 	CollectionUrl nvarchar(2048) NOT NULL,
+	CollectionUrlHash AS
+        CONVERT(binary(32),
+            HASHBYTES('SHA2_256', CollectionUrl)
+        ) PERSISTED,
 	CollectionType varchar(10) NOT NULL CONSTRAINT CK_Selector_Type CHECK (CollectionType IN ('HTML', 'JSON', 'XML', 'RAW')),
 	ContentSelector nvarchar(1000) NULL,
 	TableSelector nvarchar(1000) NULL,
 	TimeoutSeconds int NOT NULL DEFAULT 30 CONSTRAINT CK__WebsiteSelectors_Timeout CHECK (TimeoutSeconds BETWEEN 1 AND 300),
 	MaxAttempts int NOT NULL DEFAULT 5 CONSTRAINT CK__WebsiteSelectors_MaxAttempts CHECK (MaxAttempts BETWEEN 1 AND 20),
+	IsEnabled bit NOT NULL DEFAULT 1,
 	CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-	CONSTRAINT UQ_WebsiteSelectors_Unique UNIQUE (WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector)
+	CONSTRAINT UQ_WebsiteSelectors_Unique UNIQUE (WebsitesId, CollectionUrlHash)
 );
 
 CREATE INDEX IX_WebsiteSelectors_Website ON dbo.WebsiteSelectors(WebsitesId) WHERE IsEnabled = 1;
