@@ -24,7 +24,6 @@ builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 builder.Services.AddCollectorHttpClient();
 
 builder.Services.AddHostedService<WebsiteCollectorWorker>();
-builder.Services.AddHostedService<EventBusWorker>();
 
 var host = builder.Build();
 

@@ -10,7 +10,7 @@ namespace WebsiteCollector.Worker
 	{
 		private const string ServiceBusDatabaseName = "ServiceBus";
 		private const string EventBusDatabaseName = "EventBus";
-		private const string SelectorDatabaseName = "Selector";
+		private const string SelectorDatabaseName = "Collector";
 
 		public static IServiceCollection AddWebsiteCollector(this IServiceCollection services)
 		{
@@ -52,6 +52,14 @@ namespace WebsiteCollector.Worker
 
 			services.AddScoped<EventBusLeaseManager>();
 			services.AddScoped<EventBusWorkProcessor>();
+
+			// Register EventBusWorker with factory to provide ILogger
+			services.AddHostedService(provider =>
+				new EventBusWorker(
+					provider.GetRequiredService<EventBusLeaseManager>(),
+					provider.GetRequiredService<EventBusWorkProcessor>(),
+					provider.GetRequiredService<EventBusOptions>(),
+					provider.GetRequiredService<ILoggerFactory>().CreateLogger<EventBusWorker>()));
 
 			return services;
 		}
