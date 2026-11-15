@@ -45,8 +45,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 				CollectionType: selector.CollectionType,
 				ContentSelector: selector.ContentSelector,
 				TableSelector: selector.TableSelector,
-				IntervalSeconds: selector.IntervalSeconds,
-				TimeoutSeconds: 30, // Default timeout
+				TimeoutSeconds: selector.TimeoutSeconds, // Default timeout
 				MaxAttempts: item.MaxAttempts,
 				AttemptCount: item.AttemptNumber - 1,
 				LeaseToken: item.LeaseToken));

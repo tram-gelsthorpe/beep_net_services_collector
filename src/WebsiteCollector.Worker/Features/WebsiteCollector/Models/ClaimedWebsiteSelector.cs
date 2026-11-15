@@ -7,7 +7,6 @@ public sealed record ClaimedWebsiteSelector(
 	string CollectionType,
 	string? ContentSelector,
 	string? TableSelector,
-	int IntervalSeconds,
 	int TimeoutSeconds,
 	int MaxAttempts,
 	int AttemptCount,

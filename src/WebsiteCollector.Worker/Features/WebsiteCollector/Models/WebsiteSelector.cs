@@ -7,5 +7,5 @@ public sealed record WebsiteSelector(
 	string CollectionType,
 	string? ContentSelector,
 	string? TableSelector,
-	int IntervalSeconds,
+	int TimeoutSeconds,
 	bool IsEnabled);
