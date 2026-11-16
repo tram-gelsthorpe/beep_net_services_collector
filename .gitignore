@@ -24,3 +24,5 @@
 /src/Beep.Webhook/obj
 /src/Beep.EventBus/bin/Debug/net10.0
 /src/Beep.EventBus/obj
+/src/Beep.Scheduler/obj
+/src/Beep.Scheduler/bin/Debug/net10.0
