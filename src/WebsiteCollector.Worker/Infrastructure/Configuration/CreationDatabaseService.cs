@@ -1,4 +1,5 @@
 using Beep.EventBus;
+using Beep.Scheduler;
 using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,15 @@ public sealed class CreationDatabaseService(
 		try
 		{
 			logger.LogInformation("Starting database initialization...");
+
+			// Get connection string for Scheduler database
+			var schedulerConnectionString = configuration.GetConnectionString("Scheduler")
+				?? throw new InvalidOperationException("Missing Scheduler connection string");
+
+			logger.LogInformation("Initializing Scheduler database...");
+			var shchedulerDb = new SqlSchedulerDatabase(schedulerConnectionString, logger);
+			await shchedulerDb.Create(cancellationToken);
+			logger.LogInformation("Scheduler database initialized successfully");
 
 			// Get connection string - uses ServiceBus connection for WorkItems storage
 			var connectionString = configuration.GetConnectionString("ServiceBus")

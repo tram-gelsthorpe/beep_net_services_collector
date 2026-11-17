@@ -37,6 +37,21 @@ SELECT 6, ''Never'', ''Disabled - will not run''
 ');
 
 -- =====================================================
+-- Database Version Tracking
+-- =====================================================
+
+CREATE TABLE Scheduler.DatabaseVersion (
+    Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+    Version nvarchar(20) NOT NULL UNIQUE,
+    CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+-- Insert initial database version
+INSERT INTO Scheduler.DatabaseVersion (Version)
+VALUES ('0');
+
+-- =====================================================
 -- WorkerSchedules Table
 -- =====================================================
 -- Defines schedules for each worker type

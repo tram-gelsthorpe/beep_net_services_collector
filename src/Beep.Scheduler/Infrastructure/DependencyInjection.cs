@@ -25,14 +25,14 @@ public static class DependencyInjection
 		// Register database utility
 		services.AddScoped(provider =>
 		{
-			var logger = provider.GetRequiredService<ILogger<SchedulerDatabase>>();
-			return new SchedulerDatabase(connectionString, logger);
+			var logger = provider.GetRequiredService<ILogger<SchedulerRepository>>();
+			return new SchedulerRepository(connectionString, logger);
 		});
 
 		// Register scheduler service as hosted service
 		services.AddHostedService(provider =>
 		{
-			var database = provider.GetRequiredService<SchedulerDatabase>();
+			var database = provider.GetRequiredService<SchedulerRepository>();
 			var logger = provider.GetRequiredService<ILogger<SchedulerService>>();
 			return new SchedulerService(database, provider, logger, pollIntervalSeconds);
 		});

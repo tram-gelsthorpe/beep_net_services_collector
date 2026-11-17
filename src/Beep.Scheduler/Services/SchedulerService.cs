@@ -10,13 +10,13 @@ namespace Beep.Scheduler;
 /// </summary>
 public class SchedulerService : BackgroundService
 {
-	private readonly SchedulerDatabase _database;
+	private readonly SchedulerRepository _database;
 	private readonly IServiceProvider _serviceProvider;
 	private readonly ILogger<SchedulerService> _logger;
 	private readonly int _pollIntervalSeconds;
 
 	public SchedulerService(
-		SchedulerDatabase database,
+		SchedulerRepository database,
 		IServiceProvider serviceProvider,
 		ILogger<SchedulerService> logger,
 		int pollIntervalSeconds = 30)

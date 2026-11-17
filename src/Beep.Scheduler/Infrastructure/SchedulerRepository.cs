@@ -7,12 +7,12 @@ namespace Beep.Scheduler;
 /// <summary>
 /// Database operations for the scheduler
 /// </summary>
-public class SchedulerDatabase
+public class SchedulerRepository
 {
 	private readonly string _connectionString;
-	private readonly ILogger<SchedulerDatabase> _logger;
+	private readonly ILogger<SchedulerRepository> _logger;
 
-	public SchedulerDatabase(string connectionString, ILogger<SchedulerDatabase> logger)
+	public SchedulerRepository(string connectionString, ILogger<SchedulerRepository> logger)
 	{
 		_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));

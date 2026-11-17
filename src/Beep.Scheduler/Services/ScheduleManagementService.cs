@@ -7,11 +7,11 @@ namespace Beep.Scheduler;
 /// </summary>
 public class ScheduleManagementService : IScheduleService
 {
-	private readonly SchedulerDatabase _database;
+	private readonly SchedulerRepository _database;
 	private readonly ILogger<ScheduleManagementService> _logger;
 
 	public ScheduleManagementService(
-		SchedulerDatabase database,
+		SchedulerRepository database,
 		ILogger<ScheduleManagementService> logger)
 	{
 		_database = database ?? throw new ArgumentNullException(nameof(database));
