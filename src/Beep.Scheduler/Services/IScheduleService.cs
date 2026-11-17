@@ -1,4 +1,4 @@
-namespace Beep.Scheduler.Services;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Service for managing worker schedules dynamically at runtime

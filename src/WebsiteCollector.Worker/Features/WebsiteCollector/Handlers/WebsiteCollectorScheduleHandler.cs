@@ -1,5 +1,4 @@
-using Beep.Scheduler.Domain;
-using Beep.Scheduler.Handlers;
+using Beep.Scheduler;
 using Beep.ServiceBus;
 using Dapper;
 using Microsoft.Data.SqlClient;

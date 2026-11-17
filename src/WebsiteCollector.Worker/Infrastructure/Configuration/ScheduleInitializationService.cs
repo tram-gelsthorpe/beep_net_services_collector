@@ -1,4 +1,4 @@
-using Beep.Scheduler.Services;
+using Beep.Scheduler;
 using Microsoft.Extensions.Logging;
 
 namespace WebsiteCollector.Worker;

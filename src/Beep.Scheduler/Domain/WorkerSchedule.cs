@@ -1,4 +1,4 @@
-namespace Beep.Scheduler.Domain;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Represents a schedule for a worker type

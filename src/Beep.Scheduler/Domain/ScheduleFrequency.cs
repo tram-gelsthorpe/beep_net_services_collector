@@ -1,4 +1,4 @@
-namespace Beep.Scheduler.Domain;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Frequency for schedule execution

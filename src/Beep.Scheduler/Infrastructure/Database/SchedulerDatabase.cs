@@ -1,9 +1,8 @@
 using System.Data;
 using System.Data.SqlClient;
-using Beep.Scheduler.Domain;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Scheduler.Infrastructure.Database;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Database operations for the scheduler

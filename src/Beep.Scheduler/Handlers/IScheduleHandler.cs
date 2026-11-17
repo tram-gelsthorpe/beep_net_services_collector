@@ -1,6 +1,4 @@
-using Beep.Scheduler.Domain;
-
-namespace Beep.Scheduler.Handlers;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Represents the result of a schedule handler execution

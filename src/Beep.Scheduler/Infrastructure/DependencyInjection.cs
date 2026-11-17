@@ -1,10 +1,7 @@
-using Beep.Scheduler.Handlers;
-using Beep.Scheduler.Infrastructure.Database;
-using Beep.Scheduler.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Scheduler.Infrastructure;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Extension methods for registering scheduler services

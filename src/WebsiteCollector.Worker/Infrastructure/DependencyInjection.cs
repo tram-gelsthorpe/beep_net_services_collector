@@ -1,6 +1,5 @@
 ﻿using Beep.EventBus;
-using Beep.Scheduler.Handlers;
-using Beep.Scheduler.Infrastructure;
+using Beep.Scheduler;
 using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

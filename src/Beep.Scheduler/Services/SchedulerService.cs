@@ -1,12 +1,9 @@
 using System.Text;
-using Beep.Scheduler.Domain;
-using Beep.Scheduler.Handlers;
-using Beep.Scheduler.Infrastructure.Database;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Scheduler.Services;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Orchestrates schedule execution and work item registration

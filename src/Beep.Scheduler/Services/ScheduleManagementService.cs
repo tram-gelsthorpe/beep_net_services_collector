@@ -1,9 +1,6 @@
-using System.Data;
-using System.Data.SqlClient;
-using Beep.Scheduler.Infrastructure.Database;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Scheduler.Services;
+namespace Beep.Scheduler;
 
 /// <summary>
 /// Implementation of schedule management service using SQL Server
