@@ -31,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Beep.EventBus\Beep.EventBus.csproj" />
+    <ProjectReference Include="..\Beep.Scheduler\Beep.Scheduler.csproj" />
     <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
   </ItemGroup>
   <ItemGroup>

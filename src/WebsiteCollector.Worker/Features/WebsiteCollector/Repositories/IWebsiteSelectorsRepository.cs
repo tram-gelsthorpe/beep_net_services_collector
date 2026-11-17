@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace WebsiteCollector.Worker
+﻿namespace WebsiteCollector.Worker
 {
 	/// <summary>
 	/// Repository interface for website selectors domain operations.

@@ -18,12 +18,19 @@ builder.Services.RegisterServiceBus(builder.Configuration);
 // EventBus Infrastructure
 builder.Services.RegisterEventBus(builder.Configuration);
 
+// Sheduler Infrastructure
+builder.Services.RegisterScheduler(builder.Configuration);
+
 // Subscribers
 builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 
+// WebsiteCollector.Worker specific
 builder.Services.AddCollectorHttpClient();
 
 builder.Services.AddHostedService<WebsiteCollectorWorker>();
+
+// Register schedule initialization service
+builder.Services.AddScoped<ScheduleInitializationService>();
 
 var host = builder.Build();
 
@@ -39,6 +46,12 @@ using (var scope = host.Services.CreateScope())
 		.GetRequiredService<CreationDatabaseService>();
 
 	await dbInitializer.InitializeAsync();
+
+	// Initialize schedules
+	var scheduleInitializer = scope.ServiceProvider
+		.GetRequiredService<ScheduleInitializationService>();
+
+	await scheduleInitializer.InitializeAsync();
 
 	// Register subscribers
 	var subscribers = scope.ServiceProvider

@@ -1,4 +1,3 @@
-using Beep.ServiceBus;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;

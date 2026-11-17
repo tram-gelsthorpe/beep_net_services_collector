@@ -1,4 +1,6 @@
 ﻿using Beep.EventBus;
+using Beep.Scheduler.Handlers;
+using Beep.Scheduler.Infrastructure;
 using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,6 +62,30 @@ namespace WebsiteCollector.Worker
 					provider.GetRequiredService<EventBusWorkProcessor>(),
 					provider.GetRequiredService<EventBusOptions>(),
 					provider.GetRequiredService<ILoggerFactory>().CreateLogger<EventBusWorker>()));
+
+			return services;
+		}
+
+		public static IServiceCollection RegisterScheduler(this IServiceCollection services, IConfiguration configuration)
+		{
+			var schedulerConnectionString = configuration.GetConnectionString(ServiceBusDatabaseName)
+				?? throw new InvalidOperationException("Missing ServiceBus connection string for scheduler");
+
+			var selectorConnectionString = configuration.GetConnectionString(SelectorDatabaseName)
+				?? throw new InvalidOperationException("Missing Collector connection string for schedule handler");
+
+			// Register Beep.Scheduler framework
+			services.RegisterScheduler(schedulerConnectionString, pollIntervalSeconds: 30);
+
+			// Register WebsiteCollector schedule handler
+			services.AddScoped(provider =>
+				new WebsiteCollectorScheduleHandler(
+					provider.GetRequiredService<IWorkItemRepository>(),
+					selectorConnectionString,
+					provider.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));
+
+			services.AddScoped<IScheduleHandler>(provider =>
+				provider.GetRequiredService<WebsiteCollectorScheduleHandler>());
 
 			return services;
 		}
