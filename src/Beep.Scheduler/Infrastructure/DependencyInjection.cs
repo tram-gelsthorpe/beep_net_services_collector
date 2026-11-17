@@ -43,6 +43,9 @@ public static class DependencyInjection
 		// Handler collection (initialize empty)
 		services.AddSingleton<IHandlerRegistry>(new HandlerRegistry());
 
+		// Register schedule management service
+		services.AddScoped<IScheduleService, ScheduleManagementService>();
+
 		return services;
 	}
 

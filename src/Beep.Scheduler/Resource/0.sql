@@ -221,20 +221,6 @@ BEGIN
 END;
 ');
 
--- Insert initial schedules (examples)
-IF NOT EXISTS (SELECT 1 FROM Scheduler.WorkerSchedules WHERE WorkerType = 'WebsiteCollector')
-BEGIN
-	INSERT INTO Scheduler.WorkerSchedules (
-		WorkerType, Description, Frequency, StartTime, IsActive
-	)
-	VALUES (
-		'WebsiteCollector',
-		'Daily website collection at 1:00 AM',
-		'Daily',
-		'01:00:00',
-		1  -- Active
-	);
-END;
-
 -- Success
 PRINT 'Scheduler schema created successfully';
+
