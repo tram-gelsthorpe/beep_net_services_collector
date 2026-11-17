@@ -158,7 +158,7 @@ BEGIN
 
 			-- Yearly: run if month/day matches and not run today
 			OR (s.Frequency = ''Yearly''
-				AND DAYOFYEAR(@Now) = s.DayOfYear
+				AND DATEPART(DAYOFYEAR, @Now) = s.DayOfYear
 				AND (s.LastRunAt IS NULL 
 					 OR CAST(s.LastRunAt AS DATE) < CAST(@Now AS DATE)))
 

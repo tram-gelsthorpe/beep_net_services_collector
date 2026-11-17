@@ -9,6 +9,7 @@ namespace WebsiteCollector.Worker
 {
 	public static class DependencyInjection
 	{
+		private const string SchedulerDatabaseName = "Scheduler";
 		private const string ServiceBusDatabaseName = "ServiceBus";
 		private const string EventBusDatabaseName = "EventBus";
 		private const string SelectorDatabaseName = "Collector";
@@ -67,8 +68,8 @@ namespace WebsiteCollector.Worker
 
 		public static IServiceCollection RegisterScheduler(this IServiceCollection services, IConfiguration configuration)
 		{
-			var schedulerConnectionString = configuration.GetConnectionString(ServiceBusDatabaseName)
-				?? throw new InvalidOperationException("Missing ServiceBus connection string for scheduler");
+			var schedulerConnectionString = configuration.GetConnectionString(SchedulerDatabaseName)
+				?? throw new InvalidOperationException("Missing Scheduler connection string for scheduler");
 
 			var selectorConnectionString = configuration.GetConnectionString(SelectorDatabaseName)
 				?? throw new InvalidOperationException("Missing Collector connection string for schedule handler");

@@ -212,7 +212,7 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 		_dbConnection.ChangeDatabase(_databaseName);
 
 		var command = _dbConnection.CreateCommand();
-		command.CommandText = "SELECT TOP 1 Version FROM dbo.DatabaseVersion ORDER BY Id DESC";
+		command.CommandText = "SELECT TOP 1 Version FROM Scheduler.DatabaseVersion ORDER BY Id DESC";
 
 		var result = await command.ExecuteScalarAsync();
 
@@ -225,7 +225,7 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 		_dbConnection.ChangeDatabase(_databaseName);
 
 		var command = _dbConnection.CreateCommand();
-		command.CommandText = "INSERT INTO dbo.DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
+		command.CommandText = "INSERT INTO Scheduler.DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
 		command.Parameters.Add(new SqlParameter("@version", version));
 		
 		var result = await command.ExecuteScalarAsync();
