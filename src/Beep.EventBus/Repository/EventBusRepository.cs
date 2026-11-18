@@ -26,7 +26,7 @@ namespace Beep.EventBus
 			await using var conn = Open();
 			const string sql = """
 				SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxRetryAttempts
-				FROM dbo.EventBus
+				FROM EventBus
 				WHERE EventBusOwnerId = @EventBusOwnerId AND IsEnabled = 1
 			""";
 
@@ -41,7 +41,7 @@ namespace Beep.EventBus
 			await using var connection = Open();
 
 			const string sql = """
-				UPDATE dbo.EventBusDeliveries
+				UPDATE EventBusDeliveries
 				SET Status = 'ABANDONED',
 					ErrorMessage = @Reason
 				WHERE Id = @EventBusDeliveryId
@@ -57,7 +57,7 @@ namespace Beep.EventBus
 
 			const string sql = """
 				SELECT AttemptNumber
-				FROM dbo.EventBusDeliveries
+				FROM EventBusDeliveries
 				WHERE Id = @EventBusDeliveryId
 			""";
 
@@ -81,8 +81,8 @@ namespace Beep.EventBus
 					d.CreatedAt,
 					d.NextRetryAt,
 					d.Status
-				FROM dbo.EventBusDeliveries d
-				INNER JOIN dbo.EventBus e ON d.EventBusId = e.Id
+				FROM EventBusDeliveries d
+				INNER JOIN EventBus e ON d.EventBusId = e.Id
 				WHERE d.Id = @EventBusDeliveryId
 			""";
 
@@ -107,8 +107,8 @@ namespace Beep.EventBus
 					e.EventBusOwnerDeliveryUrl,
 					e.TimeoutSeconds,
 					e.MaxRetryAttempts
-				FROM dbo.EventBusDeliveries d
-				INNER JOIN dbo.EventBus e ON d.EventBusId = e.Id
+				FROM EventBusDeliveries d
+				INNER JOIN EventBus e ON d.EventBusId = e.Id
 				WHERE d.Status = 'PENDING'
 				  AND d.NextRetryAt <= SYSUTCDATETIME()
 				  AND e.IsEnabled = 1
@@ -128,7 +128,7 @@ namespace Beep.EventBus
 			if (isSuccessful)
 			{
 				const string successSql = """
-					UPDATE dbo.EventBusDeliveries
+					UPDATE EventBusDeliveries
 					SET Status = 'SUCCESS', 
 						HttpStatusCode = @HttpStatusCode, 
 						DeliveredAt = SYSUTCDATETIME()
@@ -142,7 +142,7 @@ namespace Beep.EventBus
 			{
 				// Mark as FAILED and schedule retry with exponential backoff
 				const string failSql = """
-					UPDATE dbo.EventBusDeliveries
+					UPDATE EventBusDeliveries
 					SET Status = 'FAILED', 
 						HttpStatusCode = @HttpStatusCode, 
 						ErrorMessage = @ErrorMessage,
@@ -166,7 +166,7 @@ namespace Beep.EventBus
 			await using var connection = Open();
 			
 			const string sql = """
-				INSERT INTO dbo.EventBusDeliveries 
+				INSERT INTO EventBusDeliveries 
 					(EventBusId, EventBusOwnerCollectedDataId, Status, AttemptNumber, NextRetryAt, CreatedAt)
 				VALUES 
 					(@EventBusId, @EventBusOwnerCollectedDataId, 'PENDING', 1, SYSUTCDATETIME(), SYSUTCDATETIME())

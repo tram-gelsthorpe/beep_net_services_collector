@@ -40,7 +40,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "dbo.ClaimWorkItems";
+			cmd.CommandText = "ClaimWorkItems";
 			cmd.CommandTimeout = 30;
 
 			cmd.Parameters.AddWithValue("@WorkerType", workerType);
@@ -86,7 +86,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "dbo.RenewWorkItemLease";
+			cmd.CommandText = "RenewWorkItemLease";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -125,7 +125,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "dbo.ReleaseWorkItemLease";
+			cmd.CommandText = "ReleaseWorkItemLease";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -165,7 +165,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "dbo.CompleteWorkItem";
+			cmd.CommandText = "CompleteWorkItem";
 			cmd.CommandTimeout = 30;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -213,7 +213,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "dbo.RecordWorkItemAttempt";
+			cmd.CommandText = "RecordWorkItemAttempt";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -256,7 +256,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 			using var cmd = connection.CreateCommand();
 			cmd.CommandText = @"
 				DECLARE @workItemId uniqueidentifier = NEWID();
-				INSERT INTO dbo.WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
+				INSERT INTO WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
 				VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, 1, @MaxAttempts, @NextRunAt);
 				SELECT @workItemId;
 			";
@@ -295,7 +295,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "dbo.GetWorkItem";
+			cmd.CommandText = "GetWorkItem";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);

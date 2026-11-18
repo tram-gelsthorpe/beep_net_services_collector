@@ -53,6 +53,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 	private readonly string _databaseName;
 	private readonly ILogger _logger;
 	private string? _schemaScript;
+	private string _schemaName = "dbo"; // Store schema name, default to dbo
 
 	public SqlEventBusDatabase(string connectionString, ILogger logger)
 	{
@@ -66,8 +67,10 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
-	public async Task Create(CancellationToken cancellationToken = default)
+	public async Task Create(string schema = "dbo", CancellationToken cancellationToken = default)
 	{
+		_schemaName = schema; // Store the schema name for use in other methods
+
 		ConnectionState originalState = _dbConnection.State;
 
 		if (originalState != ConnectionState.Open)
@@ -147,8 +150,20 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		{
 			_dbConnection.ChangeDatabase(_databaseName);
 
+			// First, create the schema if it doesn't exist (only for non-dbo schemas)
+			if (_schemaName != "dbo")
+			{
+				await CreateSchemaIfNotExists(cancellationToken);
+			}
+
+			var sqlScript = LoadCreateSchemaResource();
+
+			// Replace hardcoded dbo schema name with the actual schema name
+			// This handles both regular SQL and SQL embedded in EXEC(N'...') statements
+			sqlScript = ReplaceSchemaNamesInScript(sqlScript);
+
 			var command = _dbConnection.CreateCommand();
-			command.CommandText = LoadCreateSchemaResource();
+			command.CommandText = sqlScript;
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
 		}
@@ -162,9 +177,58 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		}
 	}
 
-	private async Task Update(int currentVersion, CancellationToken cancellationToken = default)
+	private string ReplaceSchemaNamesInScript(string script)
 	{
-		_dbConnection.ChangeDatabase(_databaseName);
+		// Replace [dbo]. with [SchemaName].
+		script = script.Replace("[dbo].", $"[{_schemaName}].");
+
+		// Replace dbo. with SchemaName. but avoid replacing within other contexts
+		// Use a regex to avoid replacing inside comments or other special contexts
+		// Replace dbo. when followed by a valid SQL identifier character
+		script = System.Text.RegularExpressions.Regex.Replace(
+			script,
+			@"\bdbo\.(?=[\w\[\`])",
+			$"{_schemaName}.",
+			System.Text.RegularExpressions.RegexOptions.IgnoreCase
+		);
+
+		// Also handle the escaped quote variant ''dbo.'' which appears in EXEC(N'...') strings
+		script = script.Replace("''dbo.", $"''{_schemaName}.");
+		script = script.Replace("''[dbo].", $"''[{_schemaName}].");
+
+		return script;
+	}
+
+	private async Task CreateSchemaIfNotExists(CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			var command = _dbConnection.CreateCommand();
+			command.CommandText = @"
+				IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = @schemaName)
+				BEGIN
+					DECLARE @createSchema NVARCHAR(MAX) = N'CREATE SCHEMA ' + QUOTENAME(@schemaName);
+					EXEC sp_executesql @createSchema;
+				END;
+			";
+
+					var parameter = command.CreateParameter();
+					parameter.ParameterName = "@schemaName";
+					parameter.Value = _schemaName;
+					command.Parameters.Add(parameter);
+
+					await command.ExecuteNonQueryAsync(cancellationToken);
+				}
+				catch
+				{
+					_logger.LogError("An error occurred while creating schema '{SchemaName}' in database '{DatabaseName}'.", _schemaName, _databaseName);
+					throw;
+				}
+			}
+
+			private async Task Update(int currentVersion, CancellationToken cancellationToken = default)
+			{
+				_dbConnection.ChangeDatabase(_databaseName);
 
 		var transaction = _dbConnection.BeginTransaction();
 
@@ -219,7 +283,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		_dbConnection.ChangeDatabase(_databaseName);
 
 		var command = _dbConnection.CreateCommand();
-		command.CommandText = "SELECT TOP 1 Version FROM dbo.DatabaseVersion ORDER BY Id DESC";
+		command.CommandText = "SELECT TOP 1 Version FROM DatabaseVersion ORDER BY Id DESC";
 
 		var result = await command.ExecuteScalarAsync();
 
@@ -232,7 +296,7 @@ public sealed class SqlEventBusDatabase : IEventBusDatabase
 		_dbConnection.ChangeDatabase(_databaseName);
 
 		var command = _dbConnection.CreateCommand();
-		command.CommandText = "INSERT INTO dbo.DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
+		command.CommandText = "INSERT INTO DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
 		command.Parameters.Add(new SqlParameter("@version", version));
 		
 		var result = await command.ExecuteScalarAsync();

@@ -14,6 +14,8 @@ public sealed class CreationDatabaseService(
 	IConfiguration configuration,
 	ILogger<CreationDatabaseService> logger)
 {
+	private const string ServiceBusSchema = "ServiceBus";
+	private const string EventBusSchema = "EventBus";
 	private const string SchedulerSchema = "Scheduler";
 
 	/// <summary>
@@ -42,7 +44,7 @@ public sealed class CreationDatabaseService(
 			// Initialize ServiceBus database (WorkItems table and stored procedures)
 			logger.LogInformation("Initializing ServiceBus database...");
 			var serviceBusDb = new SqlServiceBusDatabase(connectionString, logger);
-			await serviceBusDb.Create(cancellationToken);
+			await serviceBusDb.Create(ServiceBusSchema, cancellationToken);
 			logger.LogInformation("ServiceBus database initialized successfully");
 
 			// Initialize EventBus database (EventBus and EventBusDeliveries tables)
@@ -52,7 +54,7 @@ public sealed class CreationDatabaseService(
 
 			logger.LogInformation("Initializing EventBus database...");
 			var eventBusDb = new SqlEventBusDatabase(eventBusConnectionString, logger);
-			await eventBusDb.Create(cancellationToken);
+			await eventBusDb.Create(EventBusSchema, cancellationToken);
 			logger.LogInformation("EventBus database initialized successfully");
 
 

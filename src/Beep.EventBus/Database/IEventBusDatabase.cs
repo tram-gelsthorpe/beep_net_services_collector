@@ -5,5 +5,5 @@ namespace Beep.EventBus;
 
 public interface IEventBusDatabase
 {
-	Task Create(CancellationToken cancellationToken = default);
+	Task Create(string schema = "dbo", CancellationToken cancellationToken = default);
 }
