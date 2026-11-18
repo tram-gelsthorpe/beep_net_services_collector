@@ -151,8 +151,7 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 
 			// Replace hardcoded schema name with the actual schema name
 			// This ensures the tables are created in the correct schema
-			sqlScript = sqlScript.Replace("[Scheduler].", $"[{_schemaName}].");
-			sqlScript = sqlScript.Replace("Scheduler.", $"{_schemaName}.");
+			sqlScript = ReplaceSchemaNamesInScript(sqlScript);
 
 			var command = _dbConnection.CreateCommand();
 			command.CommandText = sqlScript;
@@ -194,6 +193,28 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 			_logger.LogError("An error occurred while creating schema '{SchemaName}' in database '{DatabaseName}'.", _schemaName, _databaseName);
 			throw;
 		}
+	}
+
+	private string ReplaceSchemaNamesInScript(string script)
+	{
+		// Replace [Scheduler]. with [SchemaName].
+		script = script.Replace("[Scheduler].", $"[{_schemaName}].");
+
+		// Replace Scheduler. with SchemaName. but avoid replacing within other contexts
+		// Use a regex to avoid replacing inside comments or other special contexts
+		// Replace Scheduler. when followed by a valid SQL identifier character
+		script = System.Text.RegularExpressions.Regex.Replace(
+			script,
+			@"\bScheduler\.(?=[\w\[\`])",
+			$"{_schemaName}.",
+			System.Text.RegularExpressions.RegexOptions.IgnoreCase
+		);
+
+		// Also handle the escaped quote variant ''Scheduler.'' which appears in EXEC(N'...') strings
+		script = script.Replace("''Scheduler.", $"''{_schemaName}.");
+		script = script.Replace("''[Scheduler].", $"''[{_schemaName}].");
+
+		return script;
 	}
 
 	private async Task Update(int currentVersion, CancellationToken cancellationToken = default)
