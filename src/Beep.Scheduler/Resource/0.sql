@@ -7,12 +7,6 @@
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
 
--- Create schema if it doesn't exist
-IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Scheduler')
-BEGIN
-	EXEC('CREATE SCHEMA Scheduler');
-END;
-
 -- =====================================================
 -- Schedule Frequency Types
 -- =====================================================

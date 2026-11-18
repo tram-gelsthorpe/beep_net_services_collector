@@ -14,6 +14,8 @@ public sealed class CreationDatabaseService(
 	IConfiguration configuration,
 	ILogger<CreationDatabaseService> logger)
 {
+	private const string SchedulerSchema = "Scheduler";
+
 	/// <summary>
 	/// Initialize all databases and schemas.
 	/// Should be called during application startup before any services access the database.
@@ -30,7 +32,7 @@ public sealed class CreationDatabaseService(
 
 			logger.LogInformation("Initializing Scheduler database...");
 			var shchedulerDb = new SqlSchedulerDatabase(schedulerConnectionString, logger);
-			await shchedulerDb.Create(cancellationToken);
+			await shchedulerDb.Create(SchedulerSchema, cancellationToken);
 			logger.LogInformation("Scheduler database initialized successfully");
 
 			// Get connection string - uses ServiceBus connection for WorkItems storage

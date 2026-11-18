@@ -2,5 +2,5 @@
 
 public interface ISchedulerDatabase
 {
-	Task Create(CancellationToken cancellationToken = default);
+	Task Create(string schema, CancellationToken cancellationToken = default);
 }

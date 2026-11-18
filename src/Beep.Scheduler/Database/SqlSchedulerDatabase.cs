@@ -9,20 +9,20 @@ namespace Beep.Scheduler;
 public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 {
 	private const string Create_Database_Script = """
-			IF NOT EXISTS (SELECT TOP 1 * FROM sys.databases WHERE name = @databaseName)
-			BEGIN
-				DECLARE @sql NVARCHAR(MAX);
+		IF NOT EXISTS (SELECT TOP 1 * FROM sys.databases WHERE name = @databaseName)
+		BEGIN
+			DECLARE @sql NVARCHAR(MAX);
 
-				SET @sql = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
+			SET @sql = N'CREATE DATABASE ' + QUOTENAME(@databaseName);
 
-				EXEC sp_executesql @sql;
+			EXEC sp_executesql @sql;
 
-				SELECT 1 AS Success;
-			END
-			ELSE
-			BEGIN
-				SELECT 0 AS Success;
-			END;
+			SELECT 1 AS Success;
+		END
+		ELSE
+		BEGIN
+			SELECT 0 AS Success;
+		END;
 		""";
 
 	private const string Drop_Database_Script = """
@@ -47,6 +47,7 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 	private readonly string _databaseName;
 	private readonly ILogger _logger;
 	private string? _schemaScript;
+	private string _schemaName = "Scheduler"; // Store schema name
 
 	public SqlSchedulerDatabase(string connectionString, ILogger logger)
 	{
@@ -60,16 +61,18 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
-	public async Task Create(CancellationToken cancellationToken = default)
+	public async Task Create(string schema = "Scheduler", CancellationToken cancellationToken = default)
 	{
+		_schemaName = schema; // Store the schema name for use in other methods
+
 		ConnectionState originalState = _dbConnection.State;
-		
+
 		if (originalState != ConnectionState.Open)
 			await _dbConnection.OpenAsync(cancellationToken);
 
 		try
 		{
-			if (await Create_Database(cancellationToken))
+			if (await Create_Database(_schemaName, cancellationToken))
 			{
 				await Create_Table(cancellationToken);
 			}
@@ -81,7 +84,7 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 		catch
 		{
 			_logger.LogError("An error occurred while creating '{DatabaseName}' database.", _databaseName);
-			
+
 			throw;
 		}
 		finally
@@ -91,13 +94,14 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 		}
 	}
 
-	private async Task<bool> Create_Database(CancellationToken cancellationToken = default)
+	private async Task<bool> Create_Database(string schema = "Scheduler", CancellationToken cancellationToken = default)
 	{
 		try
 		{
 			var command = _dbConnection.CreateCommand();
 			command.CommandText = Create_Database_Script;
 			command.Parameters.Add(new SqlParameter("@databaseName", SqlDbType.NVarChar, 128) { Value = _databaseName });
+			command.Parameters.Add(new SqlParameter("@schemaName", SqlDbType.NVarChar, 128) { Value = schema });
 
 			var result = await command.ExecuteScalarAsync(cancellationToken);
 			return Convert.ToInt32(result) > 0;
@@ -140,8 +144,18 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 		{
 			_dbConnection.ChangeDatabase(_databaseName);
 
+			// First, create the schema if it doesn't exist
+			await CreateSchemaIfNotExists(cancellationToken);
+
+			var sqlScript = LoadCreateSchemaResource();
+
+			// Replace hardcoded schema name with the actual schema name
+			// This ensures the tables are created in the correct schema
+			sqlScript = sqlScript.Replace("[Scheduler].", $"[{_schemaName}].");
+			sqlScript = sqlScript.Replace("Scheduler.", $"{_schemaName}.");
+
 			var command = _dbConnection.CreateCommand();
-			command.CommandText = LoadCreateSchemaResource();
+			command.CommandText = sqlScript;
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
 		}
@@ -151,6 +165,33 @@ public sealed class SqlSchedulerDatabase : ISchedulerDatabase
 
 			await Drop_Database();
 
+			throw;
+		}
+	}
+
+	private async Task CreateSchemaIfNotExists(CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			var command = _dbConnection.CreateCommand();
+			command.CommandText = @"
+				IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = @schemaName)
+				BEGIN
+					DECLARE @createSchema NVARCHAR(MAX) = N'CREATE SCHEMA ' + QUOTENAME(@schemaName);
+					EXEC sp_executesql @createSchema;
+				END;
+			";
+
+			var parameter = command.CreateParameter();
+			parameter.ParameterName = "@schemaName";
+			parameter.Value = _schemaName;
+			command.Parameters.Add(parameter);
+
+			await command.ExecuteNonQueryAsync(cancellationToken);
+		}
+		catch
+		{
+			_logger.LogError("An error occurred while creating schema '{SchemaName}' in database '{DatabaseName}'.", _schemaName, _databaseName);
 			throw;
 		}
 	}
