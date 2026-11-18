@@ -7,7 +7,7 @@ namespace Beep.Scheduler;
 /// <summary>
 /// Database operations for the scheduler
 /// </summary>
-public class SchedulerRepository
+public sealed class SchedulerRepository
 {
 	private readonly string _connectionString;
 	private readonly ILogger<SchedulerRepository> _logger;
