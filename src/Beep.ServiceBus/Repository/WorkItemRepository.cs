@@ -15,11 +15,13 @@ namespace Beep.ServiceBus;
 public sealed class WorkItemRepository : IWorkItemRepository
 {
 	private readonly string _connectionString;
+	private readonly string _schema;
 	private readonly ILogger<WorkItemRepository> _logger;
 
-	public WorkItemRepository(string connectionString, ILogger<WorkItemRepository> logger)
+	public WorkItemRepository(string connectionString, string schema, ILogger<WorkItemRepository> logger)
 	{
 		_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+		_schema = schema ?? throw new ArgumentNullException(nameof(schema));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -40,7 +42,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "ClaimWorkItems";
+			cmd.CommandText = $"{_schema}.ClaimWorkItems";
 			cmd.CommandTimeout = 30;
 
 			cmd.Parameters.AddWithValue("@WorkerType", workerType);
@@ -86,7 +88,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "RenewWorkItemLease";
+			cmd.CommandText = $"{_schema}.RenewWorkItemLease";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -125,7 +127,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "ReleaseWorkItemLease";
+			cmd.CommandText = $"{_schema}.ReleaseWorkItemLease";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -165,7 +167,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "CompleteWorkItem";
+			cmd.CommandText = $"{_schema}.CompleteWorkItem";
 			cmd.CommandTimeout = 30;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -213,7 +215,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "RecordWorkItemAttempt";
+			cmd.CommandText = $"{_schema}.RecordWorkItemAttempt";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
@@ -295,7 +297,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = "GetWorkItem";
+			cmd.CommandText = $"{_schema}.GetWorkItem";
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);

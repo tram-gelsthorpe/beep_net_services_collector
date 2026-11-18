@@ -17,6 +17,7 @@ public static class DependencyInjection
 	public static IServiceCollection RegisterScheduler(
 		this IServiceCollection services,
 		string connectionString,
+		string schedulerSchema,
 		int pollIntervalSeconds = 30)
 	{
 		if (string.IsNullOrWhiteSpace(connectionString))
@@ -26,7 +27,7 @@ public static class DependencyInjection
 		services.AddScoped(provider =>
 		{
 			var logger = provider.GetRequiredService<ILogger<SchedulerRepository>>();
-			return new SchedulerRepository(connectionString, logger);
+			return new SchedulerRepository(connectionString, schedulerSchema, logger);
 		});
 
 		// Register scheduler service as hosted service

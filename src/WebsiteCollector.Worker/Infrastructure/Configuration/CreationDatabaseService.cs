@@ -14,9 +14,9 @@ public sealed class CreationDatabaseService(
 	IConfiguration configuration,
 	ILogger<CreationDatabaseService> logger)
 {
-	private const string ServiceBusSchema = "ServiceBus";
-	private const string EventBusSchema = "EventBus";
-	private const string SchedulerSchema = "Scheduler";
+	public const string ServiceBusSchema = "ServiceBus";
+	public const string EventBusSchema = "EventBus";
+	public const string SchedulerSchema = "Scheduler";
 
 	/// <summary>
 	/// Initialize all databases and schemas.

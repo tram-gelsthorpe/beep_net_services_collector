@@ -29,7 +29,11 @@ namespace WebsiteCollector.Worker
 
 			// WebsiteCollector.Worker specific
 			services.AddScoped<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>
-				(p => new WebsiteSelectorsRepository(configuration, ServiceBusDatabaseName, SelectorDatabaseName, p.GetRequiredService<ILoggerFactory>()));
+				(p => new WebsiteSelectorsRepository(configuration, 
+					ServiceBusDatabaseName, 
+					CreationDatabaseService.ServiceBusSchema,
+					SelectorDatabaseName, 
+					p.GetRequiredService<ILoggerFactory>()));
 			
 			services.AddScoped<IWebsiteSelectorsService, WebsiteSelectorsService>();
 			//builder.Services.AddScoped<ISelectorManagementService, SelectorManagementService>();
@@ -80,6 +84,7 @@ namespace WebsiteCollector.Worker
 
 			// Register Beep.Scheduler framework
 			services.RegisterScheduler(schedulerConnectionString, 
+				schedulerSchema: CreationDatabaseService.SchedulerSchema,
 				pollIntervalSeconds: schedulerOptionSection.PollIntervalSeconds);
 
 			// Register WebsiteCollector schedule handler

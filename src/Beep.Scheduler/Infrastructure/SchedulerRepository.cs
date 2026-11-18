@@ -10,11 +10,13 @@ namespace Beep.Scheduler;
 public sealed class SchedulerRepository
 {
 	private readonly string _connectionString;
+	private readonly string _schema;
 	private readonly ILogger<SchedulerRepository> _logger;
 
-	public SchedulerRepository(string connectionString, ILogger<SchedulerRepository> logger)
+	public SchedulerRepository(string connectionString, string schema, ILogger<SchedulerRepository> logger)
 	{
 		_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+		_schema = schema ?? throw new ArgumentNullException(nameof(schema));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -30,7 +32,7 @@ public sealed class SchedulerRepository
 			using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			using var command = new SqlCommand("Scheduler.GetDueSchedules", connection)
+			using var command = new SqlCommand($"{_schema}.GetDueSchedules", connection)
 			{
 				CommandType = CommandType.StoredProcedure,
 				CommandTimeout = 30
@@ -77,7 +79,7 @@ public sealed class SchedulerRepository
 			using var command = new SqlCommand(
 				"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
 				"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
-				"FROM Scheduler.WorkerSchedules WHERE Id = @Id",
+				"FROM WorkerSchedules WHERE Id = @Id",
 				connection)
 			{
 				CommandTimeout = 30
@@ -131,7 +133,7 @@ public sealed class SchedulerRepository
 			using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			using var command = new SqlCommand("Scheduler.LogScheduleExecution", connection)
+			using var command = new SqlCommand($"{_schema}.LogScheduleExecution", connection)
 			{
 				CommandType = CommandType.StoredProcedure,
 				CommandTimeout = 30
@@ -166,7 +168,7 @@ public sealed class SchedulerRepository
 			using var command = new SqlCommand(
 				"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
 				"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
-				"FROM Scheduler.WorkerSchedules WHERE WorkerType = @WorkerType",
+				"FROM WorkerSchedules WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
@@ -217,10 +219,10 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"IF EXISTS (SELECT 1 FROM Scheduler.WorkerSchedules WHERE WorkerType = @WorkerType) " +
-				"BEGIN UPDATE Scheduler.WorkerSchedules SET Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive WHERE WorkerType = @WorkerType END " +
+				"IF EXISTS (SELECT 1 FROM WorkerSchedules WHERE WorkerType = @WorkerType) " +
+				"BEGIN UPDATE WorkerSchedules SET Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive WHERE WorkerType = @WorkerType END " +
 				"ELSE " +
-				"BEGIN INSERT INTO Scheduler.WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive) VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive) END",
+				"BEGIN INSERT INTO WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive) VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive) END",
 				connection)
 			{
 				CommandTimeout = 30
@@ -255,7 +257,7 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"UPDATE Scheduler.WorkerSchedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
+				"UPDATE WorkerSchedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
@@ -286,7 +288,7 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"DELETE FROM Scheduler.WorkerSchedules WHERE WorkerType = @WorkerType",
+				"DELETE FROM WorkerSchedules WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
