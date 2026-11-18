@@ -18,7 +18,7 @@ builder.Services.RegisterServiceBus(builder.Configuration);
 // EventBus Infrastructure
 builder.Services.RegisterEventBus(builder.Configuration);
 
-// Sheduler Infrastructure
+// Scheduler Infrastructure
 builder.Services.RegisterScheduler(builder.Configuration);
 
 // Subscribers
@@ -28,9 +28,6 @@ builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
 builder.Services.AddCollectorHttpClient();
 
 builder.Services.AddHostedService<WebsiteCollectorWorker>();
-
-// Register schedule initialization service
-builder.Services.AddScoped<ScheduleInitializationService>();
 
 var host = builder.Build();
 

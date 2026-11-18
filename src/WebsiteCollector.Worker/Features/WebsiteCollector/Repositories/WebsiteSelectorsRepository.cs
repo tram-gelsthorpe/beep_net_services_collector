@@ -15,7 +15,10 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 	private SelectorManagementRepository _selectorManagementRepository;
 	private readonly ILogger<WebsiteSelectorsRepository> _logger;
 
-	public WebsiteSelectorsRepository(IConfiguration config, string serviceBusDatabaseName, string selectorDatabaseName, ILoggerFactory loggerFactory)
+	public WebsiteSelectorsRepository(IConfiguration config, 
+		string serviceBusDatabaseName, 
+		string selectorDatabaseName, 
+		ILoggerFactory loggerFactory)
 	{
 		_logger = loggerFactory.CreateLogger<WebsiteSelectorsRepository>();
 

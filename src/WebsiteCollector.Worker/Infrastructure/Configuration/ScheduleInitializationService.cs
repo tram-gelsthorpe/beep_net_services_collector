@@ -1,5 +1,6 @@
 using Beep.Scheduler;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace WebsiteCollector.Worker;
 
@@ -9,13 +10,19 @@ namespace WebsiteCollector.Worker;
 public class ScheduleInitializationService
 {
 	private readonly IScheduleService _scheduleService;
+	private readonly SchedulerOption _scheduleOption;
 	private readonly ILogger<ScheduleInitializationService> _logger;
 
 	public ScheduleInitializationService(
 		IScheduleService scheduleService,
+		SchedulerOption scheduleOption,
 		ILogger<ScheduleInitializationService> logger)
 	{
 		_scheduleService = scheduleService ?? throw new ArgumentNullException(nameof(scheduleService));
+
+		_scheduleOption = scheduleOption ?? throw new ArgumentNullException(nameof(scheduleOption));
+		_scheduleOption.Validate();
+
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -30,10 +37,10 @@ public class ScheduleInitializationService
 
 			// Create or update the daily WebsiteCollector schedule
 			await _scheduleService.CreateOrUpdateScheduleAsync(
-				workerType: "WebsiteCollector",
-				description: "Daily website collection at 1:00 AM",
-				frequency: "Daily",
-				startTime: new TimeOnly(1, 0), // 1:00 AM
+				workerType: _scheduleOption.WorkerType,
+				description: _scheduleOption.Description,
+				frequency: _scheduleOption.Frequency,
+				startTime: _scheduleOption.StartTime!.Value,
 				isActive: true,
 				cancellationToken: cancellationToken);
 

@@ -21,7 +21,7 @@ public sealed class EventBusLeaseManager : ILeaseManager<PendingEventBus>
 	}
 
 	public async Task<IReadOnlyList<IClaimedItem<PendingEventBus>>> ClaimAsync(
-		Guid workerIdent,
+		Guid workerId,
 		int maxItems,
 		int leaseSeconds,
 		CancellationToken ct)

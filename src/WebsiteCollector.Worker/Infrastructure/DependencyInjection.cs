@@ -68,6 +68,10 @@ namespace WebsiteCollector.Worker
 
 		public static IServiceCollection RegisterScheduler(this IServiceCollection services, IConfiguration configuration)
 		{
+			var schedulerOptionSection = new SchedulerOption();
+			configuration.GetSection(SchedulerOption.Name).Bind(schedulerOptionSection);
+			services.AddScoped(provider => schedulerOptionSection);
+
 			var schedulerConnectionString = configuration.GetConnectionString(SchedulerDatabaseName)
 				?? throw new InvalidOperationException("Missing Scheduler connection string for scheduler");
 
@@ -75,7 +79,8 @@ namespace WebsiteCollector.Worker
 				?? throw new InvalidOperationException("Missing Collector connection string for schedule handler");
 
 			// Register Beep.Scheduler framework
-			services.RegisterScheduler(schedulerConnectionString, pollIntervalSeconds: 30);
+			services.RegisterScheduler(schedulerConnectionString, 
+				pollIntervalSeconds: schedulerOptionSection.PollIntervalSeconds);
 
 			// Register WebsiteCollector schedule handler
 			services.AddScoped(provider =>
@@ -86,6 +91,12 @@ namespace WebsiteCollector.Worker
 
 			services.AddScoped<IScheduleHandler>(provider =>
 				provider.GetRequiredService<WebsiteCollectorScheduleHandler>());
+
+			// Register schedule initialization service
+			services.AddScoped(provider => new ScheduleInitializationService(
+				provider.GetRequiredService<IScheduleService>(),
+				schedulerOptionSection,
+				provider.GetRequiredService<ILogger<ScheduleInitializationService>>()));
 
 			return services;
 		}
