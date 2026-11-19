@@ -31,7 +31,7 @@ internal sealed class CollectorLeaseManager : ILeaseManager<ClaimedWebsiteSelect
 		if (item is not ClaimedWebsiteSelector selector)
 			return false;
 
-		return await _collectionService.RenewLeaseAsync(selector.WebsiteSelectorsId, leaseToken, leaseSeconds, ct);
+		return await _collectionService.RenewLeaseAsync(selector.WorkItemId, leaseToken, leaseSeconds, ct);
 	}
 
 	public async Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct)

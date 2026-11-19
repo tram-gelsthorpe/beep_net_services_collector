@@ -8,4 +8,5 @@ public sealed record WebsiteSelector(
 	string? ContentSelector,
 	string? TableSelector,
 	int TimeoutSeconds,
+	int MaxAttempts,
 	bool IsEnabled);

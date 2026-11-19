@@ -94,7 +94,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		// Assert
 		Assert.IsNotNull(claimed);
 		Assert.AreEqual(1, claimed.Count);
-		Assert.AreEqual(websiteSelectorId, claimed[0].WebsiteSelectorsId);
+		Assert.AreEqual(websiteSelectorId, claimed[0].DomainId);
 		Assert.AreEqual("https://example.com/data", claimed[0].CollectionUrl);
 		Assert.AreEqual("HTML", claimed[0].CollectionType);
 	}
@@ -141,13 +141,13 @@ public sealed class WebsiteCollectorIntegrationTests
 		var leaseToken = Guid.NewGuid();
 		var workerId = Guid.NewGuid();
 
-		await _dataFixture.SeedWorkItemAsync(
+		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "PENDING"
 		);
 
 		// Act
-		await _collectionService!.StartExecutionAsync(websiteSelectorId, leaseToken, workerId, CancellationToken.None);
+		await _collectionService!.StartExecutionAsync(workItemId, leaseToken, workerId, CancellationToken.None);
 
 		// Assert
 		var workItem = await _dataFixture.GetWorkItemAsync(websiteSelectorId);
@@ -166,7 +166,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var leaseToken = Guid.NewGuid();
 		var workerId = Guid.NewGuid();
 
-		await _dataFixture.SeedWorkItemAsync(
+		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
 			leaseOwner: workerId,
@@ -175,7 +175,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		);
 
 		// Act
-		var renewed = await _collectionService!.RenewLeaseAsync(websiteSelectorId, leaseToken, leaseSeconds: 300, CancellationToken.None);
+		var renewed = await _collectionService!.RenewLeaseAsync(workItemId, leaseToken, leaseSeconds: 300, CancellationToken.None);
 
 		// Assert
 		Assert.IsTrue(renewed, "Lease should be successfully renewed");
@@ -197,7 +197,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var leaseToken = Guid.NewGuid();
 		var workerId = Guid.NewGuid();
 
-		await _dataFixture.SeedWorkItemAsync(
+		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
 			leaseOwner: workerId,
@@ -210,6 +210,7 @@ public sealed class WebsiteCollectorIntegrationTests
 
 		// Act
 		var result = await _collectionService!.CompleteExecutionAsync(
+			workItemId,
 			websiteSelectorId,
 			leaseToken,
 			success: true,
@@ -238,7 +239,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var leaseToken = Guid.NewGuid();
 		var workerId = Guid.NewGuid();
 
-		await _dataFixture.SeedWorkItemAsync(
+		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
 			leaseOwner: workerId,
@@ -249,6 +250,7 @@ public sealed class WebsiteCollectorIntegrationTests
 
 		// Act
 		var result = await _collectionService!.CompleteExecutionAsync(
+			workItemId,
 			websiteSelectorId,
 			leaseToken,
 			success: false,
@@ -294,10 +296,10 @@ public sealed class WebsiteCollectorIntegrationTests
 		var leaseToken = claimedSelector.LeaseToken;
 
 		// Act - Start
-		await _collectionService.StartExecutionAsync(websiteSelectorId, leaseToken, workerId, CancellationToken.None);
+		await _collectionService.StartExecutionAsync(claimedSelector.WorkItemId, leaseToken, workerId, CancellationToken.None);
 
 		// Act - Renew
-		var renewed = await _collectionService.RenewLeaseAsync(websiteSelectorId, leaseToken, leaseSeconds: 60, CancellationToken.None);
+		var renewed = await _collectionService.RenewLeaseAsync(claimedSelector.WorkItemId, leaseToken, leaseSeconds: 60, CancellationToken.None);
 		Assert.IsTrue(renewed);
 
 		// Act - Complete
@@ -305,6 +307,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var responseHash = System.Text.Encoding.UTF8.GetBytes(responseContent);
 
 		await _collectionService.CompleteExecutionAsync(
+			claimedSelector.WorkItemId,
 			websiteSelectorId,
 			leaseToken,
 			success: true,
@@ -346,7 +349,7 @@ public sealed class WebsiteCollectorIntegrationTests
 
 		// Assert
 		Assert.AreEqual(3, claimed.Count);
-		Assert.IsTrue(selectorIds.All(id => claimed.Any(c => c.WebsiteSelectorsId == id)), 
+		Assert.IsTrue(selectorIds.All(id => claimed.Any(c => c.DomainId == id)), 
 			"All seeded selectors should be claimed");
 	}
 

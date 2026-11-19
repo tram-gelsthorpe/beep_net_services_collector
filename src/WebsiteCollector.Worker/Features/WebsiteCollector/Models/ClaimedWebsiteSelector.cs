@@ -1,7 +1,8 @@
 namespace WebsiteCollector.Worker;
 
 public sealed record ClaimedWebsiteSelector(
-	Guid WebsiteSelectorsId,
+	Guid WorkItemId,
+	Guid DomainId,
 	Guid WebsitesId,
 	string CollectionUrl,
 	string CollectionType,

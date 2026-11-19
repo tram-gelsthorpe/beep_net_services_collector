@@ -36,7 +36,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 
 	public async Task InitializeAsync(ClaimedWebsiteSelector item, Guid leaseToken, Guid workerIdent, CancellationToken ct)
 	{
-		await _collectionService.StartExecutionAsync(item.WebsiteSelectorsId, leaseToken, workerIdent, ct);
+		await _collectionService.StartExecutionAsync(item.WorkItemId, leaseToken, workerIdent, ct);
 	}
 
 	public async Task<ProcessingResult> ProcessAsync(ClaimedWebsiteSelector item, Guid leaseToken, CancellationToken ct)
@@ -139,7 +139,8 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 			var statusCode = (int?)data?["statusCode"];
 
 			var commitResult = await _collectionService.CompleteExecutionAsync(
-				item.WebsiteSelectorsId,
+				item.WorkItemId,
+				item.DomainId,
 				leaseToken,
 				true,
 				statusCode,
@@ -155,7 +156,8 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 		else
 		{
 			await _collectionService.CompleteExecutionAsync(
-				item.WebsiteSelectorsId,
+				item.WorkItemId,
+				item.DomainId,
 				leaseToken,
 				false,
 				null,

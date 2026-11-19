@@ -8,14 +8,15 @@ public sealed class WebsiteSelectorsService(IWebsiteSelectorsRepository reposito
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimSelectorsAsync(Guid workerId, int count, int lease, CancellationToken ct) =>
 		await repository.ClaimAsync(workerId, count, lease, ct);
 
-	public async Task StartExecutionAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct) =>
-		await repository.StartAsync(websiteSelectorsId, leaseToken, worker, ct);
+	public async Task StartExecutionAsync(Guid workItemId, Guid leaseToken, Guid workerId, CancellationToken ct) =>
+		await repository.StartAsync(workItemId, leaseToken, workerId, ct);
 
-	public async Task<bool> RenewLeaseAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct) =>
-		await repository.RenewAsync(websiteSelectorsId, leaseToken, leaseSeconds, ct);
+	public async Task<bool> RenewLeaseAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, CancellationToken ct) =>
+		await repository.RenewAsync(workItemId, leaseToken, leaseSeconds, ct);
 
 	public async Task<int> CompleteExecutionAsync(
-		Guid websiteSelectorsId,
+		Guid workItemId,
+		Guid domainId,
 		Guid leaseToken,
 		bool success,
 		int? httpStatus,
@@ -29,12 +30,12 @@ public sealed class WebsiteSelectorsService(IWebsiteSelectorsRepository reposito
 		DateTimeOffset? startedAt = null,
 		int? attemptNumber = null)
 	{
-		var result = await repository.FinishAsync(websiteSelectorsId, leaseToken, success, httpStatus, error, hash, raw, extracted, ct);
+		var result = await repository.FinishAsync(workItemId, leaseToken, success, httpStatus, error, hash, raw, extracted, ct);
 
 		// Publish event for subscribers
 		var @event = new CollectionCompletedEvent
 		{
-			WebsiteSelectorsId = websiteSelectorsId,
+			WebsiteSelectorsId = domainId,
 			WebsiteId = websiteId ?? Guid.Empty,
 			CollectedDataId = collectedDataId ?? Guid.Empty,
 			IsSuccess = success,

@@ -84,7 +84,8 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 				var selector = selectors.First();
 
 				result.Add(new ClaimedWebsiteSelector(
-					WebsiteSelectorsId: item.DomainId,
+					WorkItemId: item.WorkItemId,
+					DomainId: item.DomainId,
 					WebsitesId: selector.WebsitesId,
 					CollectionUrl: selector.CollectionUrl,
 					CollectionType: selector.CollectionType,
@@ -115,30 +116,30 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		return result.AsReadOnly();
 	}
 
-	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid workerId, CancellationToken ct)
+	public async Task StartAsync(Guid workItemId, Guid leaseToken, Guid workerId, CancellationToken ct)
 	{
 		await _workItemRepository.RecordAttemptAsync(
-			workItemId: websiteSelectorsId,
+			workItemId: workItemId,
 			attemptNumber: 1,
 			statusSnapshot: "RUNNING",
 			cancellationToken: ct);
 	}
 
-	public async Task<bool> RenewAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct)
+	public async Task<bool> RenewAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, CancellationToken ct)
 	{
 		return await _workItemRepository.RenewLeaseAsync(
-			workItemId: websiteSelectorsId,
+			workItemId: workItemId,
 			leaseToken: leaseToken,
 			leaseSeconds: leaseSeconds,
 			cancellationToken: ct);
 	}
 
-	public async Task<int> FinishAsync(Guid websiteSelectorsId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct)
+	public async Task<int> FinishAsync(Guid workItemId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct)
 	{
 		var resultData = success ? extracted : error;
-
+			
 		var completed  = await _workItemRepository.CompleteAsync(
-			workItemId: websiteSelectorsId,
+			workItemId: workItemId,
 			leaseToken: leaseToken,
 			succeeded: success,
 			error: error,

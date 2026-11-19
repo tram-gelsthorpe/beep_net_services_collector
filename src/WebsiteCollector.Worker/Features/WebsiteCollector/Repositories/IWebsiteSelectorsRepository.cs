@@ -14,16 +14,16 @@
 		/// <summary>
 		/// Record that collection has started for the given selector.
 		/// </summary>
-		Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid workerId, CancellationToken ct);
+		Task StartAsync(Guid workItemId, Guid leaseToken, Guid workerId, CancellationToken ct);
 
 		/// <summary>
 		/// Renew the lease on an active collection task.
 		/// </summary>
-		Task<bool> RenewAsync(Guid websiteSelectorsId, Guid leaseToken, int leaseSeconds, CancellationToken ct);
+		Task<bool> RenewAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, CancellationToken ct);
 
 		/// <summary>
 		/// Complete a collection task with success or failure.
 		/// </summary>
-		Task<int> FinishAsync(Guid websiteSelectorsId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct);
+		Task<int> FinishAsync(Guid workItemId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct);
 	}
 }

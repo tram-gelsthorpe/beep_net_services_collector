@@ -30,7 +30,7 @@ public sealed class SelectorManagementRepository
 		await using var conn = OpenAsync();
 		
 		const string sql = """
-			SELECT Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector, TimeoutSeconds, IsEnabled 
+			SELECT Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector, TimeoutSeconds, MaxAttempts, IsEnabled 
 			FROM dbo.WebsiteSelectors 
 			WHERE Id = @WebsiteSelectorsId AND IsEnabled = 1
 			""";
