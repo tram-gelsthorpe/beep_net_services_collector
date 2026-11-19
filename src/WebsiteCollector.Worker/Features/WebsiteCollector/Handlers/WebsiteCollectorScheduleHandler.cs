@@ -47,7 +47,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 			_logger.LogInformation("WebsiteCollectorScheduleHandler: Fetching active selectors for registration");
 
 			// Get all active selectors
-			var activeSelectors = await GetActiveSelectorIdsAsync(cancellationToken);
+			var activeSelectors = await GetActiveSelectorsAsync(cancellationToken);
 
 			if (activeSelectors.Count == 0)
 			{
@@ -67,7 +67,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 			var failedSelectors = new List<Guid>();
 
 			// Register a work item for each active selector
-			foreach (var selectorId in activeSelectors)
+			foreach (var selector in activeSelectors)
 			{
 				if (cancellationToken.IsCancellationRequested)
 				{
@@ -80,15 +80,15 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 					// Create work item: workerType, workerId, domainId (selectorId), domainType, maxAttempts, scheduleForNow
 					var workItemId = await _workItemRepository.EnqueueAsync(
 						workerType: WorkerType,
-						domainId: selectorId,
+						domainId: selector.Id,
 						domainType: "WebsiteSelector",
-						maxAttempts: 5,
+						maxAttempts: selector.MaxAttempts,
 						scheduleForNow: true,
 						cancellationToken: cancellationToken);
 
 					_logger.LogDebug(
 						"WebsiteCollectorScheduleHandler: Registered work item {WorkItemId} for selector {SelectorId}",
-						workItemId, selectorId);
+						workItemId, selector.Id);
 
 					registeredCount++;
 				}
@@ -97,10 +97,10 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 					_logger.LogError(
 						ex,
 						"WebsiteCollectorScheduleHandler: Failed to register work item for selector {SelectorId}",
-						selectorId);
+						selector.Id);
 
 					failedCount++;
-					failedSelectors.Add(selectorId);
+					failedSelectors.Add(selector.Id);
 				}
 			}
 
@@ -137,9 +137,9 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 	/// <summary>
 	/// Get IDs of all active website selectors
 	/// </summary>
-	private async Task<List<Guid>> GetActiveSelectorIdsAsync(CancellationToken cancellationToken)
+	private async Task<List<ActiveWebsiteSelector>> GetActiveSelectorsAsync(CancellationToken cancellationToken)
 	{
-		var selectorIds = new List<Guid>();
+		var selectors = new List<ActiveWebsiteSelector>();
 
 		try
 		{
@@ -147,15 +147,16 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 			await connection.OpenAsync(cancellationToken);
 
 			const string sql = """
-				SELECT Id FROM dbo.WebsiteSelectors 
+				SELECT Id, MaxAttempts 
+				FROM dbo.WebsiteSelectors 
 				WHERE IsEnabled = 1
 				ORDER BY Id
 				""";
 
-			var ids = await connection.QueryAsync<Guid>(
+			var items = await connection.QueryAsync<ActiveWebsiteSelector>(
 				new CommandDefinition(sql, cancellationToken: cancellationToken));
 
-			selectorIds.AddRange(ids);
+			selectors.AddRange(items);
 		}
 		catch (Exception ex)
 		{
@@ -163,6 +164,6 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 			throw;
 		}
 
-		return selectorIds;
+		return selectors;
 	}
 }

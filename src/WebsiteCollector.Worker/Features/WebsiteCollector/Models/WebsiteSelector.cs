@@ -10,3 +10,5 @@ public sealed record WebsiteSelector(
 	int TimeoutSeconds,
 	int MaxAttempts,
 	bool IsEnabled);
+
+public sealed record ActiveWebsiteSelector(Guid Id, int MaxAttempts);
