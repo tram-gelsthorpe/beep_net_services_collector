@@ -10,20 +10,14 @@ namespace WebsiteCollector.Worker
 {
 	public static class DependencyInjection
 	{
-	
-		public static IServiceCollection AddWebsiteCollector(this IServiceCollection services)
-		{
-			services.AddSingleton<IWorkerIdProvider, WorkerIdProvider>();
-			services.AddSingleton<ISelectorManagementService, SelectorManagementService>();
-			services.AddSingleton<SelectorManagementRepository>();
-			return services;
-		}
-
 		public static IServiceCollection RegisterServiceBus(this IServiceCollection services, IConfiguration configuration)
 		{
 			var websiteCollectorOption = configuration.GetSection(WebsiteCollectorOptions.Name);
 			services.Configure<WebsiteCollectorOptions>(websiteCollectorOption);
 			services.AddScoped(provider => websiteCollectorOption);
+
+			// Add WorkerIdProvider
+			services.AddSingleton<IWorkerIdProvider, WorkerIdProvider>();
 
 			// WebsiteCollector.Worker specific
 			services.AddScoped<IWebsiteSelectorsRepository>
@@ -102,7 +96,7 @@ namespace WebsiteCollector.Worker
 				new WebsiteCollectorScheduleHandler(
 					provider.GetRequiredService<IWorkItemRepository>(),
 					selectorConnectionString,
-					schedulerOptionSection.WorkerType,
+					provider.GetRequiredService<IOptions<WebsiteCollectorOptions>>().Value.WorkerType,
 					provider.GetRequiredService<IWorkerIdProvider>().WorkerId,
 					provider.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));
 
