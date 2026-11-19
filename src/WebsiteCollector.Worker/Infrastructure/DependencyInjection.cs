@@ -77,11 +77,21 @@ namespace WebsiteCollector.Worker
 			configuration.GetSection(SchedulerOption.Name).Bind(schedulerOptionSection);
 			services.AddScoped(provider => schedulerOptionSection);
 
+			var serviceBusConnectionString = configuration.GetConnectionString(ServiceBusDatabaseName)
+				?? throw new InvalidOperationException("Missing ServiceBus connection string for scheduler");
+
 			var schedulerConnectionString = configuration.GetConnectionString(SchedulerDatabaseName)
 				?? throw new InvalidOperationException("Missing Scheduler connection string for scheduler");
 
 			var selectorConnectionString = configuration.GetConnectionString(SelectorDatabaseName)
 				?? throw new InvalidOperationException("Missing Collector connection string for schedule handler");
+
+			// Register IWorkItemRepository for schedule handlers
+			services.AddScoped<IWorkItemRepository>(provider =>
+				new WorkItemRepository(
+					serviceBusConnectionString,
+					CreationDatabaseService.ServiceBusSchema,
+					provider.GetRequiredService<ILogger<WorkItemRepository>>()));
 
 			// Register Beep.Scheduler framework
 			services.RegisterScheduler(schedulerConnectionString, 

@@ -256,12 +256,11 @@ public sealed class WorkItemRepository : IWorkItemRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var cmd = connection.CreateCommand();
-			cmd.CommandText = @"
-				DECLARE @workItemId uniqueidentifier = NEWID();
-				INSERT INTO WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
-				VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, 1, @MaxAttempts, @NextRunAt);
-				SELECT @workItemId;
-			";
+			cmd.CommandText = $"DECLARE @workItemId uniqueidentifier = NEWID(); " +
+				$"INSERT INTO {_schema}.WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt) " +
+				$"VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, 1, @MaxAttempts, @NextRunAt); " +
+				$"SELECT @workItemId; ";
+
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkerType", workerType);
