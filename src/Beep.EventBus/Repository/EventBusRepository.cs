@@ -11,25 +11,21 @@ namespace Beep.EventBus
 	public sealed class EventBusRepository : IEventBusRepository
 	{
 		private readonly string _connectionString;
+		private readonly string _schema;
 		private SqlConnection Open() => new(_connectionString);
 
-		public EventBusRepository(string connectionString)
+		public EventBusRepository(string connectionString, string schema)
 		{
-			if (string.IsNullOrWhiteSpace(connectionString)) 
-				throw new ArgumentException("EventBus connection string cannot be null or whitespace.", nameof(connectionString));
-
-			_connectionString = connectionString;
+			_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+			_schema = schema ?? throw new ArgumentNullException(nameof(schema));
 		}
 
 		public async Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId, CancellationToken ct)
 		{
 			await using var conn = Open();
-			const string sql = """
-				SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxRetryAttempts
-				FROM EventBus
-				WHERE EventBusOwnerId = @EventBusOwnerId AND IsEnabled = 1
-			""";
-
+			var sql = $"SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxRetryAttempts " +
+				$"FROM {_schema}.EventBus WHERE EventBusOwnerId = @EventBusOwnerId AND IsEnabled = 1";
+			
 			var rows = await conn.QueryAsync<EventBusDomain>(
 				new CommandDefinition(sql, new { EventBusOwnerId = eventBusOwnerId }, cancellationToken: ct));
 
@@ -40,13 +36,8 @@ namespace Beep.EventBus
 		{
 			await using var connection = Open();
 
-			const string sql = """
-				UPDATE EventBusDeliveries
-				SET Status = 'ABANDONED',
-					ErrorMessage = @Reason
-				WHERE Id = @EventBusDeliveryId
-			""";
-
+			var sql = $"UPDATE {_schema}.EventBusDeliveries SET Status = 'ABANDONED', ErrorMessage = @Reason WHERE Id = @EventBusDeliveryId";
+			
 			await connection.ExecuteAsync(
 				new CommandDefinition(sql, new { EventBusDeliveryId = eventBusDeliveryId, Reason = reason }, cancellationToken: ct));
 		}
@@ -55,11 +46,7 @@ namespace Beep.EventBus
 		{
 			await using var connection = Open();
 
-			const string sql = """
-				SELECT AttemptNumber
-				FROM EventBusDeliveries
-				WHERE Id = @EventBusDeliveryId
-			""";
+			var sql = $"SELECT AttemptNumber FROM {_schema}.EventBusDeliveries WHERE Id = @EventBusDeliveryId";
 
 			return await connection.QueryFirstOrDefaultAsync<Int32>(
 				new CommandDefinition(sql, new { EventBusDeliveryId = eventBusDeliveryId }, cancellationToken: ct));
@@ -69,22 +56,20 @@ namespace Beep.EventBus
 		{
 			await using var connection = Open();
 
-			const string sql = """
-				SELECT 
-					d.Id as EventBusDeliveryId,
-					d.EventBusId as EventBusId,
-					d.EventBusOwnerCollectedDataId as EventBusOwnerCollectedDataId,
-					d.AttemptNumber,
-					e.EventBusOwnerUrl as RawPayload,
-					e.TimeoutSeconds,
-					e.MaxRetryAttempts,
-					d.CreatedAt,
-					d.NextRetryAt,
-					d.Status
-				FROM EventBusDeliveries d
-				INNER JOIN EventBus e ON d.EventBusId = e.Id
-				WHERE d.Id = @EventBusDeliveryId
-			""";
+			var sql = $"SELECT " +
+					$"d.Id as EventBusDeliveryId, " +
+					$"d.EventBusId as EventBusId, " +
+					$"d.EventBusOwnerCollectedDataId as EventBusOwnerCollectedDataId, " +
+					$"d.AttemptNumber, " +
+					$"e.EventBusOwnerUrl as RawPayload, " +
+					$"e.TimeoutSeconds, " +
+					$"e.MaxRetryAttempts, " +
+					$"d.CreatedAt, " +
+					$"d.NextRetryAt, " +
+					$"d.Status " +
+				$"FROM {_schema}.EventBusDeliveries d " +
+				$"INNER JOIN {_schema}.EventBus e ON d.EventBusId = e.Id " +
+				$"WHERE d.Id = @EventBusDeliveryId ";
 
 			return await connection.QueryFirstOrDefaultAsync<PendingEventBus>(
 				new CommandDefinition(sql, new { EventBusDeliveryId = eventBusDeliveryId }, cancellationToken: ct));
@@ -94,26 +79,24 @@ namespace Beep.EventBus
 		{
 			await using var connection = Open();
 
-			const string sql = """
-				SELECT TOP (@BatchSize)
-					d.Id as EventBusDeliveryId,
-					d.EventBusId as EventBusId,
-					d.EventBusOwnerCollectedDataId,
-					d.AttemptNumber,
-					d.CreatedAt,
-					d.NextRetryAt,
-					d.Status,
-					e.EventBusOwnerId,
-					e.EventBusOwnerDeliveryUrl,
-					e.TimeoutSeconds,
-					e.MaxRetryAttempts
-				FROM EventBusDeliveries d
-				INNER JOIN EventBus e ON d.EventBusId = e.Id
-				WHERE d.Status = 'PENDING'
-				  AND d.NextRetryAt <= SYSUTCDATETIME()
-				  AND e.IsEnabled = 1
-				ORDER BY d.NextRetryAt ASC, d.CreatedAt ASC
-				""";
+			var sql = $"SELECT TOP (@BatchSize) " +
+					$"d.Id as EventBusDeliveryId, " +
+					$"d.EventBusId as EventBusId, " +
+					$"d.EventBusOwnerCollectedDataId, " +
+					$"d.AttemptNumber, " +
+					$"d.CreatedAt, " +
+					$"d.NextRetryAt, " +
+					$"d.Status, " +
+					$"e.EventBusOwnerId, " +
+					$"e.EventBusOwnerDeliveryUrl, " +
+					$"e.TimeoutSeconds, " +
+					$"e.MaxRetryAttempts " +
+				$"FROM {_schema}.EventBusDeliveries d " +
+				$"INNER JOIN {_schema}.EventBus e ON d.EventBusId = e.Id " +
+				$"WHERE d.Status = 'PENDING' " +
+				$"  AND d.NextRetryAt <= SYSUTCDATETIME() " +
+				$"  AND e.IsEnabled = 1 " +
+				$"ORDER BY d.NextRetryAt ASC, d.CreatedAt ASC ";
 
 		var deliveries = await connection.QueryAsync<PendingEventBus>(
 				new CommandDefinition(sql, new { BatchSize = batchSize }, cancellationToken: ct));
@@ -127,13 +110,11 @@ namespace Beep.EventBus
 
 			if (isSuccessful)
 			{
-				const string successSql = """
-					UPDATE EventBusDeliveries
-					SET Status = 'SUCCESS', 
-						HttpStatusCode = @HttpStatusCode, 
-						DeliveredAt = SYSUTCDATETIME()
-					WHERE Id = @EventBusDeliveryId
-					""";
+				var successSql = $"UPDATE {_schema}.EventBusDeliveries " +
+					$"SET Status = 'SUCCESS', " +
+					$"HttpStatusCode = @HttpStatusCode, " +
+					$"DeliveredAt = SYSUTCDATETIME() " +
+					$"WHERE Id = @EventBusDeliveryId";
 
 				await connection.ExecuteAsync(
 					new CommandDefinition(successSql, new { EventBusDeliveryId = eventBusDeliveryId, HttpStatusCode = httpStatusCode }, cancellationToken: ct));
@@ -141,14 +122,12 @@ namespace Beep.EventBus
 			else
 			{
 				// Mark as FAILED and schedule retry with exponential backoff
-				const string failSql = """
-					UPDATE EventBusDeliveries
-					SET Status = 'FAILED', 
-						HttpStatusCode = @HttpStatusCode, 
-						ErrorMessage = @ErrorMessage,
-						NextRetryAt = DATEADD(second, POWER(2, AttemptNumber), SYSUTCDATETIME())
-					WHERE Id = @EventBusDeliveryId
-					""";
+				var failSql = $"UPDATE {_schema}.EventBusDeliveries " +
+					$"SET Status = 'FAILED', " +
+					$"HttpStatusCode = @HttpStatusCode, " +
+					$"ErrorMessage = @ErrorMessage, " +
+					$"NextRetryAt = DATEADD(second, POWER(2, AttemptNumber), SYSUTCDATETIME()) " +
+					$"WHERE Id = @EventBusDeliveryId";
 
 				await connection.ExecuteAsync(
 					new CommandDefinition(failSql,
@@ -165,12 +144,10 @@ namespace Beep.EventBus
 		{
 			await using var connection = Open();
 			
-			const string sql = """
-				INSERT INTO EventBusDeliveries 
-					(EventBusId, EventBusOwnerCollectedDataId, Status, AttemptNumber, NextRetryAt, CreatedAt)
-				VALUES 
-					(@EventBusId, @EventBusOwnerCollectedDataId, 'PENDING', 1, SYSUTCDATETIME(), SYSUTCDATETIME())
-			""";
+			var sql = $"INSERT INTO {_schema}.EventBusDeliveries " +
+				$"	(EventBusId, EventBusOwnerCollectedDataId, Status, AttemptNumber, NextRetryAt, CreatedAt) " +
+				$"VALUES " +
+				$"	(@EventBusId, @EventBusOwnerCollectedDataId, 'PENDING', 1, SYSUTCDATETIME(), SYSUTCDATETIME()) ";
 
 			await connection.ExecuteAsync(
 				new CommandDefinition(sql, new { EventBusId = eventBusId, EventBusOwnerCollectedDataId = eventBusOwnerCollectedDataId }, cancellationToken: ct));

@@ -281,7 +281,7 @@ public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 		_dbConnection.ChangeDatabase(_databaseName);
 
 		var command = _dbConnection.CreateCommand();
-		command.CommandText = "SELECT TOP 1 Version FROM DatabaseVersion ORDER BY Id DESC";
+		command.CommandText = $"SELECT TOP 1 Version FROM {_schemaName}.DatabaseVersion ORDER BY Id DESC";
 
 		var result = await command.ExecuteScalarAsync();
 
@@ -294,7 +294,7 @@ public sealed class SqlServiceBusDatabase : IServiceBusDatabase
 		_dbConnection.ChangeDatabase(_databaseName);
 
 		var command = _dbConnection.CreateCommand();
-		command.CommandText = "INSERT INTO DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
+		command.CommandText = $"INSERT INTO {_schemaName}.DatabaseVersion (Version) VALUES (@version); SELECT SCOPE_IDENTITY();";
 		command.Parameters.Add(new SqlParameter("@version", version));
 		
 		var result = await command.ExecuteScalarAsync();

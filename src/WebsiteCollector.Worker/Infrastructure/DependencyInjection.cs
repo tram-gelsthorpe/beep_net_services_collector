@@ -49,7 +49,8 @@ namespace WebsiteCollector.Worker
 			services.AddScoped(provider => eventBusOptions);
 
 			services.AddScoped<IEventBusRepository, EventBusRepository>
-				(p => new EventBusRepository(configuration.GetConnectionString(EventBusDatabaseName) ?? throw new InvalidOperationException("Missing EventBus connection string")));
+				(p => new EventBusRepository(configuration.GetConnectionString(EventBusDatabaseName) ?? throw new InvalidOperationException("Missing EventBus connection string"), 
+				CreationDatabaseService.EventBusSchema));
 
 			services.AddSingleton<IEventAggregator, EventAggregator>();
 			services.AddScoped<IEventBusService, EventBusService>();

@@ -77,9 +77,9 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
-				"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
-				"FROM WorkerSchedules WHERE Id = @Id",
+				$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
+				$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
+				$"FROM {_schema}.WorkerSchedules WHERE Id = @Id",
 				connection)
 			{
 				CommandTimeout = 30
@@ -166,9 +166,9 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
-				"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
-				"FROM WorkerSchedules WHERE WorkerType = @WorkerType",
+				$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
+				$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
+				$"FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
@@ -219,10 +219,10 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"IF EXISTS (SELECT 1 FROM WorkerSchedules WHERE WorkerType = @WorkerType) " +
-				"BEGIN UPDATE WorkerSchedules SET Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive WHERE WorkerType = @WorkerType END " +
-				"ELSE " +
-				"BEGIN INSERT INTO WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive) VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive) END",
+				$"IF EXISTS (SELECT 1 FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType) " +
+				$"BEGIN UPDATE {_schema}.WorkerSchedules SET Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive WHERE WorkerType = @WorkerType END " +
+				$"ELSE " +
+				$"BEGIN INSERT INTO {_schema}.WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive) VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive) END",
 				connection)
 			{
 				CommandTimeout = 30
@@ -257,7 +257,7 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"UPDATE WorkerSchedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
+				$"UPDATE {_schema}.WorkerSchedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
@@ -288,7 +288,7 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				"DELETE FROM WorkerSchedules WHERE WorkerType = @WorkerType",
+				$"DELETE FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
