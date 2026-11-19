@@ -15,19 +15,22 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 	private readonly IWorkItemRepository _workItemRepository;
 	private readonly ILogger<WebsiteCollectorScheduleHandler> _logger;
 
-	public readonly string _workerType;
-	public string WorkerType => _workerType;
+	public string WorkerType { get; }
+	public Guid WorkerId { get; }
 
 	public WebsiteCollectorScheduleHandler(
 		IWorkItemRepository workItemRepository,
 		string connectionString,
 		string workerType,
+		Guid workerId,
 		ILogger<WebsiteCollectorScheduleHandler> logger)
 	{
 		_workItemRepository = workItemRepository ?? throw new ArgumentNullException(nameof(workItemRepository));
 		_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-		_workerType = workerType ?? throw new ArgumentNullException(nameof(workerType));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+		WorkerType = workerType ?? throw new ArgumentNullException(nameof(workerType));
+		WorkerId = workerId;
 	}
 
 	/// <summary>
@@ -74,9 +77,10 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 
 				try
 				{
-					// Create work item: workerType, domainId (selectorId), domainType, maxAttempts, scheduleForNow
+					// Create work item: workerType, workerId, domainId (selectorId), domainType, maxAttempts, scheduleForNow
 					var workItemId = await _workItemRepository.EnqueueAsync(
-						workerType: _workerType,
+						workerType: WorkerType,
+						workerId: WorkerId,
 						domainId: selectorId,
 						domainType: "WebsiteSelector",
 						maxAttempts: 5,

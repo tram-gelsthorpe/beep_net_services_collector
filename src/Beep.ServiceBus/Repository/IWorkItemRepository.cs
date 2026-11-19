@@ -101,6 +101,7 @@ public interface IWorkItemRepository
 	/// Used by event subscribers or API endpoints to enqueue work.
 	/// </summary>
 	/// <param name="workerType">Classification of work ('SelectorCollector', 'WebhookDelivery')</param>
+	/// <param name="workderId">Unique ID of the worker instance that will process this item</param>
 	/// <param name="domainId">Domain entity ID (e.g., WebsiteSelectorsId, DeliveryId)</param>
 	/// <param name="domainType">Domain entity type (e.g., 'WebsiteSelector')</param>
 	/// <param name="maxAttempts">Maximum retries allowed</param>
@@ -109,6 +110,7 @@ public interface IWorkItemRepository
 	/// <returns>The ID of the created work item</returns>
 	Task<Guid> EnqueueAsync(
 		string workerType,
+		Guid workerId,
 		Guid domainId,
 		string domainType,
 		int maxAttempts = 5,

@@ -73,6 +73,11 @@ public interface IScheduleHandler
 	string WorkerType { get; }
 
 	/// <summary>
+	///	The unique ID of the worker instance that will process the work items created by this handler
+	/// </summary>
+	Guid WorkerId { get; }
+
+	/// <summary>
 	/// Register work items for the given schedule
 	/// </summary>
 	/// <param name="schedule">The schedule that is due to run</param>

@@ -15,12 +15,12 @@ internal sealed class CollectorLeaseManager : ILeaseManager<ClaimedWebsiteSelect
 	}
 
 	public async Task<IReadOnlyList<IClaimedItem<ClaimedWebsiteSelector>>> ClaimAsync(
-		Guid workerIdent,
+		Guid workerId,
 		int maxItems,
 		int leaseSeconds,
 		CancellationToken ct)
 	{
-		var items = await _collectionService.ClaimSelectorsAsync(workerIdent, maxItems, leaseSeconds, ct);
+		var items = await _collectionService.ClaimSelectorsAsync(workerId, maxItems, leaseSeconds, ct);
 		return items
 			.Select(item => (IClaimedItem<ClaimedWebsiteSelector>)new ClaimedSelectorItem(item, item.LeaseToken))
 			.ToList();

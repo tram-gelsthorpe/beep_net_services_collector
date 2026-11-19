@@ -15,7 +15,12 @@ namespace Beep.ServiceBus;
 /// <typeparam name="T">The type of work item to process</typeparam>
 public abstract class GenericWorkerBase<T> : BackgroundService
 {
-	private readonly Guid _workerId = Guid.NewGuid();
+	/// <summary>
+	/// Gets the unique ID of this worker instance.
+	/// This ID is used to claim work items and identify the worker in logs and audits.
+	/// </summary>
+	public Guid WorkerId { get; init; } = Guid.NewGuid();
+
 	protected readonly ILeaseManager<T> LeaseManager;
 	protected readonly IWorkProcessor<T> WorkProcessor;
 	protected readonly IWorkerOption WorkderOption;
@@ -24,6 +29,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 	protected abstract int PollIntervalSeconds { get; }
 	protected abstract int MaxConcurrentItems { get; }
 	protected abstract int LeaseSeconds { get; }
+
 
 	protected GenericWorkerBase(
 		ILeaseManager<T> leaseManager,
@@ -77,7 +83,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 					var available = MaxConcurrentItems - running.Count;
 					if (available > 0)
 					{
-						var items = await LeaseManager.ClaimAsync(_workerId, available, LeaseSeconds, stoppingToken);
+						var items = await LeaseManager.ClaimAsync(WorkerId, available, LeaseSeconds, stoppingToken);
 						foreach (var claimed in items)
 						{
 							running.Add(ProcessItemAsync(claimed.Item, claimed.LeaseToken, stoppingToken));
@@ -124,7 +130,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 		try
 		{
 			// Initialize processing
-			await WorkProcessor.InitializeAsync(item, leaseToken, _workerId, processingToken);
+			await WorkProcessor.InitializeAsync(item, leaseToken, WorkerId, processingToken);
 
 			// Start heartbeat task
 			heartbeat = HeartbeatAsync(item, leaseToken, leaseLostSource, processingToken);

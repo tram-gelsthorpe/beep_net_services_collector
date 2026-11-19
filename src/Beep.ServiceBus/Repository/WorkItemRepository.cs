@@ -238,6 +238,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 	public async Task<Guid> EnqueueAsync(
 		string workerType,
+		Guid workerId,
 		Guid domainId,
 		string domainType,
 		int maxAttempts = 5,
@@ -257,13 +258,15 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 			using var cmd = connection.CreateCommand();
 			cmd.CommandText = $"DECLARE @workItemId uniqueidentifier = NEWID(); " +
-				$"INSERT INTO {_schema}.WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt) " +
-				$"VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, 1, @MaxAttempts, @NextRunAt); " +
+				$"DECLARE @statusId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING'); " +
+				$"INSERT INTO {_schema}.WorkItems (Id, WorkerType, WorkerId, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt) " +
+				$"VALUES (@workItemId, @WorkerType, @WorkerId, @DomainId, @DomainType, @statusId, @MaxAttempts, @NextRunAt); " +
 				$"SELECT @workItemId; ";
 
 			cmd.CommandTimeout = 10;
 
 			cmd.Parameters.AddWithValue("@WorkerType", workerType);
+			cmd.Parameters.AddWithValue("@WorkerId", workerId);
 			cmd.Parameters.AddWithValue("@DomainId", domainId);
 			cmd.Parameters.AddWithValue("@DomainType", domainType);
 			cmd.Parameters.AddWithValue("@MaxAttempts", maxAttempts);

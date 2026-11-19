@@ -6,6 +6,8 @@ namespace Beep.ServiceBus;
 /// </summary>
 public interface IWorkerOption
 {
+	string WorkerType { get; }
+
 	/// <summary>
 	/// Maximum number of items to process concurrently.
 	/// Be conservative with this on constrained systems (network, memory).

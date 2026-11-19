@@ -9,12 +9,12 @@
 		/// <summary>
 		/// Claim a batch of website selectors ready for collection.
 		/// </summary>
-		Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct);
+		Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid workerId, int count, int lease, CancellationToken ct);
 
 		/// <summary>
 		/// Record that collection has started for the given selector.
 		/// </summary>
-		Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct);
+		Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid workerId, CancellationToken ct);
 
 		/// <summary>
 		/// Renew the lease on an active collection task.

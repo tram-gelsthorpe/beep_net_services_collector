@@ -9,6 +9,11 @@ namespace Beep.ServiceBus;
 public class WorkerOptions : IWorkerOption
 {
 	/// <summary>
+	/// Gets or sets the type of the worker.
+	/// </summary>
+	public string WorkerType { get; set; } = string.Empty;
+
+	/// <summary>
 	/// Maximum number of items to process concurrently.
 	/// Default: 10. Range: 1-256
 	/// </summary>
@@ -37,6 +42,9 @@ public class WorkerOptions : IWorkerOption
 	/// </summary>
 	public virtual void Validate()
 	{
+		if (string.IsNullOrWhiteSpace(WorkerType))
+			throw new ArgumentException("WorkerType must be specified", nameof(WorkerType));
+
 		if (MaxConcurrentItems < 1 || MaxConcurrentItems > 256)
 			throw new ArgumentException("MaxConcurrentItems must be between 1 and 256", nameof(MaxConcurrentItems));
 

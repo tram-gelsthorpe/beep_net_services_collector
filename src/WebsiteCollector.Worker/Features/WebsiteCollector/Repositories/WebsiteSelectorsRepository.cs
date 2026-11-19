@@ -1,6 +1,7 @@
 using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace WebsiteCollector.Worker;
 
@@ -10,12 +11,13 @@ namespace WebsiteCollector.Worker;
 /// </summary>
 public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 {
-	private const string WorkerType = "WebsiteCollector";
+	private readonly IOptions<WebsiteCollectorOptions> _websiteCollectorOptions;
 	private IWorkItemRepository _workItemRepository;
 	private SelectorManagementRepository _selectorManagementRepository;
 	private readonly ILogger<WebsiteSelectorsRepository> _logger;
 
-	public WebsiteSelectorsRepository(IConfiguration config, 
+	public WebsiteSelectorsRepository(IConfiguration config,
+		IOptions<WebsiteCollectorOptions> websiteCollectorOptions,
 		string serviceBusDatabaseName, 
 		string serviceBusDatabaseSchema,
 		string selectorDatabaseName,
@@ -29,17 +31,19 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 
 		_selectorManagementRepository = new SelectorManagementRepository(config.GetConnectionString(selectorDatabaseName) ?? throw new InvalidOperationException("Missing Selector connection string"),
 			loggerFactory.CreateLogger<SelectorManagementRepository>());
+
+		_websiteCollectorOptions = websiteCollectorOptions ?? throw new ArgumentNullException(nameof(websiteCollectorOptions));
 	}
 
-	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid worker, int count, int lease, CancellationToken ct)
+	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid workerId, int count, int lease, CancellationToken ct)
 	{
 		_logger.LogInformation(
 			"ClaimAsync: Requesting {Count} work items for worker {Worker} with {LeaseSeconds}s lease",
-			count, worker, lease);
+			count, workerId, lease);
 
 		var items = await _workItemRepository.ClaimAsync(
-			workerType: WorkerType,
-			workerId: worker,
+			workerType: _websiteCollectorOptions.Value.WorkerType,
+			workerId: workerId,
 			batchSize: count,
 			leaseSeconds: lease,
 			cancellationToken: ct);
@@ -53,7 +57,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 			_logger.LogWarning(
 				"ClaimAsync: No items claimed. Queue may be empty or all items already leased. " +
 				"Worker={Worker}, WorkerType={WorkerType}",
-				worker, WorkerType);
+				workerId, _websiteCollectorOptions.Value.WorkerType);
 			return new List<ClaimedWebsiteSelector>().AsReadOnly();
 		}
 
@@ -111,7 +115,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		return result.AsReadOnly();
 	}
 
-	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct)
+	public async Task StartAsync(Guid websiteSelectorsId, Guid leaseToken, Guid workerId, CancellationToken ct)
 	{
 		await _workItemRepository.RecordAttemptAsync(
 			workItemId: websiteSelectorsId,

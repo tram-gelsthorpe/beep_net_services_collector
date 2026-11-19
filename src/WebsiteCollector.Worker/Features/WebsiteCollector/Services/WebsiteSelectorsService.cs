@@ -5,8 +5,8 @@ namespace WebsiteCollector.Worker;
 public sealed class WebsiteSelectorsService(IWebsiteSelectorsRepository repository, IEventAggregator eventAggregator) 
 	: IWebsiteSelectorsService
 {
-	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimSelectorsAsync(Guid worker, int count, int lease, CancellationToken ct) =>
-		await repository.ClaimAsync(worker, count, lease, ct);
+	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimSelectorsAsync(Guid workerId, int count, int lease, CancellationToken ct) =>
+		await repository.ClaimAsync(workerId, count, lease, ct);
 
 	public async Task StartExecutionAsync(Guid websiteSelectorsId, Guid leaseToken, Guid worker, CancellationToken ct) =>
 		await repository.StartAsync(websiteSelectorsId, leaseToken, worker, ct);

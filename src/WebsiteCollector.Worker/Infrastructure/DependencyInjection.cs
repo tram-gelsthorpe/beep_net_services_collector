@@ -4,18 +4,16 @@ using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace WebsiteCollector.Worker
 {
 	public static class DependencyInjection
 	{
-		private const string SchedulerDatabaseName = "Scheduler";
-		private const string ServiceBusDatabaseName = "ServiceBus";
-		private const string EventBusDatabaseName = "EventBus";
-		private const string SelectorDatabaseName = "Collector";
-
+	
 		public static IServiceCollection AddWebsiteCollector(this IServiceCollection services)
 		{
+			services.AddSingleton<IWorkerIdProvider, WorkerIdProvider>();
 			services.AddSingleton<ISelectorManagementService, SelectorManagementService>();
 			services.AddSingleton<SelectorManagementRepository>();
 			return services;
@@ -28,11 +26,12 @@ namespace WebsiteCollector.Worker
 			services.AddScoped(provider => websiteCollectorOption);
 
 			// WebsiteCollector.Worker specific
-			services.AddScoped<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>
-				(p => new WebsiteSelectorsRepository(configuration, 
-					ServiceBusDatabaseName, 
+			services.AddScoped<IWebsiteSelectorsRepository>
+				(p => new WebsiteSelectorsRepository(configuration,
+					p.GetRequiredService<IOptions<WebsiteCollectorOptions>>(),
+					CreationDatabaseService.ServiceBusDatabaseName, 
 					CreationDatabaseService.ServiceBusSchema,
-					SelectorDatabaseName, 
+					CreationDatabaseService.SelectorDatabaseName,
 					p.GetRequiredService<ILoggerFactory>()));
 			
 			services.AddScoped<IWebsiteSelectorsService, WebsiteSelectorsService>();
@@ -49,7 +48,7 @@ namespace WebsiteCollector.Worker
 			services.AddScoped(provider => eventBusOptions);
 
 			services.AddScoped<IEventBusRepository, EventBusRepository>
-				(p => new EventBusRepository(configuration.GetConnectionString(EventBusDatabaseName) ?? throw new InvalidOperationException("Missing EventBus connection string"), 
+				(p => new EventBusRepository(configuration.GetConnectionString(CreationDatabaseService.EventBusDatabaseName) ?? throw new InvalidOperationException("Missing EventBus connection string"), 
 				CreationDatabaseService.EventBusSchema));
 
 			services.AddSingleton<IEventAggregator, EventAggregator>();
@@ -77,13 +76,13 @@ namespace WebsiteCollector.Worker
 			configuration.GetSection(SchedulerOption.Name).Bind(schedulerOptionSection);
 			services.AddScoped(provider => schedulerOptionSection);
 
-			var serviceBusConnectionString = configuration.GetConnectionString(ServiceBusDatabaseName)
+			var serviceBusConnectionString = configuration.GetConnectionString(CreationDatabaseService.ServiceBusDatabaseName)
 				?? throw new InvalidOperationException("Missing ServiceBus connection string for scheduler");
 
-			var schedulerConnectionString = configuration.GetConnectionString(SchedulerDatabaseName)
+			var schedulerConnectionString = configuration.GetConnectionString(CreationDatabaseService.SchedulerDatabaseName)
 				?? throw new InvalidOperationException("Missing Scheduler connection string for scheduler");
 
-			var selectorConnectionString = configuration.GetConnectionString(SelectorDatabaseName)
+			var selectorConnectionString = configuration.GetConnectionString(CreationDatabaseService.SelectorDatabaseName)
 				?? throw new InvalidOperationException("Missing Collector connection string for schedule handler");
 
 			// Register IWorkItemRepository for schedule handlers
@@ -104,10 +103,8 @@ namespace WebsiteCollector.Worker
 					provider.GetRequiredService<IWorkItemRepository>(),
 					selectorConnectionString,
 					schedulerOptionSection.WorkerType,
+					provider.GetRequiredService<IWorkerIdProvider>().WorkerId,
 					provider.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));
-
-			//services.AddScoped<IScheduleHandler>(provider =>
-			//	provider.GetRequiredService<WebsiteCollectorScheduleHandler>());
 
 			// Register schedule initialization service
 			services.AddScoped(provider => new ScheduleInitializationService(
