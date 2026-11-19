@@ -7,4 +7,4 @@ public sealed record EventBusDomain(
 	string EventBusOwnerUrl,
 	bool IsEnabled,
 	int TimeoutSeconds,
-	int MaxRetryAttempts);
+	int MaxAttempts);

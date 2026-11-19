@@ -23,7 +23,7 @@ namespace Beep.EventBus
 		public async Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId, CancellationToken ct)
 		{
 			await using var conn = Open();
-			var sql = $"SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxRetryAttempts " +
+			var sql = $"SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxAttempts " +
 				$"FROM {_schema}.EventBus WHERE EventBusOwnerId = @EventBusOwnerId AND IsEnabled = 1";
 			
 			var rows = await conn.QueryAsync<EventBusDomain>(
@@ -46,7 +46,7 @@ namespace Beep.EventBus
 		{
 			await using var connection = Open();
 
-			var sql = $"SELECT AttemptNumber FROM {_schema}.EventBusDeliveries WHERE Id = @EventBusDeliveryId";
+			var sql = $"SELECT AttemptCount FROM {_schema}.EventBusDeliveries WHERE Id = @EventBusDeliveryId";
 
 			return await connection.QueryFirstOrDefaultAsync<Int32>(
 				new CommandDefinition(sql, new { EventBusDeliveryId = eventBusDeliveryId }, cancellationToken: ct));
@@ -60,10 +60,10 @@ namespace Beep.EventBus
 					$"d.Id as EventBusDeliveryId, " +
 					$"d.EventBusId as EventBusId, " +
 					$"d.EventBusOwnerCollectedDataId as EventBusOwnerCollectedDataId, " +
-					$"d.AttemptNumber, " +
+					$"d.AttemptCount, " +
 					$"e.EventBusOwnerUrl as RawPayload, " +
 					$"e.TimeoutSeconds, " +
-					$"e.MaxRetryAttempts, " +
+					$"e.MaxAttempts, " +
 					$"d.CreatedAt, " +
 					$"d.NextRetryAt, " +
 					$"d.Status " +
@@ -83,14 +83,14 @@ namespace Beep.EventBus
 					$"d.Id as EventBusDeliveryId, " +
 					$"d.EventBusId as EventBusId, " +
 					$"d.EventBusOwnerCollectedDataId, " +
-					$"d.AttemptNumber, " +
+					$"d.AttemptCount, " +
 					$"d.CreatedAt, " +
 					$"d.NextRetryAt, " +
 					$"d.Status, " +
 					$"e.EventBusOwnerId, " +
 					$"e.EventBusOwnerDeliveryUrl, " +
 					$"e.TimeoutSeconds, " +
-					$"e.MaxRetryAttempts " +
+					$"e.MaxAttempts " +
 				$"FROM {_schema}.EventBusDeliveries d " +
 				$"INNER JOIN {_schema}.EventBus e ON d.EventBusId = e.Id " +
 				$"WHERE d.Status = 'PENDING' " +

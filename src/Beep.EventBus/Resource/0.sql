@@ -37,11 +37,11 @@ CREATE TABLE dbo.EventBus (
         ) PERSISTED,
     IsEnabled bit NOT NULL DEFAULT 1,
     TimeoutSeconds int NOT NULL DEFAULT 30
-        CONSTRAINT CK_EventBus_Timeout
+        CONSTRAINT CK_EventBus_TimeoutSeconds
         CHECK (TimeoutSeconds BETWEEN 5 AND 300),
-    MaxRetryAttempts int NOT NULL DEFAULT 3
-        CONSTRAINT CK_EventBus_MaxRetries
-        CHECK (MaxRetryAttempts BETWEEN 1 AND 10),
+    MaxAttempts int NOT NULL DEFAULT 3
+        CONSTRAINT CK_EventBus_MaxAttempts
+        CHECK (MaxAttempts BETWEEN 1 AND 10),
     CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
     UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT UQ_EventBus_Unique
@@ -75,7 +75,7 @@ CREATE TABLE dbo.EventBusDeliveries (
         REFERENCES dbo.EventBus(Id) ON DELETE CASCADE,
     EventBusOwnerCollectedDataId uniqueidentifier NOT NULL,
     Status varchar(16) NOT NULL DEFAULT 'PENDING',
-    AttemptNumber int NOT NULL DEFAULT 1,
+    AttemptCount int NOT NULL DEFAULT 0,
     NextRetryAt datetimeoffset(7) NULL,
     HttpStatusCode int NULL,
     ErrorMessage nvarchar(2000) NULL,
@@ -86,7 +86,7 @@ CREATE TABLE dbo.EventBusDeliveries (
         UNIQUE (
             EventBusId,
             EventBusOwnerCollectedDataId,
-            AttemptNumber
+            AttemptCount
         ),
     CONSTRAINT CK_EventBusDeliveries_Status
         CHECK (
