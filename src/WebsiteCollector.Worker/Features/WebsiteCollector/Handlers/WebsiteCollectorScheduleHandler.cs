@@ -15,15 +15,18 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 	private readonly IWorkItemRepository _workItemRepository;
 	private readonly ILogger<WebsiteCollectorScheduleHandler> _logger;
 
-	public string WorkerType => "WebsiteCollector";
+	public readonly string _workerType;
+	public string WorkerType => _workerType;
 
 	public WebsiteCollectorScheduleHandler(
 		IWorkItemRepository workItemRepository,
 		string connectionString,
+		string workerType,
 		ILogger<WebsiteCollectorScheduleHandler> logger)
 	{
 		_workItemRepository = workItemRepository ?? throw new ArgumentNullException(nameof(workItemRepository));
 		_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+		_workerType = workerType ?? throw new ArgumentNullException(nameof(workerType));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 

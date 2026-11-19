@@ -89,14 +89,15 @@ namespace WebsiteCollector.Worker
 				pollIntervalSeconds: schedulerOptionSection.PollIntervalSeconds);
 
 			// Register WebsiteCollector schedule handler
-			services.AddScoped(provider =>
+			services.AddScoped<IScheduleHandler>(provider =>
 				new WebsiteCollectorScheduleHandler(
 					provider.GetRequiredService<IWorkItemRepository>(),
 					selectorConnectionString,
+					schedulerOptionSection.WorkerType,
 					provider.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));
 
-			services.AddScoped<IScheduleHandler>(provider =>
-				provider.GetRequiredService<WebsiteCollectorScheduleHandler>());
+			//services.AddScoped<IScheduleHandler>(provider =>
+			//	provider.GetRequiredService<WebsiteCollectorScheduleHandler>());
 
 			// Register schedule initialization service
 			services.AddScoped(provider => new ScheduleInitializationService(
