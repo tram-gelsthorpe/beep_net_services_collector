@@ -259,7 +259,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 			using var cmd = connection.CreateCommand();
 			cmd.CommandText = $"DECLARE @workItemId uniqueidentifier = NEWID(); " +
 				$"DECLARE @statusId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING'); " +
-				$"INSERT INTO {_schema}.WorkItems (Id, WorkerType, WorkerId, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt) " +
+				$"INSERT INTO {_schema}.WorkItems (Id, WorkerType, LeaseOwner, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt) " +
 				$"VALUES (@workItemId, @WorkerType, @WorkerId, @DomainId, @DomainType, @statusId, @MaxAttempts, @NextRunAt); " +
 				$"SELECT @workItemId; ";
 
