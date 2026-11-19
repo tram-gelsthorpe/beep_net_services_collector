@@ -1,6 +1,5 @@
 using Beep.Scheduler;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace WebsiteCollector.Worker;
 
