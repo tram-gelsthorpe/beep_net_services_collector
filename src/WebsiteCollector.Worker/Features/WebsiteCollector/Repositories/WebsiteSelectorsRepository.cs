@@ -16,23 +16,15 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 	private SelectorManagementRepository _selectorManagementRepository;
 	private readonly ILogger<WebsiteSelectorsRepository> _logger;
 
-	public WebsiteSelectorsRepository(IConfiguration config,
+	public WebsiteSelectorsRepository(IWorkItemRepository workItemRepository,
+		SelectorManagementRepository selectorManagementRepository,
 		IOptions<WebsiteCollectorOptions> websiteCollectorOptions,
-		string serviceBusDatabaseName, 
-		string serviceBusDatabaseSchema,
-		string selectorDatabaseName,
 		ILoggerFactory loggerFactory)
 	{
-		_logger = loggerFactory.CreateLogger<WebsiteSelectorsRepository>();
-
-		_workItemRepository = new WorkItemRepository(config.GetConnectionString(serviceBusDatabaseName) ?? throw new InvalidOperationException("Missing ServiceBus connection string"),
-			serviceBusDatabaseSchema,
-			loggerFactory.CreateLogger<WorkItemRepository>());
-
-		_selectorManagementRepository = new SelectorManagementRepository(config.GetConnectionString(selectorDatabaseName) ?? throw new InvalidOperationException("Missing Selector connection string"),
-			loggerFactory.CreateLogger<SelectorManagementRepository>());
-
+		_workItemRepository = workItemRepository;
+		_selectorManagementRepository = selectorManagementRepository;
 		_websiteCollectorOptions = websiteCollectorOptions ?? throw new ArgumentNullException(nameof(websiteCollectorOptions));
+		_logger = loggerFactory.CreateLogger<WebsiteSelectorsRepository>();
 	}
 
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid workerId, int count, int lease, CancellationToken ct)

@@ -1,0 +1,25 @@
+﻿namespace Beep.EventBus
+{
+	public sealed class EventBusRegister
+	{
+		/// <summary>
+		/// Number of items registered/created
+		/// </summary>
+		public int ItemsRegistered { get; set; }
+
+		/// <summary>
+		/// Whether the handler succeeded
+		/// </summary>
+		public bool Success { get; set; } = true;
+
+		/// <summary>
+		/// Error message if execution failed
+		/// </summary>
+		public string? Error { get; set; }
+
+		/// <summary>
+		/// Optional additional details
+		/// </summary>
+		public string? Details { get; set; }
+	}
+}

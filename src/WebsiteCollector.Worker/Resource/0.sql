@@ -56,6 +56,7 @@ CREATE TABLE dbo.WebsiteSelectors (
 	CollectionType varchar(10) NOT NULL CONSTRAINT CK_Selector_Type CHECK (CollectionType IN ('HTML', 'JSON', 'XML', 'RAW')),
 	ContentSelector nvarchar(1000) NULL,
 	TableSelector nvarchar(1000) NULL,
+	DispatchUrl nvarchar(2048) NULL,
 	TimeoutSeconds int NOT NULL DEFAULT 30 CONSTRAINT CK__WebsiteSelectors_Timeout CHECK (TimeoutSeconds BETWEEN 1 AND 300),
 	MaxAttempts int NOT NULL DEFAULT 5 CONSTRAINT CK__WebsiteSelectors_MaxAttempts CHECK (MaxAttempts BETWEEN 1 AND 20),
 	IsEnabled bit NOT NULL DEFAULT 1,

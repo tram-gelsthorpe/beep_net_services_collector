@@ -58,4 +58,19 @@ public interface IEventBusRepository
 	/// Gets the current attempt count for a delivery.
 	/// </summary>
 	Task<int> GetDeliveryAttemptCountAsync(Guid eventBusDeliveryId, CancellationToken ct);
+
+	/// <summary>
+	/// Register 
+	/// </summary>
+	/// <param name="eventBusOwnerId"></param>
+	/// <param name="eventBusOwnerDeliveryUrl"></param>
+	/// <param name="timeoutSeconds"></param>
+	/// <param name="maxAttempts"></param>
+	/// <param name="ct"></param>
+	/// <returns></returns>
+	Task RegisterEventBusAsync(Guid eventBusOwnerId,
+			string eventBusOwnerDeliveryUrl,
+			int timeoutSeconds,
+			int maxAttempts,
+			CancellationToken ct);
 }

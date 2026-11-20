@@ -39,4 +39,64 @@ public sealed class SelectorManagementRepository
 		
 		return rows.AsList();
 	}
+
+	public async Task<IReadOnlyList<DispatchWebsiteSelector>> GetDispatchWebsiteSelectorAsync(CancellationToken cancellationToken)
+	{
+		var selectors = new List<DispatchWebsiteSelector>();
+
+		try
+		{
+			await using var connection = new SqlConnection(_connectionString);
+			await connection.OpenAsync(cancellationToken);
+
+			const string sql = """
+				SELECT Id, DispatchUrl, MaxAttempts, TimeoutSeconds
+				FROM dbo.WebsiteSelectors 
+				WHERE IsEnabled = 1
+				ORDER BY Id
+				""";
+
+			var items = await connection.QueryAsync<DispatchWebsiteSelector>(
+				new CommandDefinition(sql, cancellationToken: cancellationToken));
+
+			selectors.AddRange(items);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "WebsiteCollectorScheduleHandler: Error fetching active selector IDs from database");
+			throw;
+		}
+
+		return selectors;
+	}
+
+	public async Task<IReadOnlyList<ActiveWebsiteSelector>> GetActiveSelectorsAsync(CancellationToken cancellationToken)
+	{
+		var selectors = new List<ActiveWebsiteSelector>();
+
+		try
+		{
+			await using var connection = new SqlConnection(_connectionString);
+			await connection.OpenAsync(cancellationToken);
+
+			const string sql = """
+				SELECT Id, MaxAttempts 
+				FROM dbo.WebsiteSelectors 
+				WHERE IsEnabled = 1
+				ORDER BY Id
+				""";
+
+			var items = await connection.QueryAsync<ActiveWebsiteSelector>(
+				new CommandDefinition(sql, cancellationToken: cancellationToken));
+
+			selectors.AddRange(items);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "SelectorManagementRepository: Error fetching active selector from database");
+			throw;
+		}
+
+		return selectors;
+	}
 }

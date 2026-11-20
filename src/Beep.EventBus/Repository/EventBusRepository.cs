@@ -152,5 +152,25 @@ namespace Beep.EventBus
 			await connection.ExecuteAsync(
 				new CommandDefinition(sql, new { EventBusId = eventBusId, EventBusOwnerCollectedDataId = eventBusOwnerCollectedDataId }, cancellationToken: ct));
 		}
+
+		public async Task RegisterEventBusAsync(Guid eventBusOwnerId, 
+			string eventBusOwnerDeliveryUrl, 
+			int timeoutSeconds,
+			int maxAttempts, 
+			CancellationToken ct)
+		{
+			await using var connection = Open();
+
+			var sql = $"INSERT INTO {_schema}.EventBus " +
+				$"	(Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxAttempts, CreatedAt) " +
+				$"VALUES " +
+				$"	(NEWID(), @EventBusOwnerId, @EventBusOwnerDeliveryUrl, 1, @TimeoutSeconds, @MaxAttempts, SYSUTCDATETIME()) ";
+
+			await connection.ExecuteAsync(
+				new CommandDefinition(sql, new { EventBusOwnerId = eventBusOwnerId, 
+					EventBusOwnerDeliveryUrl = eventBusOwnerDeliveryUrl, 
+					TimeoutSeconds = timeoutSeconds, 
+					MaxAttempts = maxAttempts }, cancellationToken: ct));
+		}
 	}
 }

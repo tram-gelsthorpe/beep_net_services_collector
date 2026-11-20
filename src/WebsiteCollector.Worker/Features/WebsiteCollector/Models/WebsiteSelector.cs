@@ -1,4 +1,6 @@
-﻿namespace WebsiteCollector.Worker;
+﻿using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace WebsiteCollector.Worker;
 
 public sealed record WebsiteSelector(
 	Guid Id,
@@ -11,4 +13,12 @@ public sealed record WebsiteSelector(
 	int MaxAttempts,
 	bool IsEnabled);
 
-public sealed record ActiveWebsiteSelector(Guid Id, int MaxAttempts);
+public sealed record ActiveWebsiteSelector(
+	Guid Id, 
+	int MaxAttempts);	
+
+public sealed record DispatchWebsiteSelector(
+	Guid Id, 
+	string DispatchUrl, 
+	int MaxAttempts, 
+	int TimeoutSeconds);
