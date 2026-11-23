@@ -87,10 +87,38 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 			{
 				if (!string.IsNullOrEmpty(item.ContentSelector))
 				{
-					var doc = await new HtmlParser().ParseDocumentAsync(raw, ct);
+					var doc = await new HtmlParser()
+						.ParseDocumentAsync(raw, ct);
+
 					var elements = doc.QuerySelectorAll(item.ContentSelector);
-					var values = elements.Select(el => el.TextContent?.Trim()).ToList();
-					extracted = JsonSerializer.Serialize(new { ContentSelector = values?.Count == 1 ? (object)values[0] : (object)values });
+
+					var values = elements.Select(el =>
+					{
+						var value = el.GetAttribute("value")
+									?? el.TextContent?.Trim();
+
+						if (!string.IsNullOrWhiteSpace(value))
+						{
+							try
+							{
+								using var json = JsonDocument.Parse(value);
+								return (object)json.RootElement.Clone();
+							}
+							catch (JsonException)
+							{
+								// Not JSON, return as normal text.
+							}
+						}
+
+						return (object)value;
+					}).ToList();
+
+					extracted = JsonSerializer.Serialize(new
+					{
+						ContentSelector = values.Count == 1
+							? values[0]
+							: (object)values
+					});
 				}
 			}
 			else if (item.CollectionType == "JSON")
