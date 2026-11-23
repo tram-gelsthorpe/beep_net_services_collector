@@ -96,7 +96,7 @@ namespace WebsiteCollector.Worker
 			services.AddScoped<IScheduleHandler>(provider =>
 				new WebsiteCollectorScheduleHandler(
 					provider.GetRequiredService<IWorkItemRepository>(),
-					selectorConnectionString,
+					provider.GetRequiredService<SelectorManagementRepository>(),
 					provider.GetRequiredService<IOptions<WebsiteCollectorOptions>>().Value.WorkerType,
 					provider.GetRequiredService<IWorkerIdProvider>().WorkerId,
 					provider.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));

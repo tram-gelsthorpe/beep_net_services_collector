@@ -1,7 +1,5 @@
 using Beep.Scheduler;
 using Beep.ServiceBus;
-using Dapper;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace WebsiteCollector.Worker;
@@ -11,8 +9,9 @@ namespace WebsiteCollector.Worker;
 /// </summary>
 public class WebsiteCollectorScheduleHandler : IScheduleHandler
 {
-	private readonly string _connectionString;
+	private const string DomainType = "WebsiteSelector";
 	private readonly IWorkItemRepository _workItemRepository;
+	private readonly SelectorManagementRepository _selectorManagementRepository;
 	private readonly ILogger<WebsiteCollectorScheduleHandler> _logger;
 
 	public string WorkerType { get; }
@@ -20,13 +19,13 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 
 	public WebsiteCollectorScheduleHandler(
 		IWorkItemRepository workItemRepository,
-		string connectionString,
+		SelectorManagementRepository selectorManagementRepository,
 		string workerType,
 		Guid workerId,
 		ILogger<WebsiteCollectorScheduleHandler> logger)
 	{
 		_workItemRepository = workItemRepository ?? throw new ArgumentNullException(nameof(workItemRepository));
-		_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+		_selectorManagementRepository = selectorManagementRepository ?? throw new ArgumentNullException(nameof(selectorManagementRepository));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 		WorkerType = workerType ?? throw new ArgumentNullException(nameof(workerType));
@@ -47,7 +46,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 			_logger.LogInformation("WebsiteCollectorScheduleHandler: Fetching active selectors for registration");
 
 			// Get all active selectors
-			var activeSelectors = await GetActiveSelectorsAsync(cancellationToken);
+			var activeSelectors = await _selectorManagementRepository.GetActiveSelectorsAsync(cancellationToken);
 
 			if (activeSelectors.Count == 0)
 			{
@@ -81,7 +80,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 					var workItemId = await _workItemRepository.EnqueueAsync(
 						workerType: WorkerType,
 						domainId: selector.Id,
-						domainType: "WebsiteSelector",
+						domainType: DomainType,
 						maxAttempts: selector.MaxAttempts,
 						scheduleForNow: true,
 						cancellationToken: cancellationToken);
@@ -132,38 +131,5 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 
 			return result;
 		}
-	}
-
-	/// <summary>
-	/// Get IDs of all active website selectors
-	/// </summary>
-	private async Task<List<ActiveWebsiteSelector>> GetActiveSelectorsAsync(CancellationToken cancellationToken)
-	{
-		var selectors = new List<ActiveWebsiteSelector>();
-
-		try
-		{
-			await using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			const string sql = """
-				SELECT Id, MaxAttempts 
-				FROM dbo.WebsiteSelectors 
-				WHERE IsEnabled = 1
-				ORDER BY Id
-				""";
-
-			var items = await connection.QueryAsync<ActiveWebsiteSelector>(
-				new CommandDefinition(sql, cancellationToken: cancellationToken));
-
-			selectors.AddRange(items);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "WebsiteCollectorScheduleHandler: Error fetching active selector IDs from database");
-			throw;
-		}
-
-		return selectors;
 	}
 }
