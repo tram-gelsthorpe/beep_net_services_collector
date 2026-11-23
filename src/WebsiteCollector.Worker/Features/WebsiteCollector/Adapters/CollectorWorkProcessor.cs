@@ -139,7 +139,13 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 			return new ProcessingResult
 			{
 				Success = true,
-				ResultData = new { hash, raw, extracted, statusCode }
+				ResultData = new Dictionary<string, object?>
+				{
+					{ "hash", hash },
+					{ "raw", raw },
+					{ "extracted", extracted },
+					{ "statusCode", statusCode }
+				}
 			};
 		}
 		catch (Exception ex)
