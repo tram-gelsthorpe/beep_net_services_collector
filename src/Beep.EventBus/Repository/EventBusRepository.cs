@@ -23,9 +23,9 @@ namespace Beep.EventBus
 		public async Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId, CancellationToken ct)
 		{
 			await using var conn = Open();
-			var sql = $"SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl, IsEnabled, TimeoutSeconds, MaxAttempts " +
+			var sql = $"SELECT Id, EventBusOwnerId, EventBusOwnerDeliveryUrl AS EventBusOwnerUrl, IsEnabled, TimeoutSeconds, MaxAttempts " +
 				$"FROM {_schema}.EventBus WHERE EventBusOwnerId = @EventBusOwnerId AND IsEnabled = 1";
-			
+
 			var rows = await conn.QueryAsync<EventBusDomain>(
 				new CommandDefinition(sql, new { EventBusOwnerId = eventBusOwnerId }, cancellationToken: ct));
 
