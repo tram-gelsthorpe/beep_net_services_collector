@@ -30,7 +30,7 @@ public sealed class SelectorManagementRepository
 		await using var conn = OpenAsync();
 		
 		const string sql = """
-			SELECT Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector, TimeoutSeconds, MaxAttempts, IsEnabled 
+			SELECT Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, TimeoutSeconds, MaxAttempts, IsEnabled 
 			FROM dbo.WebsiteSelectors 
 			WHERE Id = @WebsiteSelectorsId AND IsEnabled = 1
 			""";
@@ -98,5 +98,175 @@ public sealed class SelectorManagementRepository
 		}
 
 		return selectors;
+	}
+
+	/// <summary>
+	/// Update WebsiteCollector-specific tables with collection results.
+	/// Inserts data into WebsiteSelectorsCollectedData, WebsiteSelectorsExecutions, and updates WebsiteSelectorsMonitor.
+	/// </summary>
+	public async Task<bool> SaveCollectionResultAsync(
+		Guid workItemId,
+		Guid leaseToken,
+		Guid domainId,
+		int? httpStatus,
+		byte[]? hash,
+		string? raw,
+		string? extracted,
+		string? error,
+		CancellationToken ct)
+	{
+		try
+		{
+			await using var conn = OpenAsync();
+			await conn.OpenAsync(ct);
+
+			const string sql = """
+				-- Update the execution record using the leaseToken
+				UPDATE dbo.WebsiteSelectorsExecutions
+				SET Status = CASE WHEN @ErrorMessage IS NULL THEN 'Succeeded' ELSE 'Failed' END,
+					FinishedAt = GETUTCDATE(),
+					HttpStatus = @HttpStatus,
+					ErrorMessage = @ErrorMessage
+				WHERE LeaseToken = @LeaseToken;
+
+				-- Insert collected data if we have a response
+				IF @ErrorMessage IS NULL AND @ResponseContent IS NOT NULL
+				BEGIN
+					INSERT INTO dbo.WebsiteSelectorsCollectedData (Id, WebsiteSelectorsExecutionsId, ContentHash, ResponseContent, ExtractedJson, CollectedAt)
+					SELECT NEWID(), Id, @ContentHash, @ResponseContent, @ExtractedJson, GETUTCDATE()
+					FROM dbo.WebsiteSelectorsExecutions
+					WHERE LeaseToken = @LeaseToken;
+				END;
+
+				-- Update the monitor record
+				UPDATE dbo.WebsiteSelectorsMonitor
+				SET LastSucceededAt = CASE WHEN @ErrorMessage IS NULL THEN GETUTCDATE() ELSE LastSucceededAt END,
+					LastError = @ErrorMessage,
+					LastStartedAt = GETUTCDATE(),
+					LastSucceededAt = GETUTCDATE(),
+				WHERE Id = @WebsiteSelectorsId;
+				""";
+
+			await conn.ExecuteAsync(new CommandDefinition(
+				sql,
+				new
+				{
+					LeaseToken = leaseToken,
+					WebsiteSelectorsId = domainId,
+					HttpStatus = httpStatus,
+					ContentHash = hash,
+					ResponseContent = raw,
+					ExtractedJson = extracted,
+					ErrorMessage = error
+				},
+				cancellationToken: ct));
+
+			return true;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "SelectorManagementRepository: Error saving collection result for LeaseToken={LeaseToken}", leaseToken);
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// Create an execution record when starting to process a selector.
+	/// </summary>
+	public async Task<bool> StartExecutionAsync(
+		Guid workerId,
+		Guid leaseToken,
+		Guid websiteSelectorsId,
+		int attemptNumber,
+		int timeoutSeconds,
+		int maxAttempts,
+		CancellationToken ct)
+	{
+		try
+		{
+			await using var conn = OpenAsync();
+			await conn.OpenAsync(ct);
+
+			const string sql = """
+				-- Insert a new execution record
+				INSERT INTO dbo.WebsiteSelectorsExecutions (Id, WebsiteSelectorsId, LeaseToken, WorkerId, StartedAt, Status, AttemptNumber)
+				VALUES (NEWID(), @WebsiteSelectorsId, @LeaseToken, @WorkerId, GETUTCDATE(), 'Running', @AttemptNumber);
+
+				-- Ensure monitor record exists or update it
+				IF NOT EXISTS (SELECT 1 FROM dbo.WebsiteSelectorsMonitor WHERE WebsiteSelectorsId = @WebsiteSelectorsId)
+				BEGIN
+					-- Insert new monitor record with defaults from selector
+					INSERT INTO dbo.WebsiteSelectorsMonitor (Id, WebsiteSelectorsId, NextRunAt, TimeoutSeconds, MaxAttempts, AttemptCount, WorkerId, LeaseToken, LeaseUntil, CreatedAt, UpdatedAt)
+					VALUES (NEWID(), @WebsiteSelectorsId, GETUTCDATE(), @TimeoutSeconds, @MaxAttempts, 0, @WorkerId, @LeaseToken, NULL, GETUTCDATE(), GETUTCDATE());
+				END
+				ELSE
+				BEGIN
+					-- Update existing monitor to mark lease as active
+					UPDATE dbo.WebsiteSelectorsMonitor
+					SET LeaseToken = @LeaseToken,
+						LeaseUntil = NULL,
+						UpdatedAt = GETUTCDATE()
+					WHERE WebsiteSelectorsId = @WebsiteSelectorsId;
+				END;
+				""";
+
+			await conn.ExecuteAsync(new CommandDefinition(
+				sql,
+				new
+				{
+					LeaseToken = leaseToken,
+					WorkerId = workerId,
+					WebsiteSelectorsId = websiteSelectorsId,
+					AttemptNumber = attemptNumber,
+					TimeoutSeconds = timeoutSeconds,
+					MaxAttempts = maxAttempts
+				},
+				cancellationToken: ct));
+
+			return true;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "SelectorManagementRepository: Error starting execution for LeaseToken={LeaseToken}", leaseToken);
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// Renew the lease for an execution in progress.
+	/// </summary>
+	public async Task<bool> RenewLeaseAsync(
+		Guid leaseToken,
+		int leaseSeconds,
+		CancellationToken ct)
+	{
+		try
+		{
+			await using var conn = OpenAsync();
+			await conn.OpenAsync(ct);
+
+			const string sql = """
+				-- Update monitor with new lease expiration time
+				UPDATE dbo.WebsiteSelectorsMonitor
+				SET LeaseUntil = DATEADD(second, @LeaseSeconds, GETUTCDATE())
+				WHERE LeaseToken = @LeaseToken;
+				""";
+
+			var result = await conn.ExecuteAsync(new CommandDefinition(
+				sql,
+				new
+				{
+					LeaseToken = leaseToken,
+					LeaseSeconds = leaseSeconds
+				},
+				cancellationToken: ct));
+
+			return result > 0;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "SelectorManagementRepository: Error renewing lease for LeaseToken={LeaseToken}", leaseToken);
+			return false;
+		}
 	}
 }

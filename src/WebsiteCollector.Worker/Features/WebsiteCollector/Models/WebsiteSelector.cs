@@ -8,7 +8,6 @@ public sealed record WebsiteSelector(
 	string CollectionUrl,
 	string CollectionType,
 	string? ContentSelector,
-	string? TableSelector,
 	int TimeoutSeconds,
 	int MaxAttempts,
 	bool IsEnabled);

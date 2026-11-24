@@ -55,7 +55,6 @@ CREATE TABLE dbo.WebsiteSelectors (
         ) PERSISTED,
 	CollectionType varchar(10) NOT NULL CONSTRAINT CK_Selector_Type CHECK (CollectionType IN ('HTML', 'JSON', 'XML', 'RAW')),
 	ContentSelector nvarchar(1000) NULL,
-	TableSelector nvarchar(1000) NULL,
 	DispatchUrl nvarchar(2048) NULL,
 	TimeoutSeconds int NOT NULL DEFAULT 30 CONSTRAINT CK__WebsiteSelectors_Timeout CHECK (TimeoutSeconds BETWEEN 1 AND 300),
 	MaxAttempts int NOT NULL DEFAULT 5 CONSTRAINT CK__WebsiteSelectors_MaxAttempts CHECK (MaxAttempts BETWEEN 1 AND 20),
@@ -72,12 +71,13 @@ CREATE INDEX IX_WebsiteSelectors_Website ON dbo.WebsiteSelectors(WebsitesId) WHE
 -- =====================================================
 -- Tracks execution state, leasing, and scheduling for each selector
 CREATE TABLE dbo.WebsiteSelectorsMonitor (
-	Id uniqueidentifier PRIMARY KEY REFERENCES dbo.WebsiteSelectors(Id) ON DELETE CASCADE,
+	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
+	WebsiteSelectorsId uniqueidentifier NOT NULL UNIQUE REFERENCES dbo.WebsiteSelectors(Id) ON DELETE CASCADE,
 	NextRunAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	TimeoutSeconds int NOT NULL,
 	MaxAttempts int NOT NULL,
 	AttemptCount int NOT NULL DEFAULT 0,
-	LeaseOwner uniqueidentifier NULL,
+	WorkerId uniqueidentifier NOT NULL,
 	LeaseToken uniqueidentifier NULL,
 	LeaseUntil datetimeoffset(7) NULL,
 	LastStartedAt datetimeoffset(7) NULL,
@@ -88,7 +88,7 @@ CREATE TABLE dbo.WebsiteSelectorsMonitor (
 	RowVer rowversion NOT NULL
 );
 
-CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextRunAt, Id) WHERE LeaseOwner IS NULL;
+CREATE INDEX IX_WebsiteSelectorsMonitor_Due ON dbo.WebsiteSelectorsMonitor(NextRunAt, WebsiteSelectorsId) WHERE LeaseToken IS NULL;
 
 -- =====================================================
 -- Create WebsiteSelectorsExecutions table

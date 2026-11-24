@@ -8,8 +8,8 @@ INSERT dbo.Websites (Id, Name, Url)
 VALUES (@WebsiteId, N'Vietcombank', N'https://www.vietcombank.com.vn/');
 
 
-INSERT dbo.WebsiteSelectors (Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, TableSelector, DispatchUrl)
-VALUES (@WebsiteSelectorsId, @WebsiteId, N'https://www.vietcombank.com.vn/en/Personal/Cong-cu-Tien-ich/Ty-gia', N'HTML', N'<div class="currency__description-bottom">', N'<table class="table-responsive">', N'https://localhost:8080/');
+INSERT dbo.WebsiteSelectors (Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, DispatchUrl)
+VALUES (@WebsiteSelectorsId, @WebsiteId, N'https://www.vietcombank.com.vn/en/Personal/Cong-cu-Tien-ich/Ty-gia', N'HTML', N'#currentDataExchange', N'https://localhost:8080/');
 
 Use EventBus;
 

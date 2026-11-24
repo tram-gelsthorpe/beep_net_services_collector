@@ -36,7 +36,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 
 	public async Task InitializeAsync(ClaimedWebsiteSelector item, Guid leaseToken, Guid workerIdent, CancellationToken ct)
 	{
-		await _collectionService.StartExecutionAsync(item.WorkItemId, leaseToken, workerIdent, ct);
+		await _collectionService.StartExecutionAsync(item.WorkItemId, leaseToken, workerIdent, item.DomainId, item.TimeoutSeconds, item.MaxAttempts, ct);
 	}
 
 	public async Task<ProcessingResult> ProcessAsync(ClaimedWebsiteSelector item, Guid leaseToken, CancellationToken ct)

@@ -82,8 +82,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 					CollectionUrl: selector.CollectionUrl,
 					CollectionType: selector.CollectionType,
 					ContentSelector: selector.ContentSelector,
-					TableSelector: selector.TableSelector,
-					TimeoutSeconds: selector.TimeoutSeconds, // Default timeout
+					TimeoutSeconds: selector.TimeoutSeconds,
 					MaxAttempts: item.MaxAttempts,
 					AttemptCount: item.AttemptNumber - 1,
 					LeaseToken: item.LeaseToken));
@@ -108,36 +107,82 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		return result.AsReadOnly();
 	}
 
-	public async Task StartAsync(Guid workItemId, Guid leaseToken, Guid workerId, CancellationToken ct)
+	public async Task StartAsync(Guid workItemId, Guid leaseToken, Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct)
 	{
+		// Record attempt in generic WorkItems table
 		await _workItemRepository.RecordAttemptAsync(
 			workItemId: workItemId,
 			attemptNumber: 1,
 			statusSnapshot: "RUNNING",
 			cancellationToken: ct);
+
+		// Create execution record in domain-specific tables
+		await _selectorManagementRepository.StartExecutionAsync(
+			workerId: workerId,
+			leaseToken: leaseToken,
+			websiteSelectorsId: domainId,
+			attemptNumber: 1,
+			timeoutSeconds: timeoutSeconds,
+			maxAttempts: maxAttempts,
+			ct: ct);
 	}
 
 	public async Task<bool> RenewAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, CancellationToken ct)
 	{
-		return await _workItemRepository.RenewLeaseAsync(
+		// Renew lease in generic WorkItems table
+		var renewed = await _workItemRepository.RenewLeaseAsync(
 			workItemId: workItemId,
 			leaseToken: leaseToken,
 			leaseSeconds: leaseSeconds,
 			cancellationToken: ct);
+
+		// Also renew in domain-specific monitor if renewed
+		if (renewed)
+		{
+			await _selectorManagementRepository.RenewLeaseAsync(
+				leaseToken: leaseToken,
+				leaseSeconds: leaseSeconds,
+				ct: ct);
+		}
+
+		return renewed;
 	}
 
-	public async Task<int> FinishAsync(Guid workItemId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, CancellationToken ct)
+	public async Task<int> FinishAsync(Guid workItemId, 
+		Guid leaseToken, 
+		bool success, 
+		int? httpStatus, 
+		string? error, 
+		byte[]? hash, 
+		string? raw, 
+		string? extracted, 
+		Guid domainId, 
+		CancellationToken ct)
 	{
-		var resultData = success ? extracted : error;
-			
-		var completed  = await _workItemRepository.CompleteAsync(
+		// Update ServiceBus WorkItems table
+		var completed = await _workItemRepository.CompleteAsync(
 			workItemId: workItemId,
 			leaseToken: leaseToken,
 			succeeded: success,
 			error: error,
-			resultData: resultData,
+			resultData: success ? extracted : error,
 			backoffStrategy: "exponential",
 			cancellationToken: ct);
+
+		// If completion was successful, also update WebsiteCollector domain tables
+		if (completed)
+		{
+			await _selectorManagementRepository.SaveCollectionResultAsync(
+				workItemId: workItemId,
+				leaseToken: leaseToken,
+				domainId: domainId,
+				httpStatus: httpStatus,
+				hash: hash,
+				raw: raw,
+				extracted: extracted,
+				error: error,
+				ct: ct);
+		}
 
 		return completed ? 0 : -1;
 	}
