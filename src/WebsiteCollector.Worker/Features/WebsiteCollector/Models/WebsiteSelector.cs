@@ -1,6 +1,4 @@
-﻿using static System.Runtime.InteropServices.JavaScript.JSType;
-
-namespace WebsiteCollector.Worker;
+﻿namespace WebsiteCollector.Worker;
 
 public sealed record WebsiteSelector(
 	Guid Id,
