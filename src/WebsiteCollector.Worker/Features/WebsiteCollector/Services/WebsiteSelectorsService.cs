@@ -9,8 +9,8 @@ public sealed class WebsiteSelectorsService(
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimSelectorsAsync(Guid workerId, int count, int lease, CancellationToken ct) =>
 		await repository.ClaimAsync(workerId, count, lease, ct);
 
-	public async Task StartExecutionAsync(Guid workItemId, Guid leaseToken, Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct) =>
-		await repository.StartAsync(workItemId, leaseToken, workerId, domainId, timeoutSeconds, maxAttempts, ct);
+	public async Task StartExecutionAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct) =>
+		await repository.StartAsync(workItemId, leaseToken, leaseSeconds, workerId, domainId, timeoutSeconds, maxAttempts, ct);
 
 	public async Task<bool> RenewLeaseAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, CancellationToken ct) =>
 		await repository.RenewAsync(workItemId, leaseToken, leaseSeconds, ct);

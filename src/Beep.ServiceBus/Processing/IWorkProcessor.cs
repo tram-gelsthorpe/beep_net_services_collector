@@ -17,9 +17,9 @@ public interface IWorkProcessor<T>
 	/// </summary>
 	/// <param name="item">The claimed item</param>
 	/// <param name="leaseToken">The lease token for the item</param>
-	/// <param name="workerIdent">The ID of the processing worker</param>
+	/// <param name="workerId">The ID of the processing worker</param>
 	/// <param name="ct">Cancellation token</param>
-	Task InitializeAsync(T item, Guid leaseToken, Guid workerIdent, CancellationToken ct);
+	Task InitializeAsync(T item, Guid leaseToken, Guid workerId, CancellationToken ct);
 
 	/// <summary>
 	/// Processes a single work item.

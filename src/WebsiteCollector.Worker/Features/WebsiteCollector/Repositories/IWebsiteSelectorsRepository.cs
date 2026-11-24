@@ -14,7 +14,7 @@
 		/// <summary>
 		/// Record that collection has started for the given selector.
 		/// </summary>
-		Task StartAsync(Guid workItemId, Guid leaseToken, Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct);
+		Task StartAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct);
 
 		/// <summary>
 		/// Renew the lease on an active collection task.

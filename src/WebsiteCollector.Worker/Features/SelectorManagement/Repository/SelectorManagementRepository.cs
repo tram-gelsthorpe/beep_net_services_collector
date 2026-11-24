@@ -142,9 +142,8 @@ public sealed class SelectorManagementRepository
 				UPDATE dbo.WebsiteSelectorsMonitor
 				SET LastSucceededAt = CASE WHEN @ErrorMessage IS NULL THEN GETUTCDATE() ELSE LastSucceededAt END,
 					LastError = @ErrorMessage,
-					LastStartedAt = GETUTCDATE(),
-					LastSucceededAt = GETUTCDATE(),
-				WHERE Id = @WebsiteSelectorsId;
+					LastStartedAt = GETUTCDATE() 
+				WHERE WebsiteSelectorsId = @WebsiteSelectorsId;
 				""";
 
 			await conn.ExecuteAsync(new CommandDefinition(
@@ -176,6 +175,7 @@ public sealed class SelectorManagementRepository
 	public async Task<bool> StartExecutionAsync(
 		Guid workerId,
 		Guid leaseToken,
+		int leaseSeconds,
 		Guid websiteSelectorsId,
 		int attemptNumber,
 		int timeoutSeconds,
@@ -197,14 +197,14 @@ public sealed class SelectorManagementRepository
 				BEGIN
 					-- Insert new monitor record with defaults from selector
 					INSERT INTO dbo.WebsiteSelectorsMonitor (Id, WebsiteSelectorsId, NextRunAt, TimeoutSeconds, MaxAttempts, AttemptCount, WorkerId, LeaseToken, LeaseUntil, CreatedAt, UpdatedAt)
-					VALUES (NEWID(), @WebsiteSelectorsId, GETUTCDATE(), @TimeoutSeconds, @MaxAttempts, 0, @WorkerId, @LeaseToken, NULL, GETUTCDATE(), GETUTCDATE());
+					VALUES (NEWID(), @WebsiteSelectorsId, GETUTCDATE(), @TimeoutSeconds, @MaxAttempts, 0, @WorkerId, @LeaseToken, DATEADD(second, @LeaseSeconds, GETUTCDATE()), GETUTCDATE(), GETUTCDATE());
 				END
 				ELSE
 				BEGIN
 					-- Update existing monitor to mark lease as active
 					UPDATE dbo.WebsiteSelectorsMonitor
 					SET LeaseToken = @LeaseToken,
-						LeaseUntil = NULL,
+						LeaseUntil = DATEADD(second, @LeaseSeconds, GETUTCDATE()),
 						UpdatedAt = GETUTCDATE()
 					WHERE WebsiteSelectorsId = @WebsiteSelectorsId;
 				END;
@@ -215,6 +215,7 @@ public sealed class SelectorManagementRepository
 				new
 				{
 					LeaseToken = leaseToken,
+					LeaseSeconds = leaseSeconds,
 					WorkerId = workerId,
 					WebsiteSelectorsId = websiteSelectorsId,
 					AttemptNumber = attemptNumber,

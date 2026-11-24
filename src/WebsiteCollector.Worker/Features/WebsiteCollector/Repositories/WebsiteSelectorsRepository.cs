@@ -107,7 +107,10 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		return result.AsReadOnly();
 	}
 
-	public async Task StartAsync(Guid workItemId, Guid leaseToken, Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct)
+	public async Task StartAsync(Guid workItemId, 
+		Guid leaseToken, 
+		int leaseSeconds, 
+		Guid workerId, Guid domainId, int timeoutSeconds, int maxAttempts, CancellationToken ct)
 	{
 		// Record attempt in generic WorkItems table
 		await _workItemRepository.RecordAttemptAsync(
@@ -120,6 +123,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		await _selectorManagementRepository.StartExecutionAsync(
 			workerId: workerId,
 			leaseToken: leaseToken,
+			leaseSeconds: leaseSeconds,
 			websiteSelectorsId: domainId,
 			attemptNumber: 1,
 			timeoutSeconds: timeoutSeconds,
@@ -149,7 +153,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 	}
 
 	public async Task<int> FinishAsync(Guid workItemId, 
-		Guid leaseToken, 
+		Guid leaseToken,
 		bool success, 
 		int? httpStatus, 
 		string? error, 

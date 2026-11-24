@@ -147,7 +147,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		);
 
 		// Act
-		await _collectionService!.StartExecutionAsync(workItemId, leaseToken, workerId, websiteSelectorId, timeoutSeconds: 300, maxAttempts: 3, CancellationToken.None);
+		await _collectionService!.StartExecutionAsync(workItemId, leaseToken, 60, workerId, websiteSelectorId, timeoutSeconds: 300, maxAttempts: 3, CancellationToken.None);
 
 		// Assert
 		var workItem = await _dataFixture.GetWorkItemAsync(websiteSelectorId);
@@ -296,7 +296,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var leaseToken = claimedSelector.LeaseToken;
 
 		// Act - Start
-		await _collectionService.StartExecutionAsync(claimedSelector.WorkItemId, leaseToken, workerId, websiteSelectorId, timeoutSeconds: 300, maxAttempts: 3, CancellationToken.None);
+		await _collectionService.StartExecutionAsync(claimedSelector.WorkItemId, leaseToken, 60, workerId, websiteSelectorId, timeoutSeconds: 300, maxAttempts: 3, CancellationToken.None);
 
 		// Act - Renew
 		var renewed = await _collectionService.RenewLeaseAsync(claimedSelector.WorkItemId, leaseToken, leaseSeconds: 60, CancellationToken.None);

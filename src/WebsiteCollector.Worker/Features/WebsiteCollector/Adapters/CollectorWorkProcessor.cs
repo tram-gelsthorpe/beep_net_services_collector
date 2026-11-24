@@ -34,9 +34,9 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 		HeartbeatIntervalSeconds = Math.Max(10, _settings.LeaseSeconds / 3);
 	}
 
-	public async Task InitializeAsync(ClaimedWebsiteSelector item, Guid leaseToken, Guid workerIdent, CancellationToken ct)
+	public async Task InitializeAsync(ClaimedWebsiteSelector item, Guid leaseToken, Guid workerId, CancellationToken ct)
 	{
-		await _collectionService.StartExecutionAsync(item.WorkItemId, leaseToken, workerIdent, item.DomainId, item.TimeoutSeconds, item.MaxAttempts, ct);
+		await _collectionService.StartExecutionAsync(item.WorkItemId, leaseToken, _settings.LeaseSeconds, workerId, item.DomainId, item.TimeoutSeconds, item.MaxAttempts, ct);
 	}
 
 	public async Task<ProcessingResult> ProcessAsync(ClaimedWebsiteSelector item, Guid leaseToken, CancellationToken ct)
