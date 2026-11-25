@@ -6,9 +6,11 @@ namespace Beep.Scheduler;
 public interface IScheduleService
 {
 	/// <summary>
-	/// Create or update a schedule for a worker type
+	/// Create or update a schedule for a handler type
 	/// </summary>
-	/// <param name="workerType">Unique identifier for the worker type</param>
+	/// <param name="handlerType">
+	/// <see cref="IScheduleHandler.HandlerType"/> of the handler to run (one schedule per handler). Must be registered.
+	/// </param>
 	/// <param name="description">Human-readable description of the schedule</param>
 	/// <param name="frequency">Schedule frequency (Daily, Weekly, Monthly, Hourly, Yearly)</param>
 	/// <param name="startTime">Local time of day to run the schedule, in <paramref name="timeZone"/></param>
@@ -23,7 +25,7 @@ public interface IScheduleService
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The ID of the created/updated schedule</returns>
 	Task<int> CreateOrUpdateScheduleAsync(
-		string workerType,
+		string handlerType,
 		string description,
 		string frequency,
 		TimeOnly startTime,
@@ -35,35 +37,35 @@ public interface IScheduleService
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
-	/// Check if a schedule exists for a worker type
+	/// Check if a schedule exists for a handler type
 	/// </summary>
-	/// <param name="workerType">Worker type to check</param>
+	/// <param name="handlerType">handler type to check</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>True if schedule exists, false otherwise</returns>
-	Task<bool> ScheduleExistsAsync(string workerType, CancellationToken cancellationToken = default);
+	Task<bool> ScheduleExistsAsync(string handlerType, CancellationToken cancellationToken = default);
 
 	/// <summary>
-	/// Get a schedule by worker type
+	/// Get a schedule by handler type
 	/// </summary>
-	/// <param name="workerType">Worker type to retrieve</param>
+	/// <param name="handlerType">handler type to retrieve</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>Schedule details or null if not found</returns>
-	Task<ScheduleInfo?> GetScheduleAsync(string workerType, CancellationToken cancellationToken = default);
+	Task<ScheduleInfo?> GetScheduleAsync(string handlerType, CancellationToken cancellationToken = default);
 
 	/// <summary>
 	/// Update the active status of a schedule
 	/// </summary>
-	/// <param name="workerType">Worker type</param>
+	/// <param name="handlerType">handler type</param>
 	/// <param name="isActive">New active status</param>
 	/// <param name="cancellationToken">Cancellation token</param>
-	Task UpdateScheduleStatusAsync(string workerType, bool isActive, CancellationToken cancellationToken = default);
+	Task UpdateScheduleStatusAsync(string handlerType, bool isActive, CancellationToken cancellationToken = default);
 
 	/// <summary>
 	/// Delete a schedule
 	/// </summary>
-	/// <param name="workerType">Worker type to delete</param>
+	/// <param name="handlerType">handler type to delete</param>
 	/// <param name="cancellationToken">Cancellation token</param>
-	Task<bool> DeleteScheduleAsync(string workerType, CancellationToken cancellationToken = default);
+	Task<bool> DeleteScheduleAsync(string handlerType, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -72,7 +74,7 @@ public interface IScheduleService
 public class ScheduleInfo
 {
 	public Guid Id { get; set; }
-	public string WorkerType { get; set; } = string.Empty;
+	public string HandlerType { get; set; } = string.Empty;
 	public string Description { get; set; } = string.Empty;
 	public string Frequency { get; set; } = string.Empty;
 	public TimeOnly StartTime { get; set; }

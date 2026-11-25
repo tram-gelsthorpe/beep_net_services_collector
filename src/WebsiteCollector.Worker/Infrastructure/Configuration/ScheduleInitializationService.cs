@@ -36,7 +36,7 @@ public class ScheduleInitializationService
 
 			// Create or update the daily WebsiteCollector schedule
 			await _scheduleService.CreateOrUpdateScheduleAsync(
-				workerType: _scheduleOption.WorkerType,
+				handlerType: _scheduleOption.HandlerType,
 				description: _scheduleOption.Description,
 				frequency: _scheduleOption.Frequency,
 				startTime: _scheduleOption.StartTime!.Value,

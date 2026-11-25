@@ -115,24 +115,24 @@ On startup, create schedules:
 
 ```sql
 -- Daily schedule
-INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, IsActive)
+INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, IsActive)
 VALUES ('WebsiteCollector', 'Daily', '01:00:00', 1);
 
 -- Weekly schedule (Sundays at midnight)
-INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, DayOfWeek, IsActive)
+INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, DayOfWeek, IsActive)
 VALUES ('BigDataProcess', 'Weekly', '00:00:00', 0, 1);
 
 -- Monthly schedule (15th of each month)
-INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, DayOfMonth, IsActive)
+INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, DayOfMonth, IsActive)
 VALUES ('ReportProcess', 'Monthly', '09:00:00', 15, 1);
 
 -- Yearly schedule (January 1st at midnight)
 -- DayOfYear = 1 for Jan 1, = 32 for Feb 1, = 60 for Mar 1, etc.
-INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, DayOfYear, IsActive)
+INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, DayOfYear, IsActive)
 VALUES ('AnnualReport', 'Yearly', '00:00:00', 1, 1);
 
 -- Hourly schedule
-INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, IsActive)
+INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, IsActive)
 VALUES ('FrequentProcess', 'Hourly', '00:00:00', 1);
 ```
 
@@ -154,12 +154,18 @@ stored as its Windows id, which is what SQL Server's `AT TIME ZONE` takes; an id
 not know (`sys.time_zone_info`) is rejected when the schedule is saved. "Now" is the database clock.
 
 A schedule runs at the first poll at or after its `StartTime` on a matching day, at most once that
-day (a worker that was down at `StartTime` catches up when it starts). Each `WorkerType` has one
-schedule (`UQ_Schedules_WorkerType`).
+day (a worker that was down at `StartTime` catches up when it starts). Each handler has one
+schedule (`UQ_Schedules_HandlerType`).
+
+`WorkerType` means the same as in every other section: the ServiceBus worker type
+(`WorkItems.WorkerType`) of the work items, here the schedule runs. `HandlerType` is which
+`IScheduleHandler` the schedule runs (its `HandlerType`); that handler then enqueues work for its own worker
+type (`WebsiteCollector`). The worker does not start if no registered handler has that type.
 
 ```json
 "Scheduler": {
-  "WorkerType": "WebsiteCollector",
+  "WorkerType": "Scheduler",
+  "HandlerType": "WebsiteCollector",
   "Frequency": "Weekly",
   "StartTime": "01:00",
   "DayOfWeek": 1,
@@ -167,7 +173,7 @@ schedule (`UQ_Schedules_WorkerType`).
 }
 ```
 
-Running a schedule is a ServiceBus work item (worker type `Scheduler`, DomainType `WorkerSchedule`):
+Running a schedule is a ServiceBus work item (worker type `Scheduler:WorkerType`, default `Scheduler`; DomainType `WorkerSchedule`):
 
 - `SchedulerService` polls `GetDueSchedules` (read-only) and enqueues a work item per due schedule.
   Every instance can poll: the ServiceBus skips a schedule that already has an unfinished work item.

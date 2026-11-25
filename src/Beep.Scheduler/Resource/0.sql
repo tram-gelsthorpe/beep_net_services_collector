@@ -53,8 +53,8 @@ VALUES ('0');
 CREATE TABLE dbo.Schedules (
 	Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 
-	-- Worker identification
-	WorkerType NVARCHAR(100) NOT NULL,  -- 'WebsiteCollector', 'BigDataProcess', etc.
+	-- Which IScheduleHandler (its HandlerType) this schedule runs; one schedule per handler
+	HandlerType NVARCHAR(100) NOT NULL, -- e.g. 'WebsiteCollector'
 	Description NVARCHAR(500) NULL,
 
 	-- Frequency configuration
@@ -78,8 +78,8 @@ CREATE TABLE dbo.Schedules (
 	-- work item (DomainType 'WorkerSchedule'); claiming, leases and retries live there.
 	LastRunAt DATETIMEOFFSET(7) NULL,
 
-	-- One schedule per worker type (CreateOrUpdateSchedule upserts on it)
-	CONSTRAINT UQ_Schedules_WorkerType UNIQUE (WorkerType),
+	-- One schedule per handler (CreateOrUpdateSchedule upserts on it)
+	CONSTRAINT UQ_Schedules_HandlerType UNIQUE (HandlerType),
 	INDEX IX_Schedules_Active (IsActive, Frequency)
 );
 
@@ -134,7 +134,7 @@ BEGIN
 
 	SELECT
 		s.Id,
-		s.WorkerType,
+		s.HandlerType,
 		s.Frequency,
 		s.StartTime,
 		s.DayOfWeek,

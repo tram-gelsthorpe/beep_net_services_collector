@@ -29,7 +29,14 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 	private readonly ILogger<WebsiteCollectorScheduleHandler> _logger;
 	private readonly int _pageSize;
 
+	/// <summary>Handler type schedules use to run this handler (the <c>Scheduler:HandlerType</c> setting).</summary>
+	public const string Type = "WebsiteCollector";
+
+	public string HandlerType => Type;
+
+	/// <summary>ServiceBus worker type of the collection work items it enqueues.</summary>
 	public string WorkerType { get; }
+
 	public Guid WorkerId { get; }
 
 	public WebsiteCollectorScheduleHandler(

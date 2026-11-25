@@ -3,6 +3,7 @@
 public interface ISchedulerOption
 {
 	public string WorkerType { get; }
+	public string HandlerType { get; }
 	public string Description { get; }
 	public string Frequency { get; }
 	public TimeOnly? StartTime { get; }
@@ -17,7 +18,18 @@ public class SchedulerOption : ISchedulerOption
 {
 	public const string Name = "Scheduler";
 
-	public string WorkerType { get; set; } = string.Empty;
+	/// <summary>
+	/// ServiceBus worker type (<c>WorkItems.WorkerType</c>) of schedule runs, like the
+	/// <c>WorkerType</c> of the other workers. Default: "Scheduler".
+	/// </summary>
+	public string WorkerType { get; set; } = new SchedulerWorkerOptions().WorkerType;
+
+	/// <summary>
+	/// <see cref="IScheduleHandler.HandlerType"/> of the handler this schedule runs, e.g. "WebsiteCollector".
+	/// Required; the worker does not start if no registered handler has this type.
+	/// </summary>
+	public string HandlerType { get; set; } = string.Empty;
+
 	public string Description { get; set; } = string.Empty;
 	public string Frequency { get; set; } = string.Empty;
 	public TimeOnly? StartTime { get; set; } = null;
@@ -37,6 +49,9 @@ public class SchedulerOption : ISchedulerOption
 	{
 		if (string.IsNullOrWhiteSpace(WorkerType))
 			throw new InvalidOperationException("WorkerType is required.");
+
+		if (string.IsNullOrWhiteSpace(HandlerType))
+			throw new InvalidOperationException("HandlerType is required: the name of the schedule handler to run, e.g. \"WebsiteCollector\".");
 
 		try
 		{

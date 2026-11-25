@@ -38,15 +38,16 @@ public class ScheduleHandlerResult
 /// <code>
 /// public class WebsiteCollectorScheduleHandler(IWorkItemRepository workItems) : IScheduleHandler
 /// {
-///     public string WorkerType => "WebsiteCollector";
+///     public string HandlerType => "WebsiteCollector";
 ///     public Guid WorkerId => Guid.Empty;
 ///
 ///     public async Task&lt;ScheduleHandlerResult&gt; RegisterItemsAsync(
 ///         WorkerSchedule schedule,
 ///         CancellationToken cancellationToken)
 ///     {
+///         // The ServiceBus worker type of the work this schedule creates
 ///         var inserted = await workItems.EnqueueBatchAsync(
-///             WorkerType, "WebsiteSelector", [new WorkItemRequest(domainId)], cancellationToken);
+///             "WebsiteCollector", "WebsiteSelector", [new WorkItemRequest(domainId)], cancellationToken);
 ///         return new ScheduleHandlerResult { ItemsRegistered = inserted };
 ///     }
 /// }
@@ -55,9 +56,10 @@ public class ScheduleHandlerResult
 public interface IScheduleHandler
 {
 	/// <summary>
-	/// The worker type this handler manages (e.g., "WebsiteCollector")
+	/// Identifies the handler; schedules refer to it (<see cref="WorkerSchedule.HandlerType"/>, the <c>Scheduler:HandlerType</c>
+	/// setting), e.g. "WebsiteCollector". Not a ServiceBus worker type.
 	/// </summary>
-	string WorkerType { get; }
+	string HandlerType { get; }
 
 	/// <summary>
 	///	The unique ID of the worker instance that will process the work items created by this handler

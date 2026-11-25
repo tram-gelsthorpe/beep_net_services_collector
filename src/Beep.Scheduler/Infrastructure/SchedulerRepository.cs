@@ -65,7 +65,7 @@ public sealed class SchedulerRepository
 				schedules.Add((new WorkerSchedule
 				{
 					Id = reader.GetGuid(0),
-					WorkerType = reader.GetString(1),
+					HandlerType = reader.GetString(1),
 					Frequency = reader.GetString(2),
 					StartTime = reader.GetTimeSpan(3),
 					DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
@@ -108,7 +108,7 @@ public sealed class SchedulerRepository
 		await connection.OpenAsync(cancellationToken);
 
 		using var command = new SqlCommand(
-			$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
+			$"SELECT Id, HandlerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
 			$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt, Description, TimeZone " +
 			$"FROM {_schema}.Schedules WHERE {whereClause}",
 			connection)
@@ -125,7 +125,7 @@ public sealed class SchedulerRepository
 		return new WorkerSchedule
 		{
 			Id = reader.GetGuid(0),
-			WorkerType = reader.GetString(1),
+			HandlerType = reader.GetString(1),
 			Frequency = reader.GetString(2),
 			StartTime = reader.GetTimeSpan(3),
 			DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
@@ -188,30 +188,30 @@ public sealed class SchedulerRepository
 	}
 
 	/// <summary>
-	/// Get a schedule by worker type name
+	/// Get a schedule by handler type
 	/// </summary>
-	public async Task<WorkerSchedule?> GetScheduleByWorkerTypeAsync(string workerType, CancellationToken cancellationToken)
+	public async Task<WorkerSchedule?> GetScheduleByHandlerTypeAsync(string handlerType, CancellationToken cancellationToken)
 	{
 		try
 		{
-			return await QueryScheduleAsync("WorkerType = @Value", workerType, cancellationToken);
+			return await QueryScheduleAsync("HandlerType = @Value", handlerType, cancellationToken);
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error retrieving schedule by worker type {WorkerType}", workerType);
+			_logger.LogError(ex, "Error retrieving schedule by handler type {HandlerType}", handlerType);
 			throw;
 		}
 	}
 
 	/// <summary>
-	/// Create or update a schedule for a worker type
+	/// Create or update a schedule for a handler type
 	/// </summary>
 	/// <param name="timeZone">
 	/// Time zone of <paramref name="startTime"/> and the day fields: an IANA or Windows id; null means
 	/// this machine's local time zone (see <see cref="ScheduleTimeZone.Resolve"/>).
 	/// </param>
 	public async Task CreateOrUpdateScheduleAsync(
-		string workerType,
+		string handlerType,
 		string description,
 		string frequency,
 		TimeOnly startTime,
@@ -229,7 +229,7 @@ public sealed class SchedulerRepository
 			using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			// UPDLOCK + SERIALIZABLE holds a key-range lock on WorkerType until commit, so two
+			// UPDLOCK + SERIALIZABLE holds a key-range lock on HandlerType until commit, so two
 			// instances starting at the same time cannot both take the INSERT branch.
 			using var command = new SqlCommand($"""
 				SET XACT_ABORT ON;
@@ -244,13 +244,13 @@ public sealed class SchedulerRepository
 				SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime,
 					TimeZone = @TimeZone, DayOfWeek = @DayOfWeek, DayOfMonth = @DayOfMonth, DayOfYear = @DayOfYear,
 					IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME()
-				WHERE WorkerType = @WorkerType;
+				WHERE HandlerType = @HandlerType;
 
 				IF @@ROWCOUNT = 0
 					INSERT INTO {_schema}.Schedules
-						(WorkerType, Description, Frequency, StartTime, TimeZone, DayOfWeek, DayOfMonth, DayOfYear, IsActive)
+						(HandlerType, Description, Frequency, StartTime, TimeZone, DayOfWeek, DayOfMonth, DayOfYear, IsActive)
 					VALUES
-						(@WorkerType, @Description, @Frequency, @StartTime, @TimeZone, @DayOfWeek, @DayOfMonth, @DayOfYear, @IsActive);
+						(@HandlerType, @Description, @Frequency, @StartTime, @TimeZone, @DayOfWeek, @DayOfMonth, @DayOfYear, @IsActive);
 
 				COMMIT TRANSACTION;
 				""",
@@ -259,7 +259,7 @@ public sealed class SchedulerRepository
 				CommandTimeout = 30
 			};
 
-			command.Parameters.AddWithValue("@WorkerType", workerType);
+			command.Parameters.AddWithValue("@HandlerType", handlerType);
 			command.Parameters.AddWithValue("@Description", description ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("@Frequency", frequency);
 			command.Parameters.AddWithValue("@StartTime", startTime.ToTimeSpan());
@@ -278,7 +278,7 @@ public sealed class SchedulerRepository
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error creating or updating schedule for worker type {WorkerType}", workerType);
+			_logger.LogError(ex, "Error creating or updating schedule for handler type {HandlerType}", handlerType);
 			throw;
 		}
 	}
@@ -287,7 +287,7 @@ public sealed class SchedulerRepository
 	/// Update the active status of a schedule
 	/// </summary>
 	public async Task UpdateScheduleStatusAsync(
-		string workerType,
+		string handlerType,
 		bool isActive,
 		CancellationToken cancellationToken)
 	{
@@ -297,20 +297,20 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				$"UPDATE {_schema}.Schedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
+				$"UPDATE {_schema}.Schedules SET IsActive = @IsActive WHERE HandlerType = @HandlerType",
 				connection)
 			{
 				CommandTimeout = 30
 			};
 
-			command.Parameters.AddWithValue("@WorkerType", workerType);
+			command.Parameters.AddWithValue("@HandlerType", handlerType);
 			command.Parameters.AddWithValue("@IsActive", isActive);
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error updating schedule status for worker type {WorkerType}", workerType);
+			_logger.LogError(ex, "Error updating schedule status for handler type {HandlerType}", handlerType);
 			throw;
 		}
 	}
@@ -319,7 +319,7 @@ public sealed class SchedulerRepository
 	/// Delete a schedule
 	/// </summary>
 	public async Task DeleteScheduleAsync(
-		string workerType,
+		string handlerType,
 		CancellationToken cancellationToken)
 	{
 		try
@@ -328,19 +328,19 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				$"DELETE FROM {_schema}.Schedules WHERE WorkerType = @WorkerType",
+				$"DELETE FROM {_schema}.Schedules WHERE HandlerType = @HandlerType",
 				connection)
 			{
 				CommandTimeout = 30
 			};
 
-			command.Parameters.AddWithValue("@WorkerType", workerType);
+			command.Parameters.AddWithValue("@HandlerType", handlerType);
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error deleting schedule for worker type {WorkerType}", workerType);
+			_logger.LogError(ex, "Error deleting schedule for handler type {HandlerType}", handlerType);
 			throw;
 		}
 	}

@@ -213,7 +213,7 @@ public sealed class EndToEndIntegrationTests
 		var runs = string.Join("; ", await scheduler.QueryAsync<string>(
 			$"SELECT Status + ' ' + CAST(ItemsRegistered AS varchar(10)) + ' ' + COALESCE(Error, '') FROM {TestDatabase.SchedulerSchema}.ScheduleExecutions"));
 		var schedules = string.Join("; ", await scheduler.QueryAsync<string>(
-			$"SELECT WorkerType + ' ' + Frequency + ' ' + CONVERT(varchar(8), StartTime) + ' ' + TimeZone + ' last=' + COALESCE(CONVERT(varchar(40), LastRunAt), 'never') FROM {TestDatabase.SchedulerSchema}.Schedules"));
+			$"SELECT HandlerType + ' ' + Frequency + ' ' + CONVERT(varchar(8), StartTime) + ' ' + TimeZone + ' last=' + COALESCE(CONVERT(varchar(40), LastRunAt), 'never') FROM {TestDatabase.SchedulerSchema}.Schedules"));
 		await using var eventBus = TestDatabase.OpenEventBus();
 		var deliveries = await eventBus.QuerySingleAsync<string>(
 			$"SELECT CONCAT((SELECT COUNT(*) FROM {TestDatabase.EventBusSchema}.EventBus WHERE IsEnabled = 1), ' endpoints, ', COUNT(*), ' deliveries') FROM {TestDatabase.EventBusSchema}.EventBusDeliveries");

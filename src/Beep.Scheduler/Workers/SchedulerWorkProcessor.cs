@@ -52,18 +52,18 @@ public sealed class SchedulerWorkProcessor : IWorkProcessor<IClaimedWorkItem>
 		}
 
 		_logger.LogInformation(
-			"Executing schedule {ScheduleId} for worker type {WorkerType} (Frequency: {Frequency}, attempt {Attempt} of {MaxAttempts})",
-			schedule.Id, schedule.WorkerType, schedule.Frequency, item.AttemptNumber, item.MaxAttempts);
+			"Executing schedule {ScheduleId} with handler {HandlerType} (Frequency: {Frequency}, attempt {Attempt} of {MaxAttempts})",
+			schedule.Id, schedule.HandlerType, schedule.Frequency, item.AttemptNumber, item.MaxAttempts);
 
 		await using var scope = _scopeFactory.CreateAsyncScope();
 		var handler = scope.ServiceProvider
 			.GetServices<IScheduleHandler>()
-			.FirstOrDefault(h => h.WorkerType == schedule.WorkerType);
+			.FirstOrDefault(h => h.HandlerType == schedule.HandlerType);
 
 		if (handler is null)
 		{
-			var error = $"No handler registered for worker type '{schedule.WorkerType}'";
-			_logger.LogWarning("No handler registered for worker type {WorkerType}", schedule.WorkerType);
+			var error = $"No schedule handler with HandlerType '{schedule.HandlerType}' is registered";
+			_logger.LogWarning("No schedule handler with HandlerType {HandlerType} is registered", schedule.HandlerType);
 			await _database.LogExecutionAsync(schedule.Id, "Skipped", 0, error, null, startedAt.Value, ct);
 			return new ProcessingResult { Success = true };
 		}
@@ -75,7 +75,7 @@ public sealed class SchedulerWorkProcessor : IWorkProcessor<IClaimedWorkItem>
 		}
 		catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
 		{
-			_logger.LogError(ex, "Schedule handler {Handler} failed for schedule {ScheduleId}", handler.GetType().Name, schedule.Id);
+			_logger.LogError(ex, "Schedule handler {HandlerType} failed for schedule {ScheduleId}", handler.GetType().Name, schedule.Id);
 			result = new ScheduleHandlerResult { Success = false, Error = ex.Message };
 		}
 

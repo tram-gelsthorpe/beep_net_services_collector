@@ -8,9 +8,9 @@ public class WorkerSchedule
 	public Guid Id { get; set; }
 
 	/// <summary>
-	/// Worker type identifier (e.g., "WebsiteCollector", "BigDataProcess")
+	/// <see cref="IScheduleHandler.HandlerType"/> of the handler this schedule runs (e.g. "WebsiteCollector")
 	/// </summary>
-	public string WorkerType { get; set; } = string.Empty;
+	public string HandlerType { get; set; } = string.Empty;
 
 	/// <summary>
 	/// Human-readable description

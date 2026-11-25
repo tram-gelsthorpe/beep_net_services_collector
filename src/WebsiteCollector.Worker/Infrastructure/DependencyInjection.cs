@@ -62,10 +62,13 @@ public static class DependencyInjection
 		var schedulerOption = new SchedulerOption();
 		configuration.GetSection(SchedulerOption.Name).Bind(schedulerOption);
 
+		// Scheduler:WorkerType is the ServiceBus worker type of schedule runs (like WebsiteCollector:WorkerType);
+		// Scheduler:HandlerType names the IScheduleHandler the schedule runs.
 		services.RegisterScheduler(
 			schedulerConnectionString,
 			schedulerSchema: CreationDatabaseService.SchedulerSchema,
-			pollIntervalSeconds: schedulerOption.PollIntervalSeconds);
+			pollIntervalSeconds: schedulerOption.PollIntervalSeconds,
+			workerOptions: new SchedulerWorkerOptions { WorkerType = schedulerOption.WorkerType });
 
 		services.AddScoped<IScheduleHandler>(p => new WebsiteCollectorScheduleHandler(
 			p.GetRequiredService<IWorkItemRepository>(),

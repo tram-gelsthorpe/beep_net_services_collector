@@ -17,7 +17,7 @@ namespace WebsiteCollector.Worker.Tests.Integration;
 public sealed class SchedulerIntegrationTests
 {
 	private const string Schema = TestDatabase.SchedulerSchema;
-	private const string HandlerWorkerType = "Test";
+	private const string TestHandlerType = "Test";
 
 	/// <summary>A fixed UTC day, recent enough that run durations computed against the real clock stay small.</summary>
 	private static readonly DateTimeOffset Day = new(DateTime.UtcNow.Date.AddDays(-2), TimeSpan.Zero);
@@ -38,12 +38,12 @@ public sealed class SchedulerIntegrationTests
 	// ---------------------------------------------------------------- when a schedule is due
 
 	[TestMethod]
-	public async Task CreateOrUpdateSchedule_CalledConcurrently_KeepsOneRowPerWorkerType()
+	public async Task CreateOrUpdateSchedule_CalledConcurrently_KeepsOneRowPerHandler()
 	{
 		await Task.WhenAll(Enumerable.Range(0, 20).Select(i => _repository.CreateOrUpdateScheduleAsync(
 			"Collector", $"run {i}", "Daily", new TimeOnly(2, 0), isActive: true, CancellationToken.None)));
 
-		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules WHERE WorkerType = 'Collector'"));
+		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules WHERE HandlerType = 'Collector'"));
 	}
 
 	[TestMethod]
@@ -158,7 +158,7 @@ public sealed class SchedulerIntegrationTests
 		await _repository.CreateOrUpdateScheduleAsync("Collector", "weekly", "Weekly", new TimeOnly(1, 0), isActive: true,
 			CancellationToken.None, timeZone: "Asia/Bangkok", dayOfWeek: 3);
 
-		var schedule = await _repository.GetScheduleByWorkerTypeAsync("Collector", CancellationToken.None);
+		var schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
 		Assert.IsNotNull(schedule);
 		Assert.AreEqual(Bangkok, schedule.TimeZone, "IANA id stored as its Windows id");
 		Assert.AreEqual(3, schedule.DayOfWeek);
@@ -166,7 +166,7 @@ public sealed class SchedulerIntegrationTests
 		await _repository.CreateOrUpdateScheduleAsync("Collector", "daily", "Daily", new TimeOnly(1, 0), isActive: true,
 			CancellationToken.None);
 
-		schedule = await _repository.GetScheduleByWorkerTypeAsync("Collector", CancellationToken.None);
+		schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
 		Assert.AreEqual(ScheduleTimeZone.Resolve(null), schedule!.TimeZone, "no time zone: this machine's");
 		Assert.IsNull(schedule.DayOfWeek, "update clears days that no longer apply");
 	}
@@ -178,6 +178,37 @@ public sealed class SchedulerIntegrationTests
 			"Collector", "bad", "Daily", new TimeOnly(1, 0), isActive: true, CancellationToken.None, timeZone: "Mars/Olympus"));
 
 		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules"));
+	}
+
+	// ---------------------------------------------------------------- handler vs. ServiceBus worker type
+
+	[TestMethod]
+	public async Task ScheduleService_WithUnregisteredHandler_RefusesTheSchedule()
+	{
+		var service = new ScheduleManagementService(_repository, [new TestHandler()], NullLogger<ScheduleManagementService>.Instance);
+
+		// "Scheduler" is the ServiceBus worker type of schedule runs, not a handler name.
+		var error = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+			service.CreateOrUpdateScheduleAsync("Scheduler", "wrong", "Daily", new TimeOnly(1, 0), timeZone: "UTC"));
+		StringAssert.Contains(error.Message, "'Scheduler'");
+		StringAssert.Contains(error.Message, $"Registered: '{TestHandlerType}'");
+		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules"));
+
+		await service.CreateOrUpdateScheduleAsync(TestHandlerType, "right", "Daily", new TimeOnly(1, 0), timeZone: "UTC");
+		Assert.AreEqual(1, await CountAsync($"SELECT COUNT(*) FROM {{0}}.Schedules WHERE HandlerType = '{TestHandlerType}'"));
+	}
+
+	[TestMethod]
+	public void SchedulerOption_RequiresHandler_AndDefaultsWorkerTypeToScheduler()
+	{
+		var option = new SchedulerOption { Frequency = "Daily", StartTime = new TimeOnly(1, 0), TimeZone = "UTC" };
+
+		Assert.AreEqual("Scheduler", option.WorkerType, "same default as SchedulerWorkerOptions");
+		var error = Assert.ThrowsExactly<InvalidOperationException>(option.Validate);
+		StringAssert.Contains(error.Message, "HandlerType");
+
+		option.HandlerType = "WebsiteCollector";
+		option.Validate();
 	}
 
 	// ---------------------------------------------------------------- running through the ServiceBus
@@ -299,10 +330,10 @@ public sealed class SchedulerIntegrationTests
 	{
 		await using var connection = TestDatabase.OpenScheduler();
 		return await connection.QuerySingleAsync<Guid>($"""
-			INSERT INTO {Schema}.Schedules (WorkerType, Frequency, StartTime, DayOfWeek, TimeZone)
+			INSERT INTO {Schema}.Schedules (HandlerType, Frequency, StartTime, DayOfWeek, TimeZone)
 			OUTPUT inserted.Id
 			VALUES (@worker, @frequency, @startTime, @dayOfWeek, @timeZone)
-			""", new { worker = HandlerWorkerType, frequency, startTime, dayOfWeek, timeZone });
+			""", new { worker = TestHandlerType, frequency, startTime, dayOfWeek, timeZone });
 	}
 
 	private static async Task SetLastRunAsync(Guid id, DateTimeOffset at)
@@ -371,7 +402,7 @@ public sealed class SchedulerIntegrationTests
 	{
 		private int _calls;
 
-		public string WorkerType => HandlerWorkerType;
+		public string HandlerType => TestHandlerType;
 		public Guid WorkerId => Guid.Empty;
 		public int Calls => _calls;
 		public TimeSpan Delay { get; init; }

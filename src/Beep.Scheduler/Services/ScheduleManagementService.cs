@@ -8,18 +8,22 @@ namespace Beep.Scheduler;
 public class ScheduleManagementService : IScheduleService
 {
 	private readonly SchedulerRepository _database;
+	private readonly IReadOnlyList<string> _handlerNames;
 	private readonly ILogger<ScheduleManagementService> _logger;
 
 	public ScheduleManagementService(
 		SchedulerRepository database,
+		IEnumerable<IScheduleHandler> handlers,
 		ILogger<ScheduleManagementService> logger)
 	{
 		_database = database ?? throw new ArgumentNullException(nameof(database));
+		ArgumentNullException.ThrowIfNull(handlers);
+		_handlerNames = [.. handlers.Select(h => h.HandlerType)];
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
 	public async Task<int> CreateOrUpdateScheduleAsync(
-		string workerType,
+		string handlerType,
 		string description,
 		string frequency,
 		TimeOnly startTime,
@@ -30,22 +34,28 @@ public class ScheduleManagementService : IScheduleService
 		int? dayOfYear = null,
 		CancellationToken cancellationToken = default)
 	{
-		if (string.IsNullOrWhiteSpace(workerType))
-			throw new ArgumentException("Worker type cannot be empty", nameof(workerType));
+		if (string.IsNullOrWhiteSpace(handlerType))
+			throw new ArgumentException("HandlerType cannot be empty", nameof(handlerType));
 
 		if (string.IsNullOrWhiteSpace(frequency))
 			throw new ArgumentException("Frequency cannot be empty", nameof(frequency));
+
+		// A schedule for a handler that is not registered would be skipped at every run.
+		if (!_handlerNames.Contains(handlerType, StringComparer.Ordinal))
+			throw new InvalidOperationException(
+				$"No schedule handler with HandlerType '{handlerType}' is registered. Registered: " +
+				(_handlerNames.Count == 0 ? "none" : string.Join(", ", _handlerNames.Select(n => $"'{n}'"))) + ".");
 
 		try
 		{
 			var timeZoneId = ScheduleTimeZone.Resolve(timeZone);
 
 			_logger.LogInformation(
-				"Creating or updating schedule for worker type {WorkerType} with frequency {Frequency} at {StartTime} ({TimeZone})",
-				workerType, frequency, startTime, timeZoneId);
+				"Creating or updating schedule for handler type {HandlerType} with frequency {Frequency} at {StartTime} ({TimeZone})",
+				handlerType, frequency, startTime, timeZoneId);
 
 			await _database.CreateOrUpdateScheduleAsync(
-				workerType,
+				handlerType,
 				description,
 				frequency,
 				startTime,
@@ -57,8 +67,8 @@ public class ScheduleManagementService : IScheduleService
 				dayOfYear);
 
 			_logger.LogInformation(
-				"Schedule for worker type {WorkerType} created/updated",
-				workerType);
+				"Schedule for handler type {HandlerType} created/updated",
+				handlerType);
 
 			return 1; // Success indicator
 		}
@@ -66,44 +76,44 @@ public class ScheduleManagementService : IScheduleService
 		{
 			_logger.LogError(
 				ex,
-				"Error creating or updating schedule for worker type {WorkerType}",
-				workerType);
+				"Error creating or updating schedule for handler type {HandlerType}",
+				handlerType);
 			throw;
 		}
 	}
 
 	public async Task<bool> ScheduleExistsAsync(
-		string workerType,
+		string handlerType,
 		CancellationToken cancellationToken = default)
 	{
-		if (string.IsNullOrWhiteSpace(workerType))
-			throw new ArgumentException("Worker type cannot be empty", nameof(workerType));
+		if (string.IsNullOrWhiteSpace(handlerType))
+			throw new ArgumentException("HandlerType cannot be empty", nameof(handlerType));
 
 		try
 		{
-			var schedule = await _database.GetScheduleByWorkerTypeAsync(workerType, cancellationToken);
+			var schedule = await _database.GetScheduleByHandlerTypeAsync(handlerType, cancellationToken);
 			return schedule != null;
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(
 				ex,
-				"Error checking if schedule exists for worker type {WorkerType}",
-				workerType);
+				"Error checking if schedule exists for handler type {HandlerType}",
+				handlerType);
 			throw;
 		}
 	}
 
 	public async Task<ScheduleInfo?> GetScheduleAsync(
-		string workerType,
+		string handlerType,
 		CancellationToken cancellationToken = default)
 	{
-		if (string.IsNullOrWhiteSpace(workerType))
-			throw new ArgumentException("Worker type cannot be empty", nameof(workerType));
+		if (string.IsNullOrWhiteSpace(handlerType))
+			throw new ArgumentException("HandlerType cannot be empty", nameof(handlerType));
 
 		try
 		{
-			var schedule = await _database.GetScheduleByWorkerTypeAsync(workerType, cancellationToken);
+			var schedule = await _database.GetScheduleByHandlerTypeAsync(handlerType, cancellationToken);
 
 			if (schedule == null)
 				return null;
@@ -111,7 +121,7 @@ public class ScheduleManagementService : IScheduleService
 			return new ScheduleInfo
 			{
 				Id = schedule.Id,
-				WorkerType = schedule.WorkerType,
+				HandlerType = schedule.HandlerType,
 				Description = schedule.Description ?? string.Empty,
 				Frequency = schedule.Frequency,
 				StartTime = TimeOnly.FromTimeSpan(schedule.StartTime),
@@ -126,52 +136,52 @@ public class ScheduleManagementService : IScheduleService
 		{
 			_logger.LogError(
 				ex,
-				"Error retrieving schedule for worker type {WorkerType}",
-				workerType);
+				"Error retrieving schedule for handler type {HandlerType}",
+				handlerType);
 			throw;
 		}
 	}
 
 	public async Task UpdateScheduleStatusAsync(
-		string workerType,
+		string handlerType,
 		bool isActive,
 		CancellationToken cancellationToken = default)
 	{
-		if (string.IsNullOrWhiteSpace(workerType))
-			throw new ArgumentException("Worker type cannot be empty", nameof(workerType));
+		if (string.IsNullOrWhiteSpace(handlerType))
+			throw new ArgumentException("HandlerType cannot be empty", nameof(handlerType));
 
 		try
 		{
-			await _database.UpdateScheduleStatusAsync(workerType, isActive, cancellationToken);
+			await _database.UpdateScheduleStatusAsync(handlerType, isActive, cancellationToken);
 
 			_logger.LogInformation(
-				"Schedule status for worker type {WorkerType} updated to {IsActive}",
-				workerType, isActive);
+				"Schedule status for handler type {HandlerType} updated to {IsActive}",
+				handlerType, isActive);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(
 				ex,
-				"Error updating schedule status for worker type {WorkerType}",
-				workerType);
+				"Error updating schedule status for handler type {HandlerType}",
+				handlerType);
 			throw;
 		}
 	}
 
 	public async Task<bool> DeleteScheduleAsync(
-		string workerType,
+		string handlerType,
 		CancellationToken cancellationToken = default)
 	{
-		if (string.IsNullOrWhiteSpace(workerType))
-			throw new ArgumentException("Worker type cannot be empty", nameof(workerType));
+		if (string.IsNullOrWhiteSpace(handlerType))
+			throw new ArgumentException("HandlerType cannot be empty", nameof(handlerType));
 
 		try
 		{
-			await _database.DeleteScheduleAsync(workerType, cancellationToken);
+			await _database.DeleteScheduleAsync(handlerType, cancellationToken);
 
 			_logger.LogInformation(
-				"Schedule for worker type {WorkerType} deleted",
-				workerType);
+				"Schedule for handler type {HandlerType} deleted",
+				handlerType);
 
 			return true;
 		}
@@ -179,8 +189,8 @@ public class ScheduleManagementService : IScheduleService
 		{
 			_logger.LogError(
 				ex,
-				"Error deleting schedule for worker type {WorkerType}",
-				workerType);
+				"Error deleting schedule for handler type {HandlerType}",
+				handlerType);
 			throw;
 		}
 	}
