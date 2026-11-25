@@ -99,13 +99,41 @@ public sealed class WebsiteCollectorIntegrationTests
 	}
 
 	[TestMethod]
-	public async Task ClaimSelectors_WithDisabledSelector_SkipsIt()
+	public async Task ClaimSelectors_WithDisabledSelector_SkipsItAndClosesTheWorkItem()
 	{
-		await EnqueueAsync(await SeedSelectorAsync(isEnabled: false));
+		var selectorId = await SeedSelectorAsync(isEnabled: false);
+		var workItemId = await EnqueueAsync(selectorId);
 
 		var claimed = await _service.ClaimSelectorsAsync(Guid.NewGuid(), count: 5, lease: 300, CancellationToken.None);
 
 		Assert.IsEmpty(claimed, "Disabled selectors should not be returned for processing");
+		Assert.AreEqual("SUCCEEDED", await QueryWorkItemStatusAsync(workItemId), "closed, not left leased");
+		Assert.IsNull(await QueryWorkItemAsync<Guid?>(workItemId, "LeaseToken"));
+		await using (var serviceBus = TestDatabase.OpenServiceBus())
+			Assert.AreEqual(WebsiteSelectorsRepository.SkippedResult, await serviceBus.QuerySingleAsync<string>(
+				$"SELECT ResultData FROM {TestDatabase.ServiceBusSchema}.WorkItemAttempts WHERE WorkItemId = @workItemId",
+				new { workItemId }), "the attempt records why it was skipped");
+
+		// Closed, so the next schedule run can queue the selector again once it is re-enabled.
+		await using (var connection = TestDatabase.OpenCollector())
+			await connection.ExecuteAsync("UPDATE dbo.WebsiteSelectors SET IsEnabled = 1 WHERE Id = @selectorId", new { selectorId });
+		await EnqueueAsync(selectorId);
+		Assert.HasCount(1, await _service.ClaimSelectorsAsync(Guid.NewGuid(), count: 5, lease: 300, CancellationToken.None));
+	}
+
+	[TestMethod]
+	public async Task ClaimSelectors_WhenSelectorIsDisabledAfterItWasQueued_ClosesTheWorkItem()
+	{
+		var selectorId = await SeedSelectorAsync();
+		var workItemId = await EnqueueAsync(selectorId);
+		await using (var connection = TestDatabase.OpenCollector())
+			await connection.ExecuteAsync("UPDATE dbo.WebsiteSelectors SET IsEnabled = 0 WHERE Id = @selectorId", new { selectorId });
+
+		var claimed = await _service.ClaimSelectorsAsync(Guid.NewGuid(), count: 5, lease: 300, CancellationToken.None);
+
+		Assert.IsEmpty(claimed);
+		Assert.AreEqual("SUCCEEDED", await QueryWorkItemStatusAsync(workItemId));
+		Assert.AreEqual(0, await QueryWorkItemAsync<int>(workItemId, "CASE WHEN WorkerId IS NULL THEN 0 ELSE 1 END"), "lease released");
 	}
 
 	[TestMethod]

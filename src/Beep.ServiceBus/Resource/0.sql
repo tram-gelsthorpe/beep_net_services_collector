@@ -276,8 +276,8 @@ BEGIN
 		WHERE Id = @WorkItemId;
 
 		-- Record attempt
-		INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, FinishedAt)
-		VALUES (@WorkItemId, @attempt, @statusSucceeded, @now);
+		INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ResultData, FinishedAt)
+		VALUES (@WorkItemId, @attempt, @statusSucceeded, @ResultData, @now);
 	END
 	ELSE
 	BEGIN
@@ -294,8 +294,8 @@ BEGIN
 				LastError = @Error
 			WHERE Id = @WorkItemId;
 
-			INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, FinishedAt)
-			VALUES (@WorkItemId, @attempt, @statusAbandoned, @Error, @now);
+			INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, ResultData, FinishedAt)
+			VALUES (@WorkItemId, @attempt, @statusAbandoned, @Error, @ResultData, @now);
 		END
 		ELSE
 		BEGIN
@@ -338,8 +338,8 @@ BEGIN
 				LastError = @Error
 			WHERE Id = @WorkItemId;
 
-			INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, FinishedAt)
-			VALUES (@WorkItemId, @attempt, @statusFailed, @Error, @now);
+			INSERT INTO dbo.WorkItemAttempts (WorkItemId, AttemptNumber, StatusSnapshot, ErrorMessage, ResultData, FinishedAt)
+			VALUES (@WorkItemId, @attempt, @statusFailed, @Error, @ResultData, @now);
 		END
 	END;
 
