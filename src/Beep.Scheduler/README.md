@@ -137,11 +137,19 @@ VALUES ('FrequentProcess', 'Hourly', '00:00:00', 1);
 | Frequency | Required Fields | Optional Fields | Example |
 |-----------|-----------------|-----------------|---------|
 | **Daily** | StartTime | - | Every day at 1:00 AM |
-| **Hourly** | StartTime | - | Every hour |
+| **Hourly** | - (StartTime is ignored) | - | An hour after the previous run started |
 | **Weekly** | StartTime, DayOfWeek | - | Every Sunday (DayOfWeek=0) at midnight |
 | **Monthly** | StartTime, DayOfMonth | - | 15th of each month at 9:00 AM |
 | **Yearly** | StartTime, DayOfYear | - | January 1st (DayOfYear=1) at midnight |
 | **Never** | - | - | Schedule disabled |
+
+All times are **UTC** on the database clock. A schedule runs at the first poll at or after its
+`StartTime` on a matching day, at most once that day (a worker that was down at `StartTime` catches
+up when it starts). Each `WorkerType` has one schedule (`UQ_WorkerSchedules_WorkerType`).
+
+With several worker instances, `ClaimDueSchedules` hands each due schedule to exactly one of them.
+The claim lasts `claimLeaseSeconds` (`RegisterScheduler`, default 1 hour): if that instance dies
+mid-run, another one runs the schedule once the claim expires. Set it longer than your slowest run.
 
 ### Day of Week Values (for Weekly)
 - 0 = Sunday

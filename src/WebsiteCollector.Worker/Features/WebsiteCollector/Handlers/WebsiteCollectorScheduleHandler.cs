@@ -5,14 +5,24 @@ using Microsoft.Extensions.Logging;
 namespace WebsiteCollector.Worker;
 
 /// <summary>
-/// Schedule handler that registers website selectors for daily collection
+/// Schedule handler that enqueues a collection work item for every enabled website selector.
 /// </summary>
+/// <remarks>
+/// Selectors are read and enqueued one page at a time, so memory use and the size of each
+/// database call stay constant however many selectors there are. Selectors that still have an
+/// unfinished work item (for example from the previous run) are skipped, so a run that is
+/// interrupted and retried does not create duplicates.
+/// </remarks>
 public class WebsiteCollectorScheduleHandler : IScheduleHandler
 {
+	/// <summary>Default number of selectors read and enqueued per database call.</summary>
+	public const int DefaultPageSize = 5000;
+
 	private const string DomainType = "WebsiteSelector";
 	private readonly IWorkItemRepository _workItemRepository;
 	private readonly SelectorManagementRepository _selectorManagementRepository;
 	private readonly ILogger<WebsiteCollectorScheduleHandler> _logger;
+	private readonly int _pageSize;
 
 	public string WorkerType { get; }
 	public Guid WorkerId { get; }
@@ -22,11 +32,15 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 		SelectorManagementRepository selectorManagementRepository,
 		string workerType,
 		Guid workerId,
-		ILogger<WebsiteCollectorScheduleHandler> logger)
+		ILogger<WebsiteCollectorScheduleHandler> logger,
+		int pageSize = DefaultPageSize)
 	{
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+
 		_workItemRepository = workItemRepository ?? throw new ArgumentNullException(nameof(workItemRepository));
 		_selectorManagementRepository = selectorManagementRepository ?? throw new ArgumentNullException(nameof(selectorManagementRepository));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+		_pageSize = pageSize;
 
 		WorkerType = workerType ?? throw new ArgumentNullException(nameof(workerType));
 		WorkerId = workerId;
@@ -40,95 +54,80 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 		CancellationToken cancellationToken)
 	{
 		var result = new ScheduleHandlerResult();
+		int total = 0, registered = 0, skipped = 0, failed = 0;
 
 		try
 		{
-			_logger.LogInformation("WebsiteCollectorScheduleHandler: Fetching active selectors for registration");
+			_logger.LogInformation("WebsiteCollectorScheduleHandler: Registering work items for active selectors (page size {PageSize})", _pageSize);
 
-			// Get all active selectors
-			var activeSelectors = await _selectorManagementRepository.GetActiveSelectorsAsync(cancellationToken);
-
-			if (activeSelectors.Count == 0)
+			var afterId = Guid.Empty;
+			while (true)
 			{
-				_logger.LogWarning("WebsiteCollectorScheduleHandler: No active selectors found");
-				result.ItemsRegistered = 0;
-				result.Success = true;
-				result.Details = "No active selectors to register";
-				return result;
-			}
+				cancellationToken.ThrowIfCancellationRequested();
 
-			_logger.LogInformation(
-				"WebsiteCollectorScheduleHandler: Found {SelectorCount} active selectors. Registering work items...",
-				activeSelectors.Count);
-
-			int registeredCount = 0;
-			int failedCount = 0;
-			var failedSelectors = new List<Guid>();
-
-			// Register a work item for each active selector
-			foreach (var selector in activeSelectors)
-			{
-				if (cancellationToken.IsCancellationRequested)
-				{
-					_logger.LogWarning("WebsiteCollectorScheduleHandler: Registration cancelled by request");
+				var page = await _selectorManagementRepository.GetActiveSelectorsPageAsync(afterId, _pageSize, cancellationToken);
+				if (page.Count == 0)
 					break;
-				}
+
+				afterId = page[^1].Id;
+				total += page.Count;
 
 				try
 				{
-					// Create work item: workerType, workerId (domainId), domainId (selectorId), domainType, maxAttempts, scheduleForNow
-					var workItemId = await _workItemRepository.EnqueueAsync(
-						workerType: WorkerType,
-						domainId: selector.Id,
-						domainType: DomainType,
-						maxAttempts: selector.MaxAttempts,
-						scheduleForNow: true,
-						cancellationToken: cancellationToken);
+					var inserted = await _workItemRepository.EnqueueBatchAsync(
+						WorkerType,
+						DomainType,
+						page.Select(s => new WorkItemRequest(s.Id, s.MaxAttempts)).ToList(),
+						cancellationToken);
 
-					_logger.LogDebug(
-						"WebsiteCollectorScheduleHandler: Registered work item {WorkItemId} for selector {SelectorId}",
-						workItemId, selector.Id);
-
-					registeredCount++;
+					registered += inserted;
+					skipped += page.Count - inserted;
 				}
-				catch (Exception ex)
+				catch (Exception ex) when (ex is not OperationCanceledException)
 				{
-					_logger.LogError(
-						ex,
-						"WebsiteCollectorScheduleHandler: Failed to register work item for selector {SelectorId}",
-						selector.Id);
-
-					failedCount++;
-					failedSelectors.Add(selector.Id);
+					// Keep going: the remaining pages are independent, and the next run retries
+					// this page (selectors enqueued meanwhile are skipped, not duplicated).
+					_logger.LogError(ex,
+						"WebsiteCollectorScheduleHandler: Failed to register {Count} selectors up to {LastSelectorId}",
+						page.Count, afterId);
+					failed += page.Count;
 				}
+
+				_logger.LogDebug(
+					"WebsiteCollectorScheduleHandler: {Total} selectors processed ({Registered} registered, {Skipped} already queued)",
+					total, registered, skipped);
+
+				if (page.Count < _pageSize)
+					break;
 			}
 
-			result.ItemsRegistered = registeredCount;
-			result.Success = failedCount == 0;
-			result.Details = $"Registered: {registeredCount}, Failed: {failedCount}, Total: {activeSelectors.Count}";
+			result.ItemsRegistered = registered;
+			result.Success = failed == 0;
+			result.Details = $"Registered: {registered}, Already queued: {skipped}, Failed: {failed}, Total: {total}";
+			if (failed > 0)
+				result.Error = $"Failed to register {failed} of {total} selectors";
 
-			if (failedCount > 0)
-			{
-				result.Error = $"Failed to register {failedCount} of {activeSelectors.Count} selectors";
-			}
+			if (total == 0)
+				_logger.LogWarning("WebsiteCollectorScheduleHandler: No active selectors found");
 
-			_logger.LogInformation(
-				"WebsiteCollectorScheduleHandler: Registration complete. " +
-				"Registered: {RegisteredCount}, Failed: {FailedCount}, Total: {TotalCount}",
-				registeredCount, failedCount, activeSelectors.Count);
-
+			_logger.LogInformation("WebsiteCollectorScheduleHandler: Registration complete. {Details}", result.Details);
 			return result;
+		}
+		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+		{
+			_logger.LogWarning(
+				"WebsiteCollectorScheduleHandler: Registration cancelled after {Total} selectors ({Registered} registered)",
+				total, registered);
+			throw;
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(
-				ex,
-				"WebsiteCollectorScheduleHandler: Unexpected error during schedule registration");
+			_logger.LogError(ex, "WebsiteCollectorScheduleHandler: Unexpected error during schedule registration");
 
+			result.ItemsRegistered = registered;
 			result.Success = false;
 			result.Error = ex.Message;
 			result.Details = ex.ToString();
-
 			return result;
 		}
 	}

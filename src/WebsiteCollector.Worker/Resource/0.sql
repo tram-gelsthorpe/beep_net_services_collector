@@ -65,6 +65,8 @@ CREATE TABLE dbo.WebsiteSelectors (
 );
 
 CREATE INDEX IX_WebsiteSelectors_Website ON dbo.WebsiteSelectors(WebsitesId) WHERE IsEnabled = 1;
+-- Paging through enabled selectors (WebsiteCollectorScheduleHandler) without reading the wide rows
+CREATE INDEX IX_WebsiteSelectors_Enabled ON dbo.WebsiteSelectors(Id) INCLUDE (MaxAttempts) WHERE IsEnabled = 1;
 
 -- =====================================================
 -- Create WebsiteSelectorsMonitor table

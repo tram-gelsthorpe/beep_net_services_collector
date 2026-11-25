@@ -13,17 +13,30 @@ public class SchedulerService : BackgroundService
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<SchedulerService> _logger;
 	private readonly int _pollIntervalSeconds;
+	private readonly int _claimLeaseSeconds;
 
+	/// <param name="database">Scheduler repository</param>
+	/// <param name="scopeFactory">Creates a DI scope per execution to resolve handlers</param>
+	/// <param name="logger">Logger</param>
+	/// <param name="pollIntervalSeconds">How often to poll for due schedules (minimum 10)</param>
+	/// <param name="claimLeaseSeconds">
+	/// How long a claimed schedule is reserved for this instance. Must be longer than the slowest
+	/// handler run; if the instance dies, another one runs the schedule once the lease expires.
+	/// </param>
 	public SchedulerService(
 		SchedulerRepository database,
 		IServiceScopeFactory scopeFactory,
 		ILogger<SchedulerService> logger,
-		int pollIntervalSeconds = 30)
+		int pollIntervalSeconds = 30,
+		int claimLeaseSeconds = 3600)
 	{
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(claimLeaseSeconds);
+
 		_database = database ?? throw new ArgumentNullException(nameof(database));
 		_scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_pollIntervalSeconds = Math.Max(10, pollIntervalSeconds); // Minimum 10 seconds
+		_claimLeaseSeconds = claimLeaseSeconds;
 	}
 
 	/// <summary>
@@ -67,7 +80,8 @@ public class SchedulerService : BackgroundService
 	/// </summary>
 	private async Task PollAndExecuteSchedulesAsync(CancellationToken cancellationToken)
 	{
-		var schedules = await _database.GetDueSchedulesAsync(cancellationToken);
+		// Claiming means another worker instance polling at the same time does not get the same schedules.
+		var schedules = await _database.ClaimDueSchedulesAsync(_claimLeaseSeconds, cancellationToken);
 
 		if (schedules.Count == 0)
 		{
@@ -75,14 +89,33 @@ public class SchedulerService : BackgroundService
 			return;
 		}
 
-		_logger.LogInformation("Found {ScheduleCount} schedule(s) due for execution", schedules.Count);
+		_logger.LogInformation("Claimed {ScheduleCount} schedule(s) due for execution", schedules.Count);
 
-		foreach (var schedule in schedules)
+		var next = 0;
+		try
 		{
-			if (cancellationToken.IsCancellationRequested)
-				break;
-
-			await ExecuteScheduleAsync(schedule, cancellationToken);
+			for (; next < schedules.Count; next++)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				await ExecuteScheduleAsync(schedules[next], cancellationToken);
+			}
+		}
+		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+		{
+			// Shutting down: hand back the claims of the interrupted and not-yet-run schedules so
+			// they are due again as soon as any instance polls, rather than after the lease expires.
+			foreach (var schedule in schedules.Skip(next))
+			{
+				try
+				{
+					await _database.ReleaseClaimAsync(schedule.Id, CancellationToken.None);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "Could not release claim on schedule {ScheduleId}; it is retried when the claim expires", schedule.Id);
+				}
+			}
+			throw;
 		}
 	}
 

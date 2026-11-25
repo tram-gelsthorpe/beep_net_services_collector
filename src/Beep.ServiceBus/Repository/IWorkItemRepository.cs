@@ -97,22 +97,20 @@ public interface IWorkItemRepository
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
-	/// Create a new work item in PENDING status.
-	/// Used by event subscribers or API endpoints to enqueue work.
+	/// Create PENDING work items, due now, for many domain entities in one round trip.
+	/// An entity that already has an unfinished work item (any status except SUCCEEDED or
+	/// ABANDONED) for the same worker and domain type is skipped, so calling this again
+	/// after a partial run does not create duplicates.
 	/// </summary>
-	/// <param name="workerType">Category of work/worker type ('SelectorCollector', 'WebhookDelivery')</param>
-	/// <param name="domainId">Domain entity ID (e.g., WebsiteSelectorsId, DeliveryId)</param>
+	/// <param name="workerType">Category of work/worker type</param>
 	/// <param name="domainType">Domain entity type (e.g., 'WebsiteSelector')</param>
-	/// <param name="maxAttempts">Maximum retries allowed</param>
-	/// <param name="scheduleForNow">If true, NextRunAt = now; else use default future time</param>
+	/// <param name="items">Entities to enqueue; keep batches to a few thousand items</param>
 	/// <param name="cancellationToken">Cancellation token</param>
-	/// <returns>The ID of the created work item</returns>
-	Task<Guid> EnqueueAsync(
+	/// <returns>The number of work items created</returns>
+	Task<int> EnqueueBatchAsync(
 		string workerType,
-		Guid domainId,
 		string domainType,
-		int maxAttempts = 5,
-		bool scheduleForNow = true,
+		IReadOnlyCollection<WorkItemRequest> items,
 		CancellationToken cancellationToken = default);
 
 	/// <summary>

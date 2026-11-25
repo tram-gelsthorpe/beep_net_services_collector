@@ -21,10 +21,15 @@ public sealed class SchedulerRepository
 	}
 
 	/// <summary>
-	/// Get all schedules that are due to run
+	/// Claim and return the schedules that are due to run. A claimed schedule is not returned
+	/// to any other caller until <see cref="LogExecutionAsync"/> records the run or the claim
+	/// expires after <paramref name="leaseSeconds"/> (for an instance that died mid-run).
+	/// Due-ness uses the database clock.
 	/// </summary>
-	public async Task<List<WorkerSchedule>> GetDueSchedulesAsync(CancellationToken cancellationToken)
+	public async Task<List<WorkerSchedule>> ClaimDueSchedulesAsync(int leaseSeconds, CancellationToken cancellationToken)
 	{
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(leaseSeconds);
+
 		var schedules = new List<WorkerSchedule>();
 
 		try
@@ -32,13 +37,13 @@ public sealed class SchedulerRepository
 			using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			using var command = new SqlCommand($"{_schema}.GetDueSchedules", connection)
+			using var command = new SqlCommand($"{_schema}.ClaimDueSchedules", connection)
 			{
 				CommandType = CommandType.StoredProcedure,
 				CommandTimeout = 30
 			};
 
-			command.Parameters.AddWithValue("@Now", DateTimeOffset.UtcNow);
+			command.Parameters.AddWithValue("@LeaseSeconds", leaseSeconds);
 
 			using var reader = await command.ExecuteReaderAsync(cancellationToken);
 			while (await reader.ReadAsync(cancellationToken))
@@ -59,7 +64,7 @@ public sealed class SchedulerRepository
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error retrieving due schedules from database");
+			_logger.LogError(ex, "Error claiming due schedules");
 			throw;
 		}
 
@@ -69,6 +74,26 @@ public sealed class SchedulerRepository
 	/// <summary>
 	/// Get a single schedule by ID
 	/// </summary>
+	/// <summary>
+	/// Release a claim taken by <see cref="ClaimDueSchedulesAsync"/> without recording a run,
+	/// so the schedule is due again straight away (used when shutting down mid-run).
+	/// </summary>
+	public async Task ReleaseClaimAsync(Guid scheduleId, CancellationToken cancellationToken)
+	{
+		await using var connection = new SqlConnection(_connectionString);
+		await connection.OpenAsync(cancellationToken);
+
+		await using var command = new SqlCommand(
+			$"UPDATE {_schema}.WorkerSchedules SET ClaimedAt = NULL, ClaimedUntil = NULL WHERE Id = @ScheduleId",
+			connection)
+		{
+			CommandTimeout = 30
+		};
+		command.Parameters.AddWithValue("@ScheduleId", scheduleId);
+
+		await command.ExecuteNonQueryAsync(cancellationToken);
+	}
+
 	public async Task<WorkerSchedule?> GetScheduleAsync(Guid scheduleId, CancellationToken cancellationToken)
 	{
 		try
@@ -191,11 +216,23 @@ public sealed class SchedulerRepository
 			using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			using var command = new SqlCommand(
-				$"IF EXISTS (SELECT 1 FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType) " +
-				$"BEGIN UPDATE {_schema}.WorkerSchedules SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME() WHERE WorkerType = @WorkerType END " +
-				$"ELSE " +
-				$"BEGIN INSERT INTO {_schema}.WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive) VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive) END",
+			// UPDLOCK + SERIALIZABLE holds a key-range lock on WorkerType until commit, so two
+			// instances starting at the same time cannot both take the INSERT branch.
+			using var command = new SqlCommand($"""
+				SET XACT_ABORT ON;
+				BEGIN TRANSACTION;
+
+				UPDATE {_schema}.WorkerSchedules WITH (UPDLOCK, SERIALIZABLE)
+				SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime,
+					IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME()
+				WHERE WorkerType = @WorkerType;
+
+				IF @@ROWCOUNT = 0
+					INSERT INTO {_schema}.WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive)
+					VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive);
+
+				COMMIT TRANSACTION;
+				""",
 				connection)
 			{
 				CommandTimeout = 30

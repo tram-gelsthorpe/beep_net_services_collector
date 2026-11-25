@@ -16,8 +16,10 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 
 ## How it works
 
-1. **Schedule** – `SchedulerService` polls `Scheduler.GetDueSchedules`. When the `WebsiteCollector` schedule is due,
-   `WebsiteCollectorScheduleHandler` enqueues one work item per enabled `WebsiteSelectors` row.
+1. **Schedule** – `SchedulerService` claims due schedules with `Scheduler.ClaimDueSchedules` (one instance per run;
+   `StartTime` is UTC). When the `WebsiteCollector` schedule is due,
+   `WebsiteCollectorScheduleHandler` pages through the enabled `WebsiteSelectors` rows (5,000 at a time) and enqueues a
+   work item for each in one batch per page, skipping selectors that still have an unfinished work item.
 2. **Collect** – `WebsiteCollectorWorker` claims work items with a lease, fetches the selector's `CollectionUrl`
    (HTTPS only, size-capped), extracts content with the CSS `ContentSelector` for HTML, and renews the lease while working.
 3. **Complete** – the work item is completed (success, or retry with exponential backoff up to `MaxAttempts`) and the

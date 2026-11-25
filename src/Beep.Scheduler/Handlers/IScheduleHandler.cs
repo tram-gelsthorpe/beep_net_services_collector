@@ -45,8 +45,9 @@ public class ScheduleHandlerResult
 ///         WorkerSchedule schedule,
 ///         CancellationToken cancellationToken)
 ///     {
-///         var id = await workItems.EnqueueAsync(WorkerType, domainId, "WebsiteSelector", cancellationToken: cancellationToken);
-///         return new ScheduleHandlerResult { ItemsRegistered = 1 };
+///         var inserted = await workItems.EnqueueBatchAsync(
+///             WorkerType, "WebsiteSelector", [new WorkItemRequest(domainId)], cancellationToken);
+///         return new ScheduleHandlerResult { ItemsRegistered = inserted };
 ///     }
 /// }
 /// </code>

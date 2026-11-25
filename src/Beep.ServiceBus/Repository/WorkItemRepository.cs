@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -236,12 +238,10 @@ public sealed class WorkItemRepository : IWorkItemRepository
 		}
 	}
 
-	public async Task<Guid> EnqueueAsync(
+	public async Task<int> EnqueueBatchAsync(
 		string workerType,
-		Guid domainId,
 		string domainType,
-		int maxAttempts = 5,
-		bool scheduleForNow = true,
+		IReadOnlyCollection<WorkItemRequest> items,
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(workerType))
@@ -250,43 +250,55 @@ public sealed class WorkItemRepository : IWorkItemRepository
 		if (string.IsNullOrWhiteSpace(domainType))
 			throw new ArgumentException("Domain type cannot be empty", nameof(domainType));
 
+		ArgumentNullException.ThrowIfNull(items);
+		if (items.Count == 0)
+			return 0;
+
+		// One set-based INSERT per batch instead of one round trip per item. The items travel as a
+		// single JSON parameter (no table type needed). UPDLOCK/HOLDLOCK on the existence check keeps
+		// two schedulers running at the same time from both enqueuing the same entity.
+		var json = JsonSerializer.Serialize(items.DistinctBy(i => i.DomainId));
+
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
+			await using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			using var cmd = connection.CreateCommand();
-			// Use the database clock for NextRunAt: ClaimWorkItems compares against SYSUTCDATETIME(),
-			// so a client timestamp that is slightly ahead would make the item not yet due.
+			await using var cmd = connection.CreateCommand();
 			cmd.CommandText = $"""
-				DECLARE @workItemId uniqueidentifier = NEWID();
-				DECLARE @statusId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING');
-				INSERT INTO {_schema}.WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
-				VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, @statusId, @MaxAttempts,
-					CASE WHEN @ScheduleForNow = 1 THEN SYSUTCDATETIME() ELSE DATEADD(minute, 1, SYSUTCDATETIME()) END);
-				SELECT @workItemId;
-				""";
+				DECLARE @pendingId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING');
 
-			cmd.CommandTimeout = 10;
+				INSERT INTO {_schema}.WorkItems (WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
+				SELECT @WorkerType, i.DomainId, @DomainType, @pendingId, i.MaxAttempts, SYSUTCDATETIME()
+				FROM OPENJSON(@Items) WITH (DomainId uniqueidentifier '$.DomainId', MaxAttempts int '$.MaxAttempts') i
+				WHERE NOT EXISTS (
+					SELECT 1
+					FROM {_schema}.WorkItems w WITH (UPDLOCK, HOLDLOCK)
+					JOIN {_schema}.WorkItemStatuses s ON s.Id = w.StatusId
+					WHERE w.DomainType = @DomainType
+						AND w.DomainId = i.DomainId
+						AND w.WorkerType = @WorkerType
+						AND s.Name NOT IN ('SUCCEEDED', 'ABANDONED'));
+
+				SELECT @@ROWCOUNT;
+				""";
+			cmd.CommandTimeout = 60;
 
 			cmd.Parameters.AddWithValue("@WorkerType", workerType);
-			cmd.Parameters.AddWithValue("@DomainId", domainId);
 			cmd.Parameters.AddWithValue("@DomainType", domainType);
-			cmd.Parameters.AddWithValue("@MaxAttempts", maxAttempts);
-			cmd.Parameters.AddWithValue("@ScheduleForNow", scheduleForNow);
+			cmd.Parameters.Add("@Items", SqlDbType.NVarChar, -1).Value = json;
 
-			var result = await cmd.ExecuteScalarAsync(cancellationToken);
-			var workItemId = (Guid)(result ?? Guid.Empty);
+			var inserted = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken));
 
-			_logger.LogInformation(
-				"Enqueued work item {WorkItemId} for domain {DomainType}:{DomainId}",
-				workItemId, domainType, domainId);
+			_logger.LogDebug(
+				"Enqueued {Inserted} of {Requested} work items for {DomainType}",
+				inserted, items.Count, domainType);
 
-			return workItemId;
+			return inserted;
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
-			_logger.LogError(ex, "Error enqueuing work item for {DomainType}:{DomainId}", domainType, domainId);
+			_logger.LogError(ex, "Error enqueuing {Count} work items for {DomainType}", items.Count, domainType);
 			throw;
 		}
 	}

@@ -70,34 +70,39 @@ public sealed class SelectorManagementRepository
 		return selectors;
 	}
 
-	public async Task<IReadOnlyList<ActiveWebsiteSelector>> GetActiveSelectorsAsync(CancellationToken cancellationToken)
+	/// <summary>
+	/// Get one page of enabled selectors, ordered by Id (keyset paging).
+	/// Start with <see cref="Guid.Empty"/> and pass the last Id of each page to get the next one;
+	/// an empty page means there are no more. Each page is a cheap index seek regardless of table size.
+	/// </summary>
+	public async Task<IReadOnlyList<ActiveWebsiteSelector>> GetActiveSelectorsPageAsync(
+		Guid afterId,
+		int pageSize,
+		CancellationToken cancellationToken)
 	{
-		var selectors = new List<ActiveWebsiteSelector>();
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
 
 		try
 		{
 			await using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
 
 			const string sql = """
-				SELECT Id, MaxAttempts 
-				FROM dbo.WebsiteSelectors 
-				WHERE IsEnabled = 1
+				SELECT TOP (@PageSize) Id, MaxAttempts
+				FROM dbo.WebsiteSelectors
+				WHERE IsEnabled = 1 AND Id > @AfterId
 				ORDER BY Id
 				""";
 
 			var items = await connection.QueryAsync<ActiveWebsiteSelector>(
-				new CommandDefinition(sql, cancellationToken: cancellationToken));
+				new CommandDefinition(sql, new { AfterId = afterId, PageSize = pageSize }, cancellationToken: cancellationToken));
 
-			selectors.AddRange(items);
+			return items.AsList();
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
-			_logger.LogError(ex, "SelectorManagementRepository: Error fetching active selector from database");
+			_logger.LogError(ex, "SelectorManagementRepository: Error fetching active selectors after {AfterId}", afterId);
 			throw;
 		}
-
-		return selectors;
 	}
 
 	/// <summary>

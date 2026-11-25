@@ -211,8 +211,88 @@ public sealed class WebsiteCollectorIntegrationTests
 		Assert.AreEqual("CLAIMED", await QueryWorkItemStatusAsync(workItemId));
 	}
 
-	private async Task<Guid> EnqueueAsync(Guid selectorId, int maxAttempts = 5) =>
-		await _workItems.EnqueueAsync(_options.WorkerType, selectorId, DomainType, maxAttempts);
+	[TestMethod]
+	public async Task EnqueueBatch_SkipsEntitiesWithUnfinishedWorkItem()
+	{
+		var queued = Guid.NewGuid();
+		var finished = Guid.NewGuid();
+		var fresh = Guid.NewGuid();
+
+		var queuedItem = await EnqueueAsync(queued);
+		var finishedItem = await EnqueueAsync(finished);
+		await SetWorkItemStatusAsync(finishedItem, "SUCCEEDED");
+
+		var inserted = await _workItems.EnqueueBatchAsync(
+			_options.WorkerType, DomainType,
+			[new(queued), new(finished, MaxAttempts: 3), new(fresh), new(fresh)]);
+
+		Assert.AreEqual(2, inserted, "finished and fresh are enqueued; queued is skipped; duplicates collapse");
+		Assert.AreEqual(1, await CountWorkItemsAsync(queued));
+		Assert.AreEqual(2, await CountWorkItemsAsync(finished));
+		Assert.AreEqual(1, await CountWorkItemsAsync(fresh));
+		Assert.AreEqual(0, await _workItems.EnqueueBatchAsync(_options.WorkerType, DomainType, [new(queued), new(fresh)]));
+		Assert.AreEqual("PENDING", await QueryWorkItemStatusAsync(queuedItem));
+	}
+
+	[TestMethod]
+	public async Task ScheduleHandler_PagesThroughEnabledSelectors_AndDoesNotDuplicateOnRerun()
+	{
+		var enabled = new List<Guid>();
+		for (var i = 0; i < 7; i++)
+			enabled.Add(await SeedSelectorAsync($"https://example.com/{i}"));
+		var disabled = await SeedSelectorAsync("https://example.com/disabled", isEnabled: false);
+
+		var handler = new WebsiteCollectorScheduleHandler(
+			_workItems,
+			new SelectorManagementRepository(TestDatabase.CollectorConnectionString, NullLogger<SelectorManagementRepository>.Instance),
+			_options.WorkerType,
+			Guid.NewGuid(),
+			NullLogger<WebsiteCollectorScheduleHandler>.Instance,
+			pageSize: 3);
+
+		var first = await handler.RegisterItemsAsync(new Beep.Scheduler.WorkerSchedule(), CancellationToken.None);
+		var second = await handler.RegisterItemsAsync(new Beep.Scheduler.WorkerSchedule(), CancellationToken.None);
+
+		Assert.IsTrue(first.Success, first.Error);
+		Assert.AreEqual(7, first.ItemsRegistered);
+		foreach (var selectorId in enabled)
+			Assert.AreEqual(1, await CountWorkItemsAsync(selectorId));
+		Assert.AreEqual(0, await CountWorkItemsAsync(disabled));
+
+		Assert.IsTrue(second.Success, second.Error);
+		Assert.AreEqual(0, second.ItemsRegistered, second.Details);
+	}
+
+	private static async Task<int> CountWorkItemsAsync(Guid domainId)
+	{
+		await using var connection = TestDatabase.OpenServiceBus();
+		return await connection.QuerySingleAsync<int>(
+			$"SELECT COUNT(*) FROM {TestDatabase.ServiceBusSchema}.WorkItems WHERE DomainId = @domainId", new { domainId });
+	}
+
+	private static async Task SetWorkItemStatusAsync(Guid workItemId, string status)
+	{
+		await using var connection = TestDatabase.OpenServiceBus();
+		await connection.ExecuteAsync($"""
+			UPDATE {TestDatabase.ServiceBusSchema}.WorkItems
+			SET StatusId = (SELECT Id FROM {TestDatabase.ServiceBusSchema}.WorkItemStatuses WHERE Name = @status)
+			WHERE Id = @workItemId
+			""", new { workItemId, status });
+	}
+
+	/// <summary>Enqueues one work item through the batch API and returns its Id.</summary>
+	private async Task<Guid> EnqueueAsync(Guid selectorId, int maxAttempts = 5)
+	{
+		var inserted = await _workItems.EnqueueBatchAsync(
+			_options.WorkerType, DomainType, [new WorkItemRequest(selectorId, maxAttempts)]);
+		Assert.AreEqual(1, inserted, $"Selector {selectorId} already had an unfinished work item");
+
+		await using var connection = TestDatabase.OpenServiceBus();
+		return await connection.QuerySingleAsync<Guid>($"""
+			SELECT TOP 1 Id FROM {TestDatabase.ServiceBusSchema}.WorkItems
+			WHERE DomainId = @selectorId ORDER BY CreatedAt DESC
+			""", new { selectorId });
+	}
 
 	private static async Task<Guid> SeedSelectorAsync(
 		string collectionUrl = "https://example.com",

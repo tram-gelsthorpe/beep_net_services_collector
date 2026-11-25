@@ -15,11 +15,16 @@ public static class DependencyInjection
 	/// <param name="connectionString">Database connection string for scheduler tables</param>
 	/// <param name="schedulerSchema">Database schema that holds the scheduler tables (default: dbo)</param>
 	/// <param name="pollIntervalSeconds">How often to poll for due schedules (default: 30)</param>
+	/// <param name="claimLeaseSeconds">
+	/// How long a due schedule stays claimed by the instance running it (default: 1 hour).
+	/// Must be longer than the slowest handler run.
+	/// </param>
 	public static IServiceCollection RegisterScheduler(
 		this IServiceCollection services,
 		string connectionString,
 		string schedulerSchema = "dbo",
-		int pollIntervalSeconds = 30)
+		int pollIntervalSeconds = 30,
+		int claimLeaseSeconds = 3600)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 		ArgumentException.ThrowIfNullOrWhiteSpace(schedulerSchema);
@@ -34,7 +39,8 @@ public static class DependencyInjection
 			provider.GetRequiredService<SchedulerRepository>(),
 			provider.GetRequiredService<IServiceScopeFactory>(),
 			provider.GetRequiredService<ILogger<SchedulerService>>(),
-			pollIntervalSeconds));
+			pollIntervalSeconds,
+			claimLeaseSeconds));
 
 		services.AddScoped<IScheduleService, ScheduleManagementService>();
 

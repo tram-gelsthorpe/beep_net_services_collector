@@ -71,9 +71,16 @@ CREATE TABLE dbo.WorkerSchedules (
 	-- Audit
 	CreatedAt DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	UpdatedAt DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-	LastRunAt DATETIMEOFFSET(7) NULL,
+	LastRunAt DATETIMEOFFSET(7) NULL,   -- When the last completed run started (UTC)
 
-	INDEX IX_WorkerSchedules_WorkerType (WorkerType),
+	-- Claim: set by ClaimDueSchedules so only one worker instance runs a due schedule.
+	-- Cleared by LogScheduleExecution; if the instance dies mid-run the claim expires
+	-- at ClaimedUntil and the schedule becomes due again.
+	ClaimedAt DATETIMEOFFSET(7) NULL,
+	ClaimedUntil DATETIMEOFFSET(7) NULL,
+
+	-- One schedule per worker type (CreateOrUpdateSchedule upserts on it)
+	CONSTRAINT UQ_WorkerSchedules_WorkerType UNIQUE (WorkerType),
 	INDEX IX_WorkerSchedules_Active (IsActive, Frequency)
 );
 
@@ -110,58 +117,59 @@ CREATE TABLE dbo.ScheduleExecutionLogs (
 -- Stored Procedures
 -- =====================================================
 
--- Get schedules that are due to run
+-- Claim the schedules that are due to run
 EXEC(N'
-CREATE OR ALTER PROCEDURE dbo.GetDueSchedules
-	@Now DATETIMEOFFSET(7) = NULL
+CREATE OR ALTER PROCEDURE dbo.ClaimDueSchedules
+	@LeaseSeconds INT = 3600,
+	@Now DATETIMEOFFSET(7) = NULL  -- Defaults to the database clock; tests pass a fixed time
 AS
 BEGIN
 	SET NOCOUNT ON;
-	SET @Now = COALESCE(@Now, SYSUTCDATETIME());
 
-	SELECT 
-		s.Id,
-		s.WorkerType,
-		s.Frequency,
-		s.StartTime,
-		s.DayOfWeek,
-		s.DayOfMonth,
-		s.DayOfYear,
-		s.MaxConcurrentRegistrations,
-		s.LastRunAt,
-		DATEDIFF(SECOND, s.LastRunAt, @Now) as SecondsSinceLastRun
+	-- All times are UTC. StartTime is a UTC time of day.
+	SET @Now = COALESCE(@Now, SYSUTCDATETIME());
+	DECLARE @Today DATE = CAST(@Now AS DATE);
+	DECLARE @TimeOfDay TIME = CAST(@Now AS TIME);
+	-- 0 = Sunday ... 6 = Saturday regardless of @@DATEFIRST (1900-01-07 was a Sunday)
+	DECLARE @DayOfWeek INT = DATEDIFF(DAY, ''19000107'', @Today) % 7;
+	DECLARE @DayOfMonth INT = DAY(@Today);
+	DECLARE @DayOfYear INT = DATEPART(DAYOFYEAR, @Today);
+
+	-- One UPDATE both claims and returns the due rows. A concurrent caller blocks on the
+	-- row lock and re-checks the WHERE clause after the first commits, so it sees the claim
+	-- and skips the row: each due schedule is handed to exactly one worker instance.
+	UPDATE s
+	SET ClaimedAt = @Now,
+		ClaimedUntil = DATEADD(SECOND, @LeaseSeconds, @Now)
+	OUTPUT
+		inserted.Id,
+		inserted.WorkerType,
+		inserted.Frequency,
+		inserted.StartTime,
+		inserted.DayOfWeek,
+		inserted.DayOfMonth,
+		inserted.DayOfYear,
+		inserted.MaxConcurrentRegistrations,
+		inserted.LastRunAt
 	FROM dbo.WorkerSchedules s
 	WHERE s.IsActive = 1
+		-- Not claimed by another instance (or that claim has expired)
+		AND (s.ClaimedUntil IS NULL OR s.ClaimedUntil <= @Now)
 		AND (
-			-- Daily: run if last run was yesterday or earlier
-			(s.Frequency = ''Daily'' 
-			 AND (s.LastRunAt IS NULL 
-				  OR CAST(s.LastRunAt AS DATE) < CAST(@Now AS DATE)))
+			-- Hourly: at least an hour since the last run started
+			(s.Frequency = ''Hourly''
+				AND (s.LastRunAt IS NULL OR s.LastRunAt <= DATEADD(HOUR, -1, @Now)))
 
-			-- Weekly: run if day matches and not run today
-			OR (s.Frequency = ''Weekly''
-				AND DATEPART(WEEKDAY, @Now) = s.DayOfWeek + 1
-				AND (s.LastRunAt IS NULL 
-					 OR CAST(s.LastRunAt AS DATE) < CAST(@Now AS DATE)))
-
-			-- Monthly: run if day matches and not run today
-			OR (s.Frequency = ''Monthly''
-				AND DAY(@Now) = s.DayOfMonth
-				AND (s.LastRunAt IS NULL 
-					 OR CAST(s.LastRunAt AS DATE) < CAST(@Now AS DATE)))
-
-			-- Yearly: run if month/day matches and not run today
-			OR (s.Frequency = ''Yearly''
-				AND DATEPART(DAYOFYEAR, @Now) = s.DayOfYear
-				AND (s.LastRunAt IS NULL 
-					 OR CAST(s.LastRunAt AS DATE) < CAST(@Now AS DATE)))
-
-			-- Hourly: run if last run was > 1 hour ago
-			OR (s.Frequency = ''Hourly''
-				AND (s.LastRunAt IS NULL 
-					 OR DATEDIFF(HOUR, s.LastRunAt, @Now) >= 1))
-		)
-	ORDER BY s.LastRunAt ASC, s.CreatedAt ASC;
+			-- Daily / Weekly / Monthly / Yearly: on a matching day, at or after StartTime,
+			-- and not already run today
+			OR (s.Frequency IN (''Daily'', ''Weekly'', ''Monthly'', ''Yearly'')
+				AND @TimeOfDay >= s.StartTime
+				AND (s.LastRunAt IS NULL OR CAST(s.LastRunAt AS DATE) < @Today)
+				AND (s.Frequency = ''Daily''
+					OR (s.Frequency = ''Weekly'' AND s.DayOfWeek = @DayOfWeek)
+					OR (s.Frequency = ''Monthly'' AND s.DayOfMonth = @DayOfMonth)
+					OR (s.Frequency = ''Yearly'' AND s.DayOfYear = @DayOfYear)))
+		);
 END;
 ');
 
@@ -198,9 +206,13 @@ BEGIN
 		@HandlerName
 	);
 
-	-- Update schedule last run time
+	-- Record when the run started (the claim time, so a run that crosses midnight still
+	-- counts for the day it started) and release the claim.
 	UPDATE dbo.WorkerSchedules
-	SET LastRunAt = @Now, UpdatedAt = @Now
+	SET LastRunAt = COALESCE(ClaimedAt, @Now),
+		ClaimedAt = NULL,
+		ClaimedUntil = NULL,
+		UpdatedAt = @Now
 	WHERE Id = @ScheduleId;
 END;
 ');
