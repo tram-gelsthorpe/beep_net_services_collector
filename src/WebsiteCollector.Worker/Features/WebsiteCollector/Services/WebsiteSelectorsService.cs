@@ -27,18 +27,21 @@ public sealed class WebsiteSelectorsService(
 		string? extracted,
 		CancellationToken ct,
 		Guid? websiteId = null,
-		Guid? collectedDataId = null,
 		DateTimeOffset? startedAt = null,
 		int? attemptNumber = null)
 	{
 		var result = await repository.FinishAsync(workItemId, leaseToken, success, httpStatus, error, hash, raw, extracted, domainId, ct);
+
+		// Lease lost: another worker owns the item now and nothing was saved, so there is nothing to publish.
+		if (!result.Completed)
+			return -1;
 
 		// Publish event for subscribers
 		var @event = new CollectionCompletedEvent
 		{
 			WebsiteSelectorsId = domainId,
 			WebsiteId = websiteId ?? Guid.Empty,
-			CollectedDataId = collectedDataId ?? Guid.Empty,
+			CollectedDataId = result.CollectedDataId ?? Guid.Empty,
 			IsSuccess = success,
 			HttpStatusCode = httpStatus,
 			Error = error,
@@ -52,6 +55,6 @@ public sealed class WebsiteSelectorsService(
 
 		await eventAggregator.PublishAsync(@event, ct);
 
-		return result;
+		return 0;
 	}
 }

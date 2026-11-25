@@ -1,4 +1,5 @@
 using Beep.Database;
+using Beep.EventBus;
 using Beep.Scheduler;
 using Beep.ServiceBus;
 using Dapper;
@@ -9,21 +10,31 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace WebsiteCollector.Worker.Tests.Integration;
 
 /// <summary>
-/// Creates the ServiceBus, Collector and Scheduler test databases once per test run using the
-/// production schema initializers, and clears their data between tests.
+/// Creates the ServiceBus, Collector, EventBus and Scheduler test databases once per test run using
+/// the production schema initializers, and clears their data between tests.
 /// Connection strings come from appsettings.json and can be overridden with
-/// ConnectionStrings__ServiceBus / ConnectionStrings__Collector / ConnectionStrings__Scheduler environment variables.
+/// ConnectionStrings__{ServiceBus|Collector|EventBus|Scheduler} environment variables.
 /// </summary>
+/// <remarks>
+/// Test classes run in parallel (MSTestSettings.cs). Classes that use the ServiceBus database share
+/// it, so only one of them may run in the parallel phase (WebsiteCollectorIntegrationTests); the
+/// others are marked [DoNotParallelize] and run afterwards, one at a time.
+/// </remarks>
 [TestClass]
 public static class TestDatabase
 {
-	/// <summary>Same schema name the worker uses in production.</summary>
+	/// <summary>Same schema names the worker uses in production.</summary>
 	public const string ServiceBusSchema = "ServiceBus";
+	public const string EventBusSchema = "EventBus";
 	public const string SchedulerSchema = "Scheduler";
 
 	public static string ServiceBusConnectionString { get; private set; } = string.Empty;
 	public static string CollectorConnectionString { get; private set; } = string.Empty;
+	public static string EventBusConnectionString { get; private set; } = string.Empty;
 	public static string SchedulerConnectionString { get; private set; } = string.Empty;
+
+	private static IEnumerable<string> AllConnectionStrings =>
+		[ServiceBusConnectionString, CollectorConnectionString, EventBusConnectionString, SchedulerConnectionString];
 
 	[AssemblyInitialize]
 	public static async Task AssemblyInitializeAsync(TestContext _)
@@ -34,17 +45,17 @@ public static class TestDatabase
 			.AddEnvironmentVariables()
 			.Build();
 
-		ServiceBusConnectionString = configuration.GetConnectionString("ServiceBus")
-			?? throw new InvalidOperationException("Missing ServiceBus connection string");
-		CollectorConnectionString = configuration.GetConnectionString("Collector")
-			?? throw new InvalidOperationException("Missing Collector connection string");
-		SchedulerConnectionString = configuration.GetConnectionString("Scheduler")
-			?? throw new InvalidOperationException("Missing Scheduler connection string");
+		string Get(string name) => configuration.GetConnectionString(name)
+			?? throw new InvalidOperationException($"Missing {name} connection string");
+
+		ServiceBusConnectionString = Get("ServiceBus");
+		CollectorConnectionString = Get("Collector");
+		EventBusConnectionString = Get("EventBus");
+		SchedulerConnectionString = Get("Scheduler");
 
 		// Start from a clean slate so the "create" path of the initializers is exercised.
-		await DropDatabaseAsync(ServiceBusConnectionString);
-		await DropDatabaseAsync(CollectorConnectionString);
-		await DropDatabaseAsync(SchedulerConnectionString);
+		foreach (var connectionString in AllConnectionStrings)
+			await DropDatabaseAsync(connectionString);
 
 		await CreateAsync();
 	}
@@ -52,23 +63,26 @@ public static class TestDatabase
 	[AssemblyCleanup]
 	public static async Task AssemblyCleanupAsync()
 	{
-		await DropDatabaseAsync(ServiceBusConnectionString);
-		await DropDatabaseAsync(CollectorConnectionString);
-		await DropDatabaseAsync(SchedulerConnectionString);
+		foreach (var connectionString in AllConnectionStrings)
+			await DropDatabaseAsync(connectionString);
 	}
 
 	/// <summary>Runs the production initializers (create on first call, upgrade check afterwards).</summary>
 	public static async Task CreateAsync()
 	{
-		await new SqlDatabaseInitializer(ServiceBusConnectionString, typeof(WorkItemRepository).Assembly, NullLogger.Instance)
-			.CreateOrUpdateAsync(ServiceBusSchema);
-		await new SqlDatabaseInitializer(CollectorConnectionString, typeof(CreationDatabaseService).Assembly, NullLogger.Instance)
-			.CreateOrUpdateAsync(CreationDatabaseService.SelectorSchema);
-		await new SqlDatabaseInitializer(SchedulerConnectionString, typeof(SchedulerRepository).Assembly, NullLogger.Instance)
-			.CreateOrUpdateAsync(SchedulerSchema);
+		(string ConnectionString, System.Reflection.Assembly Scripts, string Schema)[] databases =
+		[
+			(ServiceBusConnectionString, typeof(WorkItemRepository).Assembly, ServiceBusSchema),
+			(CollectorConnectionString, typeof(CreationDatabaseService).Assembly, CreationDatabaseService.SelectorSchema),
+			(EventBusConnectionString, typeof(EventBusRepository).Assembly, EventBusSchema),
+			(SchedulerConnectionString, typeof(SchedulerRepository).Assembly, SchedulerSchema),
+		];
+
+		foreach (var (connectionString, scripts, schema) in databases)
+			await new SqlDatabaseInitializer(connectionString, scripts, NullLogger.Instance).CreateOrUpdateAsync(schema);
 	}
 
-	/// <summary>Clears the ServiceBus and Collector databases.</summary>
+	/// <summary>Clears the ServiceBus, Collector and EventBus databases.</summary>
 	public static async Task ClearDataAsync()
 	{
 		await using (var serviceBus = new SqlConnection(ServiceBusConnectionString))
@@ -80,14 +94,14 @@ public static class TestDatabase
 				""");
 		}
 
-		await using var collector = new SqlConnection(CollectorConnectionString);
-		await collector.ExecuteAsync("DELETE FROM dbo.Websites;"); // cascades to selectors, monitor, executions, data
+		await using (var collector = new SqlConnection(CollectorConnectionString))
+			await collector.ExecuteAsync("DELETE FROM dbo.Websites;"); // cascades to selectors, monitor, executions, data
+
+		await using var eventBus = new SqlConnection(EventBusConnectionString);
+		await eventBus.ExecuteAsync($"DELETE FROM {EventBusSchema}.EventBus;"); // cascades to deliveries
 	}
 
-	/// <summary>
-	/// Clears only the Scheduler database. Test classes run in parallel (MSTestSettings.cs),
-	/// so each class clears only the databases it uses.
-	/// </summary>
+	/// <summary>Clears only the Scheduler database (the scheduler tests run in parallel with the others).</summary>
 	public static async Task ClearSchedulerDataAsync()
 	{
 		await using var scheduler = new SqlConnection(SchedulerConnectionString);
@@ -96,6 +110,7 @@ public static class TestDatabase
 
 	public static SqlConnection OpenServiceBus() => new(ServiceBusConnectionString);
 	public static SqlConnection OpenCollector() => new(CollectorConnectionString);
+	public static SqlConnection OpenEventBus() => new(EventBusConnectionString);
 	public static SqlConnection OpenScheduler() => new(SchedulerConnectionString);
 
 	private static async Task DropDatabaseAsync(string connectionString)

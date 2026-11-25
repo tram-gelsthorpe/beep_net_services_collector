@@ -21,9 +21,9 @@ public sealed class CollectionCompletedEvent : DomainEvent
 	public required Guid WebsiteId { get; init; }
 
 	/// <summary>
-	/// The collected data ID for this collection (references WebsiteSelectorsCollectedData).
-	/// Used to queue webhook deliveries with the collected data.
-	/// NOTE: This will be populated by the repository/service after data is collected.
+	/// The WebsiteSelectorsCollectedData row saved for this collection, or <see cref="Guid.Empty"/>
+	/// when nothing was collected (failed attempt). Used as the EventBus event id, so each
+	/// collected result is delivered once.
 	/// </summary>
 	public Guid CollectedDataId { get; init; }
 

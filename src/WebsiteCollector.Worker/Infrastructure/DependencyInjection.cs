@@ -44,14 +44,13 @@ public static class DependencyInjection
 
 		var eventBusOptions = new EventBusOptions();
 		configuration.GetSection(EventBusOptions.Name).Bind(eventBusOptions);
-		services.AddSingleton(eventBusOptions);
 
-		services.AddSingleton<IEventBusRepository>(new EventBusRepository(eventBusConnectionString, CreationDatabaseService.EventBusSchema));
+		// Publisher + delivery worker; deliveries are queued and claimed through the ServiceBus
+		// (IWorkItemRepository from RegisterServiceBus).
+		services.AddEventBus(eventBusConnectionString, CreationDatabaseService.EventBusSchema, eventBusOptions);
+
+		// In-process events (e.g. CollectionCompletedEvent) that subscribers turn into EventBus publishes.
 		services.AddSingleton<IEventAggregator, EventAggregator>();
-		services.AddSingleton<IEventBusService, EventBusService>();
-		services.AddSingleton<EventBusLeaseManager>();
-		services.AddSingleton<EventBusWorkProcessor>();
-		services.AddHostedService<EventBusWorker>();
 
 		return services;
 	}
@@ -70,6 +69,7 @@ public static class DependencyInjection
 
 		services.AddScoped<IScheduleHandler>(p => new WebsiteCollectorScheduleHandler(
 			p.GetRequiredService<IWorkItemRepository>(),
+			p.GetRequiredService<IEventBusRepository>(),
 			p.GetRequiredService<SelectorManagementRepository>(),
 			p.GetRequiredService<IOptions<WebsiteCollectorOptions>>().Value.WorkerType,
 			p.GetRequiredService<IWorkerIdProvider>().WorkerId,

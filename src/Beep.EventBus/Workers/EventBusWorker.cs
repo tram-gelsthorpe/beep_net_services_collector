@@ -4,15 +4,17 @@ using Microsoft.Extensions.Logging;
 namespace Beep.EventBus;
 
 /// <summary>
-/// Background worker that delivers queued EventBus notifications.
+/// Delivers queued EventBus deliveries. Claims work items of <see cref="EventBusOptions.WorkerType"/>
+/// through the ServiceBus, so any number of worker instances can run without posting a delivery twice.
 /// </summary>
-public sealed class EventBusWorker : GenericWorkerBase<PendingEventBus>
+public sealed class EventBusWorker : GenericWorkerBase<IClaimedWorkItem>
 {
 	public EventBusWorker(
-		EventBusLeaseManager leaseManager,
+		IWorkItemRepository workItems,
 		EventBusWorkProcessor workProcessor,
 		EventBusOptions options,
-		ILogger<EventBusWorker> logger) : base(leaseManager, workProcessor, options, logger)
+		ILogger<EventBusWorker> logger)
+		: base(new WorkItemLeaseManager(workItems, options.WorkerType), workProcessor, options, logger)
 	{
 		options.Validate();
 	}

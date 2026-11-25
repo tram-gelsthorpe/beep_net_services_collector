@@ -239,16 +239,10 @@ public sealed class WebsiteCollectorIntegrationTests
 	{
 		var enabled = new List<Guid>();
 		for (var i = 0; i < 7; i++)
-			enabled.Add(await SeedSelectorAsync($"https://example.com/{i}"));
-		var disabled = await SeedSelectorAsync("https://example.com/disabled", isEnabled: false);
+			enabled.Add(await SeedSelectorAsync($"https://example.com/{i}", dispatchUrl: i < 5 ? $"https://hooks.example.com/{i}" : null));
+		var disabled = await SeedSelectorAsync("https://example.com/disabled", isEnabled: false, dispatchUrl: "https://hooks.example.com/disabled");
 
-		var handler = new WebsiteCollectorScheduleHandler(
-			_workItems,
-			new SelectorManagementRepository(TestDatabase.CollectorConnectionString, NullLogger<SelectorManagementRepository>.Instance),
-			_options.WorkerType,
-			Guid.NewGuid(),
-			NullLogger<WebsiteCollectorScheduleHandler>.Instance,
-			pageSize: 3);
+		var handler = CreateScheduleHandler(pageSize: 3);
 
 		var first = await handler.RegisterItemsAsync(new Beep.Scheduler.WorkerSchedule(), CancellationToken.None);
 		var second = await handler.RegisterItemsAsync(new Beep.Scheduler.WorkerSchedule(), CancellationToken.None);
@@ -259,8 +253,57 @@ public sealed class WebsiteCollectorIntegrationTests
 			Assert.AreEqual(1, await CountWorkItemsAsync(selectorId));
 		Assert.AreEqual(0, await CountWorkItemsAsync(disabled));
 
+		// Endpoints: one per enabled selector with a DispatchUrl, none for the rest.
+		for (var i = 0; i < enabled.Count; i++)
+			Assert.AreEqual(i < 5 ? 1 : 0, await CountEnabledEndpointsAsync(enabled[i]), $"selector {i}");
+		Assert.AreEqual(0, await CountEnabledEndpointsAsync(disabled));
+		StringAssert.Contains(first.Details, "Endpoints changed: 5");
+
 		Assert.IsTrue(second.Success, second.Error);
 		Assert.AreEqual(0, second.ItemsRegistered, second.Details);
+		StringAssert.Contains(second.Details, "Endpoints changed: 0, disabled: 0");
+	}
+
+	[TestMethod]
+	public async Task ScheduleHandler_WhenDispatchUrlChangesOrIsRemoved_UpdatesEndpoints()
+	{
+		var changed = await SeedSelectorAsync("https://example.com/a", dispatchUrl: "https://hooks.example.com/old");
+		var removed = await SeedSelectorAsync("https://example.com/b", dispatchUrl: "https://hooks.example.com/b");
+		var handler = CreateScheduleHandler();
+		await handler.RegisterItemsAsync(new Beep.Scheduler.WorkerSchedule(), CancellationToken.None);
+
+		await using (var connection = TestDatabase.OpenCollector())
+		{
+			await connection.ExecuteAsync("UPDATE dbo.WebsiteSelectors SET DispatchUrl = 'https://hooks.example.com/new' WHERE Id = @changed", new { changed });
+			await connection.ExecuteAsync("UPDATE dbo.WebsiteSelectors SET DispatchUrl = NULL WHERE Id = @removed", new { removed });
+		}
+
+		var result = await handler.RegisterItemsAsync(new Beep.Scheduler.WorkerSchedule(), CancellationToken.None);
+
+		StringAssert.Contains(result.Details, "Endpoints changed: 1, disabled: 2");
+		await using var eventBus = TestDatabase.OpenEventBus();
+		CollectionAssert.AreEqual(
+			new[] { "https://hooks.example.com/new" },
+			(await eventBus.QueryAsync<string>(
+				$"SELECT EventBusOwnerDeliveryUrl FROM {TestDatabase.EventBusSchema}.EventBus WHERE IsEnabled = 1 AND EventBusOwnerId IN @ids",
+				new { ids = new[] { changed, removed } })).ToArray());
+	}
+
+	private WebsiteCollectorScheduleHandler CreateScheduleHandler(int pageSize = WebsiteCollectorScheduleHandler.DefaultPageSize) => new(
+		_workItems,
+		new EventBusRepository(TestDatabase.EventBusConnectionString, TestDatabase.EventBusSchema),
+		new SelectorManagementRepository(TestDatabase.CollectorConnectionString, NullLogger<SelectorManagementRepository>.Instance),
+		_options.WorkerType,
+		Guid.NewGuid(),
+		NullLogger<WebsiteCollectorScheduleHandler>.Instance,
+		pageSize);
+
+	private static async Task<int> CountEnabledEndpointsAsync(Guid ownerId)
+	{
+		await using var connection = TestDatabase.OpenEventBus();
+		return await connection.QuerySingleAsync<int>(
+			$"SELECT COUNT(*) FROM {TestDatabase.EventBusSchema}.EventBus WHERE EventBusOwnerId = @ownerId AND IsEnabled = 1",
+			new { ownerId });
 	}
 
 	private static async Task<int> CountWorkItemsAsync(Guid domainId)
@@ -297,16 +340,17 @@ public sealed class WebsiteCollectorIntegrationTests
 	private static async Task<Guid> SeedSelectorAsync(
 		string collectionUrl = "https://example.com",
 		string collectionType = "HTML",
-		bool isEnabled = true)
+		bool isEnabled = true,
+		string? dispatchUrl = null)
 	{
 		await using var connection = TestDatabase.OpenCollector();
 		return await connection.QuerySingleAsync<Guid>("""
 			DECLARE @websiteId uniqueidentifier = NEWID(), @selectorId uniqueidentifier = NEWID();
 			INSERT INTO dbo.Websites (Id, Name, Url) VALUES (@websiteId, 'Test', @CollectionUrl);
-			INSERT INTO dbo.WebsiteSelectors (Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, IsEnabled)
-			VALUES (@selectorId, @websiteId, @CollectionUrl, @CollectionType, '.content', @IsEnabled);
+			INSERT INTO dbo.WebsiteSelectors (Id, WebsitesId, CollectionUrl, CollectionType, ContentSelector, DispatchUrl, IsEnabled)
+			VALUES (@selectorId, @websiteId, @CollectionUrl, @CollectionType, '.content', @DispatchUrl, @IsEnabled);
 			SELECT @selectorId;
-			""", new { CollectionUrl = collectionUrl, CollectionType = collectionType, IsEnabled = isEnabled });
+			""", new { CollectionUrl = collectionUrl, CollectionType = collectionType, DispatchUrl = dispatchUrl, IsEnabled = isEnabled });
 	}
 
 	private static async Task<string> QueryWorkItemStatusAsync(Guid workItemId)

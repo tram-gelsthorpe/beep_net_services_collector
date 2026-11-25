@@ -40,36 +40,6 @@ public sealed class SelectorManagementRepository
 		return rows.AsList();
 	}
 
-	public async Task<IReadOnlyList<DispatchWebsiteSelector>> GetDispatchWebsiteSelectorAsync(CancellationToken cancellationToken)
-	{
-		var selectors = new List<DispatchWebsiteSelector>();
-
-		try
-		{
-			await using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			const string sql = """
-				SELECT Id, DispatchUrl, MaxAttempts, TimeoutSeconds
-				FROM dbo.WebsiteSelectors 
-				WHERE IsEnabled = 1
-				ORDER BY Id
-				""";
-
-			var items = await connection.QueryAsync<DispatchWebsiteSelector>(
-				new CommandDefinition(sql, cancellationToken: cancellationToken));
-
-			selectors.AddRange(items);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "WebsiteCollectorScheduleHandler: Error fetching active selector IDs from database");
-			throw;
-		}
-
-		return selectors;
-	}
-
 	/// <summary>
 	/// Get one page of enabled selectors, ordered by Id (keyset paging).
 	/// Start with <see cref="Guid.Empty"/> and pass the last Id of each page to get the next one;
@@ -87,7 +57,7 @@ public sealed class SelectorManagementRepository
 			await using var connection = new SqlConnection(_connectionString);
 
 			const string sql = """
-				SELECT TOP (@PageSize) Id, MaxAttempts
+				SELECT TOP (@PageSize) Id, MaxAttempts, TimeoutSeconds, DispatchUrl
 				FROM dbo.WebsiteSelectors
 				WHERE IsEnabled = 1 AND Id > @AfterId
 				ORDER BY Id
@@ -109,7 +79,8 @@ public sealed class SelectorManagementRepository
 	/// Update WebsiteCollector-specific tables with collection results.
 	/// Inserts data into WebsiteSelectorsCollectedData, WebsiteSelectorsExecutions, and updates WebsiteSelectorsMonitor.
 	/// </summary>
-	public async Task<bool> SaveCollectionResultAsync(
+	/// <returns>The Id of the inserted WebsiteSelectorsCollectedData row, or null when nothing was collected or saving failed.</returns>
+	public async Task<Guid?> SaveCollectionResultAsync(
 		Guid workItemId,
 		Guid leaseToken,
 		Guid domainId,
@@ -135,12 +106,15 @@ public sealed class SelectorManagementRepository
 				WHERE LeaseToken = @LeaseToken;
 
 				-- Insert collected data if we have a response
+				DECLARE @collectedDataId uniqueidentifier = NULL;
 				IF @ErrorMessage IS NULL AND @ResponseContent IS NOT NULL
 				BEGIN
+					DECLARE @newId uniqueidentifier = NEWID();
 					INSERT INTO dbo.WebsiteSelectorsCollectedData (Id, WebsiteSelectorsExecutionsId, ContentHash, ResponseContent, ExtractedJson, CollectedAt)
-					SELECT NEWID(), Id, @ContentHash, @ResponseContent, @ExtractedJson, GETUTCDATE()
+					SELECT TOP (1) @newId, Id, @ContentHash, @ResponseContent, @ExtractedJson, GETUTCDATE()
 					FROM dbo.WebsiteSelectorsExecutions
 					WHERE LeaseToken = @LeaseToken;
+					IF @@ROWCOUNT = 1 SET @collectedDataId = @newId;
 				END;
 
 				-- Update the monitor record
@@ -149,9 +123,11 @@ public sealed class SelectorManagementRepository
 					LastError = @ErrorMessage,
 					LastStartedAt = GETUTCDATE() 
 				WHERE WebsiteSelectorsId = @WebsiteSelectorsId;
+
+				SELECT @collectedDataId;
 				""";
 
-			await conn.ExecuteAsync(new CommandDefinition(
+			return await conn.ExecuteScalarAsync<Guid?>(new CommandDefinition(
 				sql,
 				new
 				{
@@ -164,13 +140,11 @@ public sealed class SelectorManagementRepository
 					ErrorMessage = error
 				},
 				cancellationToken: ct));
-
-			return true;
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "SelectorManagementRepository: Error saving collection result for LeaseToken={LeaseToken}", leaseToken);
-			return false;
+			return null;
 		}
 	}
 

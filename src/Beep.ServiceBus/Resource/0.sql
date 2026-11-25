@@ -133,6 +133,22 @@ BEGIN
 	DECLARE @pendingStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''PENDING'');
 	DECLARE @failedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''FAILED'');
 	DECLARE @claimedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''CLAIMED'');
+	DECLARE @runningStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''RUNNING'');
+	DECLARE @abandonedStatusId uniqueidentifier = (SELECT Id FROM dbo.WorkItemStatuses WHERE Name = ''ABANDONED'');
+
+	-- A CLAIMED/RUNNING item whose lease expired belongs to a worker that died (or released it).
+	-- If that was its last attempt, abandon it; otherwise it is claimed again below.
+	UPDATE dbo.WorkItems
+	SET StatusId = @abandonedStatusId,
+		WorkerId = NULL,
+		LeaseToken = NULL,
+		LeaseUntil = NULL,
+		CompletedAt = @now,
+		LastError = COALESCE(LastError, N''Lease expired on the last attempt'')
+	WHERE WorkerType = @WorkerType
+		AND StatusId IN (@claimedStatusId, @runningStatusId)
+		AND (WorkerId IS NULL OR LeaseUntil <= @now)
+		AND AttemptCount >= MaxAttempts;
 
 	-- Atomically claim up to @BatchSize items that are ready and not leased
 	;WITH due AS (
@@ -149,7 +165,8 @@ BEGIN
 			StartedAt
 		FROM dbo.WorkItems
 		WHERE WorkerType = @WorkerType
-			AND StatusId IN (@pendingStatusId, @failedStatusId)  -- PENDING or FAILED (ready to retry)
+			-- PENDING, FAILED (ready to retry), or CLAIMED/RUNNING whose worker died (lease expired)
+			AND StatusId IN (@pendingStatusId, @failedStatusId, @claimedStatusId, @runningStatusId)
 			AND (WorkerId IS NULL OR LeaseUntil <= @now)  -- Not leased or lease expired
 			AND NextRunAt <= @now  -- Due for processing
 		ORDER BY AttemptCount DESC, NextRunAt ASC, Id  -- Prioritize retries, then by due time

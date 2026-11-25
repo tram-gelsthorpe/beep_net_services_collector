@@ -24,5 +24,5 @@ public interface IWebsiteSelectorsRepository
 	/// <summary>
 	/// Complete a collection task with success or failure. Returns 0 on success, -1 if the lease was lost.
 	/// </summary>
-	Task<int> FinishAsync(Guid workItemId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, Guid domainId, CancellationToken ct);
+	Task<CollectionFinishResult> FinishAsync(Guid workItemId, Guid leaseToken, bool success, int? httpStatus, string? error, byte[]? hash, string? raw, string? extracted, Guid domainId, CancellationToken ct);
 }

@@ -1,17 +1,18 @@
-
--- EventBus Delivery Schema (Generic)
--- Defines generic EventBus delivery tracking tables
--- for reuse across different projects.
+-- =====================================================
+-- Beep.EventBus Database Schema
+-- =====================================================
+-- Endpoints (where to deliver) and deliveries (what to deliver).
 --
--- Work claiming, lease management, and completion
--- are handled by the generic WorkerFramework
+-- Status, claiming, leases, retries and back-off for deliveries are handled by
+-- Beep.ServiceBus: each delivery has a work item (DomainType 'EventBusDelivery',
+-- DomainId = EventBusDeliveries.Id). This schema only records the payload and the
+-- result of the last attempt.
 
 SET XACT_ABORT ON;
 
 -- =====================================================
 -- Database Version Tracking
 -- =====================================================
-
 CREATE TABLE dbo.DatabaseVersion (
     Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
     Version nvarchar(20) NOT NULL UNIQUE,
@@ -19,14 +20,14 @@ CREATE TABLE dbo.DatabaseVersion (
     UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
--- Insert initial database version
 INSERT INTO dbo.DatabaseVersion (Version)
 VALUES ('0');
 
 -- =====================================================
--- EventBus
+-- EventBus: delivery endpoints
 -- =====================================================
-
+-- An owner (e.g. a website selector) can have several endpoints; each event
+-- published for the owner is delivered to every enabled endpoint.
 CREATE TABLE dbo.EventBus (
     Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
     EventBusOwnerId uniqueidentifier NOT NULL,
@@ -48,78 +49,23 @@ CREATE TABLE dbo.EventBus (
         UNIQUE (EventBusOwnerId, EventBusOwnerUrlHash)
 );
 
--- =====================================================
--- EventBusMonitor
--- =====================================================
-
-CREATE TABLE dbo.EventBusMonitor (
-    Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
-    EventBusId uniqueidentifier NOT NULL UNIQUE
-        REFERENCES dbo.EventBus(Id) ON DELETE CASCADE,
-    LastDeliveredAt datetimeoffset(7) NULL,
-    LastStatusCode int NULL,
-    LastErrorMessage nvarchar(2000) NULL,
-    ConsecutiveFailures int NOT NULL DEFAULT 0,
-    IsCircuitBreakerOpen bit NOT NULL DEFAULT 0,
-    CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-    UpdatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME()
-);
+CREATE INDEX IX_EventBus_Owner ON dbo.EventBus (EventBusOwnerId) WHERE IsEnabled = 1;
 
 -- =====================================================
--- EventBusDeliveries
+-- EventBusDeliveries: one row per (endpoint, event)
 -- =====================================================
-
 CREATE TABLE dbo.EventBusDeliveries (
     Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
     EventBusId uniqueidentifier NOT NULL
         REFERENCES dbo.EventBus(Id) ON DELETE CASCADE,
-    EventBusOwnerCollectedDataId uniqueidentifier NOT NULL,
-    Status varchar(16) NOT NULL DEFAULT 'PENDING',
-    AttemptCount int NOT NULL DEFAULT 0,
-    NextRetryAt datetimeoffset(7) NULL,
-    HttpStatusCode int NULL,
+    EventId uniqueidentifier NOT NULL,          -- Publisher's id for the event; publishing it again is a no-op
+    Payload nvarchar(max) NOT NULL,             -- JSON body that is POSTed
+    HttpStatusCode int NULL,                    -- Result of the last attempt
     ErrorMessage nvarchar(2000) NULL,
     CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-    QueuedAt datetimeoffset(7) NULL,
-    DeliveredAt datetimeoffset(7) NULL,
-    CONSTRAINT UQ_EventBusDeliveries_Unique
-        UNIQUE (
-            EventBusId,
-            EventBusOwnerCollectedDataId,
-            AttemptCount
-        ),
-    CONSTRAINT CK_EventBusDeliveries_Status
-        CHECK (
-            Status IN (
-                'PENDING',
-                'IN_PROGRESS',
-                'SUCCESS',
-                'FAILED',
-                'ABANDONED'
-            )
-        )
+    LastAttemptAt datetimeoffset(7) NULL,
+    DeliveredAt datetimeoffset(7) NULL,         -- Set once a 2xx response is received
+    CONSTRAINT UQ_EventBusDeliveries_Event UNIQUE (EventBusId, EventId)
 );
 
--- =====================================================
--- Indexes for EventBusDeliveries
--- =====================================================
-
-CREATE INDEX IX_EventBusDeliveries_Pending
-ON dbo.EventBusDeliveries (
-    EventBusId,
-    NextRetryAt,
-    Status
-)
-WHERE Status IN ('PENDING', 'IN_PROGRESS');
-
-CREATE INDEX IX_EventBusDeliveries_EventBus
-ON dbo.EventBusDeliveries (
-    EventBusId,
-    DeliveredAt DESC
-);
-
-CREATE INDEX IX_EventBusDeliveries_CollectedData
-ON dbo.EventBusDeliveries (
-    EventBusOwnerCollectedDataId,
-    CreatedAt DESC
-);
+CREATE INDEX IX_EventBusDeliveries_Event ON dbo.EventBusDeliveries (EventId);

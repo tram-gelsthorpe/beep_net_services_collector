@@ -9,23 +9,40 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | --- | --- |
 | `src/Beep.ServiceBus` | Generic work queue: `WorkItems` table, claim/renew/complete stored procedures, `GenericWorkerBase<T>` polling worker. |
 | `src/Beep.Scheduler` | Recurring schedules (`WorkerSchedules`) that call an `IScheduleHandler` to enqueue work. |
-| `src/Beep.EventBus` | In-process event aggregator plus queued HTTP POST deliveries (`EventBus`, `EventBusDeliveries`). |
+| `src/Beep.EventBus` | Publisher for HTTP POST deliveries to registered endpoints, delivered through ServiceBus work items; plus an in-process event aggregator. |
 | `src/WebsiteCollector.Worker` | The host: website selectors, collection worker, schedule handler, subscriber. |
 | `src/WebsiteCollector.Api` | ASP.NET Core API (API-key protected). Currently a stub. |
 | `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |
 
 ## How it works
 
+The ServiceBus is the only place that coordinates workers: every job (a collection, a delivery) is a
+`WorkItems` row that is claimed with a lease, renewed while it runs, retried with back-off up to
+`MaxAttempts`, and reclaimed if its worker dies. Any number of worker instances can run.
+
 1. **Schedule** – `SchedulerService` claims due schedules with `Scheduler.ClaimDueSchedules` (one instance per run;
-   `StartTime` is UTC). When the `WebsiteCollector` schedule is due,
-   `WebsiteCollectorScheduleHandler` pages through the enabled `WebsiteSelectors` rows (5,000 at a time) and enqueues a
-   work item for each in one batch per page, skipping selectors that still have an unfinished work item.
+   `StartTime` is UTC). When the `WebsiteCollector` schedule is due, `WebsiteCollectorScheduleHandler` pages through
+   the enabled `WebsiteSelectors` rows (5,000 at a time). For each page it registers the selectors' `DispatchUrl`s as
+   EventBus endpoints, then enqueues a collection work item per selector, skipping selectors that still have an
+   unfinished work item.
 2. **Collect** – `WebsiteCollectorWorker` claims work items with a lease, fetches the selector's `CollectionUrl`
    (HTTPS only, size-capped), extracts content with the CSS `ContentSelector` for HTML, and renews the lease while working.
 3. **Complete** – the work item is completed (success, or retry with exponential backoff up to `MaxAttempts`) and the
    result is written to `WebsiteSelectorsExecutions` / `WebsiteSelectorsCollectedData`.
-4. **Notify** – a `CollectionCompletedEvent` is published; `WebsiteSelectorsSubscriber` queues an EventBus delivery for
-   each registered endpoint, which `EventBusWorker` POSTs as JSON.
+4. **Publish** – a `CollectionCompletedEvent` is raised in-process; `WebsiteSelectorsSubscriber` publishes it with
+   `IEventBusPublisher` (event id = the collected data Id, so each result is delivered once).
+5. **Deliver** – the publisher stores one `EventBusDeliveries` row per enabled endpoint and enqueues a ServiceBus work
+   item for it; `EventBusWorker` claims those items and POSTs the JSON payload. Retries and abandoning come from the
+   ServiceBus.
+
+### Publishing from other code
+
+Anything can deliver through the EventBus: register endpoints for an owner, then publish events for it.
+
+```csharp
+await eventBusRepository.RegisterEndpointsAsync([new EventBusEndpoint(ownerId, "https://example.com/hook")], ct);
+await publisher.PublishAsync(ownerId, eventId, new { ownerId, eventId, /* ... */ }, ct);
+```
 
 ## Databases
 

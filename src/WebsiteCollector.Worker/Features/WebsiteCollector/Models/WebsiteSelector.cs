@@ -10,12 +10,18 @@ public sealed record WebsiteSelector(
 	int MaxAttempts,
 	bool IsEnabled);
 
+/// <summary>
+/// An enabled selector as read by the schedule handler: enough to enqueue its collection work
+/// item and to register its EventBus endpoint (<paramref name="DispatchUrl"/>, null when none).
+/// </summary>
 public sealed record ActiveWebsiteSelector(
-	Guid Id, 
-	int MaxAttempts);	
+	Guid Id,
+	int MaxAttempts,
+	int TimeoutSeconds,
+	string? DispatchUrl);
 
-public sealed record DispatchWebsiteSelector(
-	Guid Id, 
-	string DispatchUrl, 
-	int MaxAttempts, 
-	int TimeoutSeconds);
+/// <summary>
+/// Result of finishing a collection: whether the work item was completed (lease still held)
+/// and the Id of the collected data row, if one was saved.
+/// </summary>
+public sealed record CollectionFinishResult(bool Completed, Guid? CollectedDataId);

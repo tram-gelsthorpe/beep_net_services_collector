@@ -2,75 +2,40 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Beep.ServiceBus;
 
 namespace Beep.EventBus;
 
 /// <summary>
-/// Generic repository abstraction for EventBus delivery operations.
-/// Implementations handle storage and retrieval of EventBus deliveries with dynamic payload support.
+/// Storage for EventBus endpoints and deliveries. Delivery status, retries and claiming
+/// live in the ServiceBus work item of each delivery, not here.
 /// </summary>
 public interface IEventBusRepository
 {
 	/// <summary>
-	/// Get all enabled EventBus entries for a specific EventBus owner.
+	/// Make the given endpoints the enabled endpoints of their owners, in one round trip.
+	/// New endpoints are added, existing ones updated or re-enabled, and enabled endpoints of
+	/// the listed owners that are not in the batch are disabled. Owners not in the batch are
+	/// untouched, so callers can register page by page. Safe to call repeatedly.
 	/// </summary>
-	Task<IReadOnlyList<EventBusDomain>> GetByOwnerIdAsync(Guid eventBusOwnerId
-		, CancellationToken ct);
-
-	/// <summary>
-	///	Queues a new EventBus delivery for processing, given the EventBus ID and the associated collected data ID. 
-	/// </summary>
-	/// <param name="eventBusId"></param>
-	/// <param name="eventBusOwnerCollectedDataId"></param>
-	/// <param name="ct"></param>
-	/// <returns></returns>
-	Task QueueDeliveryAsync(Guid eventBusId, Guid eventBusOwnerCollectedDataId
-		, CancellationToken ct);
-
-	/// <summary>
-	/// Retrieves the next batch of pending EventBus deliveries for processing.
-	/// </summary>
-	Task<IList<PendingEventBus>> GetPendingDeliveriesAsync(int batchSize
-		, CancellationToken ct);
-
-	/// <summary>
-	/// Records the result of a delivery attempt (success or failure).
-	/// </summary>
-	Task RecordDeliveryResultAsync(
-		Guid eventBusDeliveryId,
-		bool isSuccessful,
-		int? httpStatusCode,
-		string? errorMessage,
-		string? responseContent,
+	Task<EndpointRegistrationResult> RegisterEndpointsAsync(
+		IReadOnlyCollection<EventBusEndpoint> endpoints,
 		CancellationToken ct);
 
 	/// <summary>
-	/// Retrieves a specific delivery for inspection or retries.
+	/// Create a delivery of <paramref name="eventId"/> to each enabled endpoint of
+	/// <paramref name="ownerId"/> (skipping endpoints that already have one), and return every
+	/// not-yet-delivered delivery of that event as work items to enqueue.
 	/// </summary>
-	Task<PendingEventBus?> GetDeliveryByIdAsync(Guid eventBusDeliveryId, CancellationToken ct);
+	Task<IReadOnlyList<WorkItemRequest>> CreateDeliveriesAsync(
+		Guid ownerId,
+		Guid eventId,
+		string payload,
+		CancellationToken ct);
 
-	/// <summary>
-	/// Marks a delivery as failed/abandoned (no more retry attempts).
-	/// </summary>
-	Task AbandonDeliveryAsync(Guid eventBusDeliveryId, string reason, CancellationToken ct);
+	/// <summary>Load a delivery with its endpoint.</summary>
+	Task<EventBusDelivery?> GetDeliveryAsync(Guid deliveryId, CancellationToken ct);
 
-	/// <summary>
-	/// Gets the current attempt count for a delivery.
-	/// </summary>
-	Task<int> GetDeliveryAttemptCountAsync(Guid eventBusDeliveryId, CancellationToken ct);
-
-	/// <summary>
-	/// Register 
-	/// </summary>
-	/// <param name="eventBusOwnerId"></param>
-	/// <param name="eventBusOwnerDeliveryUrl"></param>
-	/// <param name="timeoutSeconds"></param>
-	/// <param name="maxAttempts"></param>
-	/// <param name="ct"></param>
-	/// <returns></returns>
-	Task RegisterEventBusAsync(Guid eventBusOwnerId,
-			string eventBusOwnerDeliveryUrl,
-			int timeoutSeconds,
-			int maxAttempts,
-			CancellationToken ct);
+	/// <summary>Record the result of one delivery attempt.</summary>
+	Task RecordAttemptAsync(Guid deliveryId, DeliveryOutcome outcome, CancellationToken ct);
 }

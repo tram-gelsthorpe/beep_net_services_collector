@@ -146,7 +146,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		return renewed;
 	}
 
-	public async Task<int> FinishAsync(Guid workItemId, 
+	public async Task<CollectionFinishResult> FinishAsync(Guid workItemId,
 		Guid leaseToken,
 		bool success, 
 		int? httpStatus, 
@@ -168,9 +168,10 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 			cancellationToken: ct);
 
 		// If completion was successful, also update WebsiteCollector domain tables
+		Guid? collectedDataId = null;
 		if (completed)
 		{
-			await _selectorManagementRepository.SaveCollectionResultAsync(
+			collectedDataId = await _selectorManagementRepository.SaveCollectionResultAsync(
 				workItemId: workItemId,
 				leaseToken: leaseToken,
 				domainId: domainId,
@@ -182,6 +183,6 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 				ct: ct);
 		}
 
-		return completed ? 0 : -1;
+		return new CollectionFinishResult(completed, collectedDataId);
 	}
 }
