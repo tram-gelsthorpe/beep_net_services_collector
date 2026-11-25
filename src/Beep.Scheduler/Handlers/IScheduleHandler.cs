@@ -30,37 +30,23 @@ public class ScheduleHandlerResult
 /// Interface for schedule handlers that register work items
 /// </summary>
 /// <remarks>
-/// Implementations should be registered in dependency injection and will be
-/// called by the scheduler service when their schedule is due.
-/// 
+/// Register implementations with <c>services.RegisterScheduleHandler&lt;THandler&gt;()</c>.
+/// The scheduler resolves handlers from a new DI scope for every execution, so a handler
+/// may depend on scoped services directly.
+///
 /// Example implementation:
 /// <code>
-/// public class WebsiteCollectorScheduleHandler : IScheduleHandler
+/// public class WebsiteCollectorScheduleHandler(IWorkItemRepository workItems) : IScheduleHandler
 /// {
-///     private readonly IServiceProvider _serviceProvider;
-///     
-///     public WebsiteCollectorScheduleHandler(IServiceProvider serviceProvider)
-///     {
-///         _serviceProvider = serviceProvider;
-///     }
-///     
 ///     public string WorkerType => "WebsiteCollector";
-///     
+///     public Guid WorkerId => Guid.Empty;
+///
 ///     public async Task&lt;ScheduleHandlerResult&gt; RegisterItemsAsync(
-///         WorkerSchedule schedule, 
+///         WorkerSchedule schedule,
 ///         CancellationToken cancellationToken)
 ///     {
-///         using var scope = _serviceProvider.CreateScope();
-///         var repository = scope.ServiceProvider.GetRequiredService&lt;IWebsiteSelectorsRepository&gt;();
-///         
-///         // Create work items for all active selectors
-///         var count = await repository.RegisterWorkItemsAsync(cancellationToken);
-///         
-///         return new ScheduleHandlerResult 
-///         { 
-///             ItemsRegistered = count,
-///             Success = count > 0
-///         };
+///         var id = await workItems.EnqueueAsync(WorkerType, domainId, "WebsiteSelector", cancellationToken: cancellationToken);
+///         return new ScheduleHandlerResult { ItemsRegistered = 1 };
 ///     }
 /// }
 /// </code>

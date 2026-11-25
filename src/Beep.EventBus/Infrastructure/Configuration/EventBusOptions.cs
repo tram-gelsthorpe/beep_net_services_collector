@@ -3,8 +3,8 @@ using Beep.ServiceBus;
 namespace Beep.EventBus;
 
 /// <summary>
-/// Configuration options for webhook delivery worker.
-/// Webhook deliveries are typically fast, so defaults are optimized for quick processing.
+/// Configuration options for the EventBus delivery worker.
+/// Deliveries are typically fast, so defaults favour quick polling and short leases.
 /// </summary>
 public sealed class EventBusOptions : WorkerOptions
 {
@@ -12,19 +12,10 @@ public sealed class EventBusOptions : WorkerOptions
 
 	public EventBusOptions()
 	{
-		// Webhook deliveries are typically fast (seconds, not minutes)
-		// so we use faster polling and shorter leases than general collectors
+		WorkerType = Name;
 		MaxConcurrentItems = 20;
 		PollIntervalSeconds = 2;
-		LeaseSeconds = 300; // 5 minutes (much faster than collectors)
-		MaxResponseBytes = 0; // Webhooks usually have small responses; disable check
-	}
-
-	public override void Validate()
-	{
-		base.Validate();
-
-		// Webhook-specific validation can go here if needed
-		// For now, just use parent validation
+		LeaseSeconds = 300;
+		MaxResponseBytes = 0; // Delivery responses are small; disable the size check
 	}
 }

@@ -60,13 +60,13 @@ public interface IScheduleService
 /// </summary>
 public class ScheduleInfo
 {
-	public int Id { get; set; }
+	public Guid Id { get; set; }
 	public string WorkerType { get; set; } = string.Empty;
 	public string Description { get; set; } = string.Empty;
 	public string Frequency { get; set; } = string.Empty;
 	public TimeOnly StartTime { get; set; }
 	public bool IsActive { get; set; }
-	public DateTime CreatedAt { get; set; }
-	public DateTime? UpdatedAt { get; set; }
-	public DateTime? LastExecutedAt { get; set; }
+	public DateTimeOffset CreatedAt { get; set; }
+	public DateTimeOffset UpdatedAt { get; set; }
+	public DateTimeOffset? LastExecutedAt { get; set; }
 }

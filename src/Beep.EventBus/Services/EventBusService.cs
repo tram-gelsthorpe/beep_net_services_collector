@@ -1,6 +1,6 @@
 using System;
 using System.Net.Http;
-using System.Text;
+using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -23,10 +23,8 @@ public sealed class EventBusService(
 			using var httpClient = httpClientFactory.CreateClient();
 			httpClient.Timeout = TimeSpan.FromSeconds(delivery.TimeoutSeconds);
 
-			// Send POST request with raw payload
-			var rawPayLoad = new { EventBusOwnerCollectedDataId = delivery.EventBusOwnerCollectedDataId };
-			var content = new StringContent(delivery.EventBusOwnerCollectedDataId.ToString(), Encoding.UTF8, "application/json");
-			var response = await httpClient.PostAsync(delivery.EventBusOwnerDeliveryUrl, content, ct);
+			var payload = new { delivery.EventBusOwnerCollectedDataId };
+			using var response = await httpClient.PostAsJsonAsync(delivery.EventBusOwnerDeliveryUrl, payload, ct);
 
 			// Log result
 			if (response.IsSuccessStatusCode)
@@ -77,7 +75,7 @@ public sealed class EventBusService(
 				responseContent: null,
 				ct);
 		}
-		catch (OperationCanceledException)
+		catch (OperationCanceledException) when (!ct.IsCancellationRequested)
 		{
 			logger.LogWarning(
 				"Webhook delivery timeout. EventBusDeliveryId={EventBusDeliveryId}, EventBusOwnerDeliveryUrl={EventBusOwnerDeliveryUrl}, Timeout={Timeout}s, Attempt={Attempt}",
@@ -91,7 +89,7 @@ public sealed class EventBusService(
 				responseContent: null,
 				ct);
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
 			logger.LogError(
 				ex,

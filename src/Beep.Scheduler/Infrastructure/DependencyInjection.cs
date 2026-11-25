@@ -13,6 +13,7 @@ public static class DependencyInjection
 	/// </summary>
 	/// <param name="services">Service collection</param>
 	/// <param name="connectionString">Database connection string for scheduler tables</param>
+	/// <param name="schedulerSchema">Database schema that holds the scheduler tables</param>
 	/// <param name="pollIntervalSeconds">How often to poll for due schedules (default: 30)</param>
 	public static IServiceCollection RegisterScheduler(
 		this IServiceCollection services,
@@ -20,28 +21,21 @@ public static class DependencyInjection
 		string schedulerSchema,
 		int pollIntervalSeconds = 30)
 	{
-		if (string.IsNullOrWhiteSpace(connectionString))
-			throw new ArgumentException("Connection string cannot be empty", nameof(connectionString));
+		ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+		ArgumentException.ThrowIfNullOrWhiteSpace(schedulerSchema);
 
-		// Register database utility
-		services.AddScoped(provider =>
-		{
-			var logger = provider.GetRequiredService<ILogger<SchedulerRepository>>();
-			return new SchedulerRepository(connectionString, schedulerSchema, logger);
-		});
+		// Stateless (connection per call), so safe to share with the hosted SchedulerService.
+		services.AddSingleton(provider => new SchedulerRepository(
+			connectionString,
+			schedulerSchema,
+			provider.GetRequiredService<ILogger<SchedulerRepository>>()));
 
-		// Register scheduler service as hosted service
-		services.AddHostedService(provider =>
-		{
-			var database = provider.GetRequiredService<SchedulerRepository>();
-			var logger = provider.GetRequiredService<ILogger<SchedulerService>>();
-			return new SchedulerService(database, provider, logger, pollIntervalSeconds);
-		});
+		services.AddHostedService(provider => new SchedulerService(
+			provider.GetRequiredService<SchedulerRepository>(),
+			provider.GetRequiredService<IServiceScopeFactory>(),
+			provider.GetRequiredService<ILogger<SchedulerService>>(),
+			pollIntervalSeconds));
 
-		// Handler collection (initialize empty)
-		services.AddSingleton<IHandlerRegistry>(new HandlerRegistry());
-
-		// Register schedule management service
 		services.AddScoped<IScheduleService, ScheduleManagementService>();
 
 		return services;
@@ -56,43 +50,7 @@ public static class DependencyInjection
 		this IServiceCollection services)
 		where THandler : class, IScheduleHandler
 	{
-		services.AddScoped<THandler>();
-
-		// Register so it can be discovered by type
-		services.AddScoped<IScheduleHandler>(provider =>
-			provider.GetRequiredService<THandler>());
-
+		services.AddScoped<IScheduleHandler, THandler>();
 		return services;
-	}
-}
-
-/// <summary>
-/// Registry for tracking handlers
-/// </summary>
-public interface IHandlerRegistry
-{
-	void Register(string workerType, Type handlerType);
-	Type? Get(string workerType);
-}
-
-/// <summary>
-/// Default handler registry implementation
-/// </summary>
-internal class HandlerRegistry : IHandlerRegistry
-{
-	private readonly Dictionary<string, Type> _handlers = new(StringComparer.OrdinalIgnoreCase);
-
-	public void Register(string workerType, Type handlerType)
-	{
-		if (!typeof(IScheduleHandler).IsAssignableFrom(handlerType))
-			throw new ArgumentException($"Handler type must implement IScheduleHandler", nameof(handlerType));
-
-		_handlers[workerType] = handlerType;
-	}
-
-	public Type? Get(string workerType)
-	{
-		_handlers.TryGetValue(workerType, out var type);
-		return type;
 	}
 }

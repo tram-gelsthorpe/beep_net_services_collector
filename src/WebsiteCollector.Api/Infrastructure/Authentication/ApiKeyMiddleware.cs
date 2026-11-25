@@ -31,7 +31,7 @@ public class ApiKeyMiddleware
 
 		if (!context.Request.Headers.TryGetValue(ApiKeyHeader, out var apiKeyValue))
 		{
-			_logger.LogWarning($"Request missing {ApiKeyHeader} header. Path: {context.Request.Path}");
+			_logger.LogWarning("Request missing {Header} header. Path: {Path}", ApiKeyHeader, context.Request.Path);
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await context.Response.WriteAsJsonAsync(new { error = "API Key is required" });
 			return;
@@ -48,7 +48,7 @@ public class ApiKeyMiddleware
 
 		if (!validApiKeys.Contains(apiKeyValue.ToString()))
 		{
-			_logger.LogWarning($"Invalid API key provided. Path: {context.Request.Path}");
+			_logger.LogWarning("Invalid API key provided. Path: {Path}", context.Request.Path);
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await context.Response.WriteAsJsonAsync(new { error = "Invalid API Key" });
 			return;

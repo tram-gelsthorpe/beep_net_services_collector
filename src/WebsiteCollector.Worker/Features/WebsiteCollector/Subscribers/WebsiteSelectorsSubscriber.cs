@@ -1,7 +1,5 @@
-using AngleSharp.Dom.Events;
 using Beep.EventBus;
 using Beep.Scheduler;
-using Dapper;
 using Microsoft.Extensions.Logging;
 
 namespace WebsiteCollector.Worker;

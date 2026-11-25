@@ -9,8 +9,11 @@ namespace Beep.EventBus;
 
 /// <summary>
 /// Lease manager adapter for EventBus delivery work items.
-/// Abstracts the repository operations over ILeaseManager interface.
 /// </summary>
+/// <remarks>
+/// Deliveries are not leased in the database: <see cref="ClaimAsync"/> reads pending rows
+/// without marking them, and renew/release are no-ops.
+/// </remarks>
 public sealed class EventBusLeaseManager : ILeaseManager<PendingEventBus>
 {
 	private readonly IEventBusRepository _repository;
@@ -27,22 +30,12 @@ public sealed class EventBusLeaseManager : ILeaseManager<PendingEventBus>
 		CancellationToken ct)
 	{
 		var deliveries = await _repository.GetPendingDeliveriesAsync(maxItems, ct);
-		return [.. deliveries
-			.Select(d => new ClaimedEventBus(d))
-			.Cast<IClaimedItem<PendingEventBus>>()];
+		return [.. deliveries.Select(d => new ClaimedEventBus(d))];
 	}
 
-	public async Task<bool> RenewAsync(object item, Guid leaseToken, int leaseSeconds, CancellationToken ct)
-	{
-		// For webhook delivery, renewals are implicit if the delivery is still in progress
-		// and hasn't timed out. In a real implementation, this might touch the database
-		// to confirm the item still exists and is not abandoned.
-		return await Task.FromResult(true);
-	}
+	public Task<bool> RenewAsync(object item, Guid leaseToken, int leaseSeconds, CancellationToken ct) =>
+		Task.FromResult(true);
 
-	public async Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct)
-	{
-		// Release is a no-op for EventBus delivery; completion is recorded via repository
-		await Task.CompletedTask;
-	}
+	public Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct) =>
+		Task.CompletedTask;
 }

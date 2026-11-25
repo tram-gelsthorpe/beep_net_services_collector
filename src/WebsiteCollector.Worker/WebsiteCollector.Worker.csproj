@@ -1,42 +1,37 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <OutputType>Exe</OutputType>
   </PropertyGroup>
+
   <ItemGroup>
-    <None Remove="appsettings.json" />
-    <None Remove="Resource\0.sql" />
+    <Compile Include="..\Shared\SqlSchemaInitializer.cs" Link="Database\SqlSchemaInitializer.cs" />
+    <EmbeddedResource Include="Resource\*.sql" />
   </ItemGroup>
+
   <ItemGroup>
-    <Content Include="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- nlog.config ships as a content file of Beep.Log.NLog -->
+    <Content Update="$(NuGetPackageRoot)beep.log.nlog\1.0.2-build.43\contentFiles\any\net10.0\nlog.config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resource\0.sql" />
-  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.9.1" />
     <PackageReference Include="Beep.Log.NLog" Version="1.0.2-build.43" />
     <PackageReference Include="Dapper" Version="2.1.89" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.14" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Beep.EventBus\Beep.EventBus.csproj" />
     <ProjectReference Include="..\Beep.Scheduler\Beep.Scheduler.csproj" />
     <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Update="C:\Users\tram\.nuget\packages\beep.log.nlog\1.0.2-build.43\contentFiles\any\net10.0\nlog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+
 </Project>

@@ -22,7 +22,7 @@ builder.Services.RegisterEventBus(builder.Configuration);
 builder.Services.RegisterScheduler(builder.Configuration);
 
 // Subscribers
-builder.Services.AddScoped<ISubscriber, WebsiteSelectorsSubscriber>();
+builder.Services.AddSingleton<ISubscriber, WebsiteSelectorsSubscriber>();
 
 // WebsiteCollector.Worker specific
 builder.Services.AddCollectorHttpClient();

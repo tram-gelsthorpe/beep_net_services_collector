@@ -1,5 +1,5 @@
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace Beep.Scheduler;
@@ -73,47 +73,51 @@ public sealed class SchedulerRepository
 	{
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			using var command = new SqlCommand(
-				$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
-				$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
-				$"FROM {_schema}.WorkerSchedules WHERE Id = @Id",
-				connection)
-			{
-				CommandTimeout = 30
-			};
-
-			command.Parameters.AddWithValue("@Id", scheduleId);
-
-			using var reader = await command.ExecuteReaderAsync(cancellationToken);
-			if (await reader.ReadAsync(cancellationToken))
-			{
-				return new WorkerSchedule
-				{
-					Id = reader.GetGuid(0),
-					WorkerType = reader.GetString(1),
-					Frequency = reader.GetString(2),
-					StartTime = reader.GetTimeSpan(3),
-					DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-					DayOfMonth = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-					DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-					IsActive = reader.GetBoolean(7),
-					MaxConcurrentRegistrations = reader.GetInt32(8),
-					CreatedAt = reader.GetDateTimeOffset(9),
-					UpdatedAt = reader.GetDateTimeOffset(10),
-					LastRunAt = reader.IsDBNull(11) ? null : reader.GetDateTimeOffset(11)
-				};
-			}
+			return await QueryScheduleAsync("Id = @Value", scheduleId, cancellationToken);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving schedule {ScheduleId} from database", scheduleId);
 			throw;
 		}
+	}
 
-		return null;
+	private async Task<WorkerSchedule?> QueryScheduleAsync(string whereClause, object value, CancellationToken cancellationToken)
+	{
+		using var connection = new SqlConnection(_connectionString);
+		await connection.OpenAsync(cancellationToken);
+
+		using var command = new SqlCommand(
+			$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
+			$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt, Description " +
+			$"FROM {_schema}.WorkerSchedules WHERE {whereClause}",
+			connection)
+		{
+			CommandTimeout = 30
+		};
+
+		command.Parameters.AddWithValue("@Value", value);
+
+		using var reader = await command.ExecuteReaderAsync(cancellationToken);
+		if (!await reader.ReadAsync(cancellationToken))
+			return null;
+
+		return new WorkerSchedule
+		{
+			Id = reader.GetGuid(0),
+			WorkerType = reader.GetString(1),
+			Frequency = reader.GetString(2),
+			StartTime = reader.GetTimeSpan(3),
+			DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+			DayOfMonth = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+			DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+			IsActive = reader.GetBoolean(7),
+			MaxConcurrentRegistrations = reader.GetInt32(8),
+			CreatedAt = reader.GetDateTimeOffset(9),
+			UpdatedAt = reader.GetDateTimeOffset(10),
+			LastRunAt = reader.IsDBNull(11) ? null : reader.GetDateTimeOffset(11),
+			Description = reader.IsDBNull(12) ? null : reader.GetString(12)
+		};
 	}
 
 	/// <summary>
@@ -162,38 +166,7 @@ public sealed class SchedulerRepository
 	{
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			using var command = new SqlCommand(
-				$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
-				$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt " +
-				$"FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType",
-				connection)
-			{
-				CommandTimeout = 30
-			};
-
-			command.Parameters.AddWithValue("@WorkerType", workerType);
-
-			using var reader = await command.ExecuteReaderAsync(cancellationToken);
-			if (await reader.ReadAsync(cancellationToken))
-			{
-				return new WorkerSchedule
-				{
-					Id = reader.GetGuid(0),
-					WorkerType = reader.GetString(1),
-					Frequency = reader.GetString(2),
-					StartTime = reader.GetTimeSpan(3),
-					DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-					DayOfMonth = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-					DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-					MaxConcurrentRegistrations = reader.GetInt32(8),
-					LastRunAt = reader.IsDBNull(11) ? null : reader.GetDateTimeOffset(11)
-				};
-			}
-
-			return null;
+			return await QueryScheduleAsync("WorkerType = @Value", workerType, cancellationToken);
 		}
 		catch (Exception ex)
 		{
@@ -220,7 +193,7 @@ public sealed class SchedulerRepository
 
 			using var command = new SqlCommand(
 				$"IF EXISTS (SELECT 1 FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType) " +
-				$"BEGIN UPDATE {_schema}.WorkerSchedules SET Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive WHERE WorkerType = @WorkerType END " +
+				$"BEGIN UPDATE {_schema}.WorkerSchedules SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime, IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME() WHERE WorkerType = @WorkerType END " +
 				$"ELSE " +
 				$"BEGIN INSERT INTO {_schema}.WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive) VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive) END",
 				connection)
@@ -231,7 +204,7 @@ public sealed class SchedulerRepository
 			command.Parameters.AddWithValue("@WorkerType", workerType);
 			command.Parameters.AddWithValue("@Description", description ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("@Frequency", frequency);
-			command.Parameters.AddWithValue("@StartTime", startTime.ToString("HH:mm:ss"));
+			command.Parameters.AddWithValue("@StartTime", startTime.ToTimeSpan());
 			command.Parameters.AddWithValue("@IsActive", isActive);
 
 			await command.ExecuteNonQueryAsync(cancellationToken);

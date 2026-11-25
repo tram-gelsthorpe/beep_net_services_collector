@@ -2,11 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Beep.Scheduler</RootNamespace>
-    <AssemblyName>Beep.Scheduler</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <ImplicitUsings>enable</ImplicitUsings>
 
     <Version>1.0.0</Version>
     <Description>Reusable work-item scheduler for registering recurring background jobs</Description>
@@ -15,17 +13,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Resource\0.sql" />
+    <Compile Include="..\Shared\SqlSchemaInitializer.cs" Link="Database\SqlSchemaInitializer.cs" />
+    <EmbeddedResource Include="Resource\*.sql" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resource\0.sql" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
 
 </Project>

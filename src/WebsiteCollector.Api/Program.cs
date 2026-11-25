@@ -20,7 +20,7 @@ builder.Services.AddCors(options =>
 });
 
 // API repositories
-builder.Services.AddScoped<ICurrencyRateRepository, ICurrencyRateRepository>();
+builder.Services.AddScoped<ICurrencyRateRepository, CurrencyRateRepository>();
 
 
 var app = builder.Build();

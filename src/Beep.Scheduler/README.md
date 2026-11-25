@@ -100,7 +100,7 @@ Scheduler Service Loop:
 ```csharp
 // In WebsiteCollector.Worker DependencyInjection.cs
 services.RegisterScheduler(configuration);  // Register framework
-services.RegisterScheduleHandler<WebsiteCollectorScheduleHandler>("WebsiteCollector");
+services.RegisterScheduleHandler<WebsiteCollectorScheduleHandler>();
 
 // Frame automatically handles the rest!
 ```

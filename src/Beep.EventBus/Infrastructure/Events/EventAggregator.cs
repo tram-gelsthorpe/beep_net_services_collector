@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Beep.EventBus;
 
@@ -13,7 +15,13 @@ namespace Beep.EventBus;
 public sealed class EventAggregator : IEventAggregator
 {
 	private readonly Dictionary<Type, List<Delegate>> _subscribers = new();
-	private readonly object _lock = new();
+	private readonly Lock _lock = new();
+	private readonly ILogger _logger;
+
+	public EventAggregator(ILogger<EventAggregator>? logger = null)
+	{
+		_logger = logger ?? (ILogger)NullLogger.Instance;
+	}
 
 	public void Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler) where TEvent : class, IDomainEvent
 	{
@@ -23,10 +31,10 @@ public sealed class EventAggregator : IEventAggregator
 		lock (_lock)
 		{
 			var eventType = typeof(TEvent);
-			if (!_subscribers.ContainsKey(eventType))
-				_subscribers[eventType] = new List<Delegate>();
+			if (!_subscribers.TryGetValue(eventType, out var handlers))
+				_subscribers[eventType] = handlers = [];
 
-			_subscribers[eventType].Add(handler);
+			handlers.Add(handler);
 		}
 	}
 
@@ -53,7 +61,7 @@ public sealed class EventAggregator : IEventAggregator
 		await Task.WhenAll(tasks);
 	}
 
-	private static async Task InvokeHandlerSafely<TEvent>(
+	private async Task InvokeHandlerSafely<TEvent>(
 		Func<TEvent, CancellationToken, Task> handler,
 		TEvent @event,
 		CancellationToken ct) where TEvent : class, IDomainEvent
@@ -64,8 +72,8 @@ public sealed class EventAggregator : IEventAggregator
 		}
 		catch (Exception ex)
 		{
-			// Log or handle exception - don't allow one handler to break others
-			System.Diagnostics.Debug.WriteLine($"Event handler failed: {ex.Message}");
+			// Don't allow one handler to break the others
+			_logger.LogError(ex, "Handler for event {EventType} ({EventId}) failed", @event.EventType, @event.EventId);
 		}
 	}
 }

@@ -1,10 +1,7 @@
 <Solution>
-  <Folder Name="/docs/" />
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
-  </Folder>
-  <Folder Name="/sql/">
-    <File Path="sql/001_seed_example.sql" />
+    <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Beep.EventBus/Beep.EventBus.csproj" />

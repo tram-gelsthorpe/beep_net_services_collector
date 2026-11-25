@@ -8,11 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Database\001_schema.sql" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Resource\0.sql" />
+    <Compile Include="..\Shared\SqlSchemaInitializer.cs" Link="Database\SqlSchemaInitializer.cs" />
+    <EmbeddedResource Include="Resource\*.sql" />
   </ItemGroup>
 
   <ItemGroup>

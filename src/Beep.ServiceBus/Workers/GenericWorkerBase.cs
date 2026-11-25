@@ -23,34 +23,22 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 
 	protected readonly ILeaseManager<T> LeaseManager;
 	protected readonly IWorkProcessor<T> WorkProcessor;
-	protected readonly IWorkerOption WorkderOption;
+	protected readonly IWorkerOption Options;
 	protected readonly ILogger Logger;
 
-	protected abstract int PollIntervalSeconds { get; }
-	protected abstract int MaxConcurrentItems { get; }
-	protected abstract int LeaseSeconds { get; }
-
-
-	protected GenericWorkerBase(
-		ILeaseManager<T> leaseManager,
-		IWorkProcessor<T> processor,
-		ILogger logger)
-	{
-		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));
-		WorkProcessor = processor ?? throw new ArgumentNullException(nameof(processor));
-		Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		WorkderOption = null!; // Will be set from properties
-	}
+	protected virtual int PollIntervalSeconds => Options.PollIntervalSeconds;
+	protected virtual int MaxConcurrentItems => Options.MaxConcurrentItems;
+	protected virtual int LeaseSeconds => Options.LeaseSeconds;
 
 	protected GenericWorkerBase(
 		ILeaseManager<T> leaseManager,
 		IWorkProcessor<T> processor,
-		IWorkerOption configuration,
+		IWorkerOption options,
 		ILogger logger)
 	{
 		LeaseManager = leaseManager ?? throw new ArgumentNullException(nameof(leaseManager));
 		WorkProcessor = processor ?? throw new ArgumentNullException(nameof(processor));
-		WorkderOption = configuration ?? throw new ArgumentNullException(nameof(configuration));
+		Options = options ?? throw new ArgumentNullException(nameof(options));
 		Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -199,7 +187,7 @@ public abstract class GenericWorkerBase<T> : BackgroundService
 			{
 				await Task.Delay(TimeSpan.FromSeconds(interval), processingToken);
 
-				if (!await LeaseManager.RenewAsync(item, leaseToken, LeaseSeconds, processingToken))
+				if (!await LeaseManager.RenewAsync(item!, leaseToken, LeaseSeconds, processingToken))
 				{
 					Logger.LogWarning("Lease renewal rejected or lost");
 					await leaseLostSource.CancelAsync();

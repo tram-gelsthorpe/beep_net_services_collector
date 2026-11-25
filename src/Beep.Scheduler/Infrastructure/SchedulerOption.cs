@@ -40,9 +40,8 @@ public class SchedulerOption : ISchedulerOption
 		{
 			switch (result)
 			{
+				case ScheduleFrequency.Hourly:
 				case ScheduleFrequency.Daily:
-					if (StartTime == null)
-						throw new InvalidOperationException("StartTime is required for Daily frequency.");
 					break;
 
 				case ScheduleFrequency.Weekly:

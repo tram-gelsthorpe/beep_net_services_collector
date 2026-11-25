@@ -21,25 +21,14 @@ internal sealed class CollectorLeaseManager : ILeaseManager<ClaimedWebsiteSelect
 		CancellationToken ct)
 	{
 		var items = await _collectionService.ClaimSelectorsAsync(workerId, maxItems, leaseSeconds, ct);
-		return items
-			.Select(item => (IClaimedItem<ClaimedWebsiteSelector>)new ClaimedSelectorItem(item, item.LeaseToken))
-			.ToList();
+		return [.. items.Select(item => new ClaimedSelectorItem(item, item.LeaseToken))];
 	}
 
-	public async Task<bool> RenewAsync(object item, Guid leaseToken, int leaseSeconds, CancellationToken ct)
-	{
-		if (item is not ClaimedWebsiteSelector selector)
-			return false;
+	public Task<bool> RenewAsync(object item, Guid leaseToken, int leaseSeconds, CancellationToken ct) =>
+		item is ClaimedWebsiteSelector selector
+			? _collectionService.RenewLeaseAsync(selector.WorkItemId, leaseToken, leaseSeconds, ct)
+			: Task.FromResult(false);
 
-		return await _collectionService.RenewLeaseAsync(selector.WorkItemId, leaseToken, leaseSeconds, ct);
-	}
-
-	public async Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct)
-	{
-		if (item is not ClaimedWebsiteSelector selector)
-			return;
-
-		// Release is handled via CompleteExecutionAsync in the processor
-		await Task.CompletedTask;
-	}
+	// The lease is released when the processor completes the work item.
+	public Task ReleaseAsync(object item, Guid leaseToken, CancellationToken ct) => Task.CompletedTask;
 }

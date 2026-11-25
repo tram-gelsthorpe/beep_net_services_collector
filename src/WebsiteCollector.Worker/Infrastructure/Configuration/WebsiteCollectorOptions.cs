@@ -4,7 +4,6 @@ namespace WebsiteCollector.Worker;
 
 /// <summary>
 /// Configuration for the website collector worker.
-/// Extends the base WorkerOptions with collector-specific settings.
 /// </summary>
 public sealed class WebsiteCollectorOptions : WorkerOptions
 {
@@ -12,16 +11,10 @@ public sealed class WebsiteCollectorOptions : WorkerOptions
 
 	public WebsiteCollectorOptions()
 	{
-		// Collectors can run longer than webhooks (complex data extraction)
-		// Use defaults from WorkerOptions
+		WorkerType = Name;
 		MaxConcurrentItems = 16;
 		PollIntervalSeconds = 5;
 		LeaseSeconds = 600;
 		MaxResponseBytes = 2_000_000;
-	}
-
-	public override void Validate()
-	{
-		base.Validate();
 	}
 }

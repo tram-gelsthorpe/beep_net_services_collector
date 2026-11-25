@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,18 +10,18 @@ namespace Beep.Scheduler;
 public class SchedulerService : BackgroundService
 {
 	private readonly SchedulerRepository _database;
-	private readonly IServiceProvider _serviceProvider;
+	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly ILogger<SchedulerService> _logger;
 	private readonly int _pollIntervalSeconds;
 
 	public SchedulerService(
 		SchedulerRepository database,
-		IServiceProvider serviceProvider,
+		IServiceScopeFactory scopeFactory,
 		ILogger<SchedulerService> logger,
 		int pollIntervalSeconds = 30)
 	{
 		_database = database ?? throw new ArgumentNullException(nameof(database));
-		_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+		_scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_pollIntervalSeconds = Math.Max(10, pollIntervalSeconds); // Minimum 10 seconds
 	}
@@ -40,18 +39,16 @@ public class SchedulerService : BackgroundService
 			{
 				await PollAndExecuteSchedulesAsync(stoppingToken);
 			}
-			catch (OperationCanceledException)
+			catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
 			{
-				_logger.LogInformation("SchedulerService cancellation requested");
 				break;
 			}
 			catch (Exception ex)
 			{
+				// Don't let one failure stop the scheduler
 				_logger.LogError(ex, "Error in scheduler execution loop");
-				// Continue on error - don't let one failure stop the entire scheduler
 			}
 
-			// Wait before next poll
 			try
 			{
 				await Task.Delay(TimeSpan.FromSeconds(_pollIntervalSeconds), stoppingToken);
@@ -90,12 +87,11 @@ public class SchedulerService : BackgroundService
 	}
 
 	/// <summary>
-	/// Execute a single schedule
+	/// Execute a single schedule. Handlers are resolved from a fresh scope per execution.
 	/// </summary>
 	private async Task ExecuteScheduleAsync(WorkerSchedule schedule, CancellationToken cancellationToken)
 	{
 		var startedAt = DateTimeOffset.UtcNow;
-		var executionLog = new StringBuilder();
 
 		try
 		{
@@ -103,54 +99,39 @@ public class SchedulerService : BackgroundService
 				"Executing schedule {ScheduleId} for worker type {WorkerType} (Frequency: {Frequency})",
 				schedule.Id, schedule.WorkerType, schedule.Frequency);
 
-			// Find handler for this worker type
-			var handler = FindHandlerForWorkerType(schedule.WorkerType);
+			await using var scope = _scopeFactory.CreateAsyncScope();
+			var handler = scope.ServiceProvider
+				.GetServices<IScheduleHandler>()
+				.FirstOrDefault(h => h.WorkerType == schedule.WorkerType);
+
 			if (handler == null)
 			{
 				var errorMsg = $"No handler registered for worker type '{schedule.WorkerType}'";
-				_logger.LogWarning(errorMsg);
+				_logger.LogWarning("No handler registered for worker type {WorkerType}", schedule.WorkerType);
 
-				await _database.LogExecutionAsync(
-					schedule.Id,
-					"Skipped",
-					0,
-					errorMsg,
-					null,
-					startedAt,
-					cancellationToken);
-
+				await _database.LogExecutionAsync(schedule.Id, "Skipped", 0, errorMsg, null, startedAt, cancellationToken);
 				return;
 			}
 
-			executionLog.AppendLine($"Handler: {handler.GetType().Name}");
-
-			// Execute the handler
 			var result = await handler.RegisterItemsAsync(schedule, cancellationToken);
 
-			executionLog.AppendLine($"Items Registered: {result.ItemsRegistered}");
-			executionLog.AppendLine($"Success: {result.Success}");
-
-			if (!string.IsNullOrEmpty(result.Details))
-				executionLog.AppendLine($"Details: {result.Details}");
-
 			var status = result.Success ? "Success" : "Failed";
-			var errorMsg2 = result.Success ? null : result.Error;
+			var error = result.Success ? null : result.Error;
 
 			_logger.LogInformation(
 				"Schedule {ScheduleId} executed. Status: {Status}, Items: {ItemCount}, Error: {Error}",
-				schedule.Id, status, result.ItemsRegistered, errorMsg2);
+				schedule.Id, status, result.ItemsRegistered, error);
 
-			// Log execution
 			await _database.LogExecutionAsync(
 				schedule.Id,
 				status,
 				result.ItemsRegistered,
-				errorMsg2,
+				error,
 				handler.GetType().Name,
 				startedAt,
 				cancellationToken);
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
 		{
 			_logger.LogError(
 				ex,
@@ -159,38 +140,12 @@ public class SchedulerService : BackgroundService
 
 			try
 			{
-				await _database.LogExecutionAsync(
-					schedule.Id,
-					"Failed",
-					0,
-					ex.Message,
-					null,
-					startedAt,
-					cancellationToken);
+				await _database.LogExecutionAsync(schedule.Id, "Failed", 0, ex.Message, null, startedAt, cancellationToken);
 			}
 			catch (Exception logEx)
 			{
 				_logger.LogError(logEx, "Failed to log execution error for schedule {ScheduleId}", schedule.Id);
 			}
-		}
-	}
-
-	/// <summary>
-	/// Find the registered handler for a worker type
-	/// </summary>
-	private IScheduleHandler? FindHandlerForWorkerType(string workerType)
-	{
-		try
-		{
-			// Get all registered handlers from the service provider
-			// Handlers should be registered as IScheduleHandler with implementation factory
-			var handlers = _serviceProvider.GetServices<IScheduleHandler>();
-			return handlers.FirstOrDefault(h => h.WorkerType == workerType);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "Error finding handler for worker type {WorkerType}", workerType);
-			return null;
 		}
 	}
 }

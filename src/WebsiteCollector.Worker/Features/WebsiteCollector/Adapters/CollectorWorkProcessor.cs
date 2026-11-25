@@ -110,7 +110,7 @@ internal sealed class CollectorWorkProcessor : IWorkProcessor<ClaimedWebsiteSele
 							}
 						}
 
-						return (object)value;
+						return (object?)value;
 					}).ToList();
 
 					extracted = JsonSerializer.Serialize(new

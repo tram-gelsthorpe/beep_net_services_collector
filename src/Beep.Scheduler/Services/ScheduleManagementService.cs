@@ -100,15 +100,15 @@ public class ScheduleManagementService : IScheduleService
 
 			return new ScheduleInfo
 			{
-				Id = 0,
+				Id = schedule.Id,
 				WorkerType = schedule.WorkerType,
-				Description = "", // Not retrieved from basic schedule
+				Description = schedule.Description ?? string.Empty,
 				Frequency = schedule.Frequency,
 				StartTime = TimeOnly.FromTimeSpan(schedule.StartTime),
-				IsActive = true, // Default based on schedule existence
-				CreatedAt = DateTime.UtcNow,
-				UpdatedAt = null,
-				LastExecutedAt = schedule.LastRunAt?.DateTime
+				IsActive = schedule.IsActive,
+				CreatedAt = schedule.CreatedAt,
+				UpdatedAt = schedule.UpdatedAt,
+				LastExecutedAt = schedule.LastRunAt
 			};
 		}
 		catch (Exception ex)

@@ -6,108 +6,84 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace WebsiteCollector.Worker
+namespace WebsiteCollector.Worker;
+
+/// <summary>
+/// Service registrations for the WebsiteCollector worker.
+/// Repositories and services are stateless (they open a connection per call), so they are
+/// registered as singletons and can be consumed safely by the hosted background workers.
+/// </summary>
+public static class DependencyInjection
 {
-	public static class DependencyInjection
+	public static IServiceCollection RegisterServiceBus(this IServiceCollection services, IConfiguration configuration)
 	{
-		public static IServiceCollection RegisterServiceBus(this IServiceCollection services, IConfiguration configuration)
-		{
-			var serviceBusConnectionString = configuration.GetConnectionString(CreationDatabaseService.ServiceBusDatabaseName)
-				?? throw new InvalidOperationException("Missing ServiceBus connection string for scheduler");
+		var serviceBusConnectionString = GetConnectionString(configuration, CreationDatabaseService.ServiceBusDatabaseName);
+		var collectorConnectionString = GetConnectionString(configuration, CreationDatabaseService.SelectorDatabaseName);
 
-			var websiteCollectorOption = configuration.GetSection(WebsiteCollectorOptions.Name);
-			services.Configure<WebsiteCollectorOptions>(websiteCollectorOption);
-			services.AddScoped(provider => websiteCollectorOption);
+		services.Configure<WebsiteCollectorOptions>(configuration.GetSection(WebsiteCollectorOptions.Name));
+		services.AddSingleton<IWorkerIdProvider, WorkerIdProvider>();
 
-			// Add WorkerIdProvider
-			services.AddSingleton<IWorkerIdProvider, WorkerIdProvider>();
+		services.AddSingleton(p => new SelectorManagementRepository(
+			collectorConnectionString,
+			p.GetRequiredService<ILogger<SelectorManagementRepository>>()));
 
-			// Register SelectorManagementRepository for schedule handlers
-			services.AddScoped(p => new SelectorManagementRepository(configuration.GetConnectionString(CreationDatabaseService.SelectorDatabaseName) ?? throw new InvalidOperationException("Missing Selector connection string"),
-				p.GetRequiredService<ILogger<SelectorManagementRepository>>()));
+		services.AddSingleton<IWorkItemRepository>(p => new WorkItemRepository(
+			serviceBusConnectionString,
+			CreationDatabaseService.ServiceBusSchema,
+			p.GetRequiredService<ILogger<WorkItemRepository>>()));
 
-			// Register IWorkItemRepository for schedule handlers
-			services.AddScoped<IWorkItemRepository>(provider =>
-				new WorkItemRepository(
-					serviceBusConnectionString,
-					CreationDatabaseService.ServiceBusSchema,
-					provider.GetRequiredService<ILogger<WorkItemRepository>>()));
+		services.AddSingleton<IWebsiteSelectorsRepository, WebsiteSelectorsRepository>();
+		services.AddSingleton<IWebsiteSelectorsService, WebsiteSelectorsService>();
 
-			// WebsiteCollector.Worker specific
-			services.AddScoped<IWebsiteSelectorsRepository>
-				(p => new WebsiteSelectorsRepository(p.GetRequiredService<IWorkItemRepository>(),
-					p.GetRequiredService<SelectorManagementRepository>(),
-					p.GetRequiredService<IOptions<WebsiteCollectorOptions>>(),
-					p.GetRequiredService<ILoggerFactory>()));
-			
-			services.AddScoped<IWebsiteSelectorsService, WebsiteSelectorsService>();
-
-			return services;
-		}
-
-		public static IServiceCollection RegisterEventBus(this IServiceCollection services, 
-			IConfiguration configuration)
-		{
-			var eventBusOptions = new EventBusOptions();
-			configuration.GetSection(EventBusOptions.Name).Bind(eventBusOptions);
-			services.AddScoped(provider => eventBusOptions);
-
-			services.AddScoped<IEventBusRepository, EventBusRepository>
-				(p => new EventBusRepository(configuration.GetConnectionString(CreationDatabaseService.EventBusDatabaseName) ?? throw new InvalidOperationException("Missing EventBus connection string"), 
-				CreationDatabaseService.EventBusSchema));
-
-			services.AddSingleton<IEventAggregator, EventAggregator>();
-			services.AddScoped<IEventBusService, EventBusService>();
-			services.AddScoped<ILeaseManager<PendingEventBus>, EventBusLeaseManager>();
-			services.AddScoped<IWorkProcessor<PendingEventBus>, EventBusWorkProcessor>();
-
-			services.AddScoped<EventBusLeaseManager>();
-			services.AddScoped<EventBusWorkProcessor>();
-
-			// Register EventBusWorker with factory to provide ILogger
-			services.AddHostedService(provider =>
-				new EventBusWorker(
-					provider.GetRequiredService<EventBusLeaseManager>(),
-					provider.GetRequiredService<EventBusWorkProcessor>(),
-					provider.GetRequiredService<EventBusOptions>(),
-					provider.GetRequiredService<ILoggerFactory>().CreateLogger<EventBusWorker>()));
-
-			return services;
-		}
-
-		public static IServiceCollection RegisterScheduler(this IServiceCollection services, IConfiguration configuration)
-		{
-			var schedulerOptionSection = new SchedulerOption();
-			configuration.GetSection(SchedulerOption.Name).Bind(schedulerOptionSection);
-			services.AddScoped(provider => schedulerOptionSection);
-
-			var schedulerConnectionString = configuration.GetConnectionString(CreationDatabaseService.SchedulerDatabaseName)
-				?? throw new InvalidOperationException("Missing Scheduler connection string for scheduler");
-
-			var selectorConnectionString = configuration.GetConnectionString(CreationDatabaseService.SelectorDatabaseName)
-				?? throw new InvalidOperationException("Missing Collector connection string for schedule handler");
-
-			// Register Beep.Scheduler framework
-			services.RegisterScheduler(schedulerConnectionString, 
-				schedulerSchema: CreationDatabaseService.SchedulerSchema,
-				pollIntervalSeconds: schedulerOptionSection.PollIntervalSeconds);
-
-			// Register WebsiteCollector schedule handler
-			services.AddScoped<IScheduleHandler>(provider =>
-				new WebsiteCollectorScheduleHandler(
-					provider.GetRequiredService<IWorkItemRepository>(),
-					provider.GetRequiredService<SelectorManagementRepository>(),
-					provider.GetRequiredService<IOptions<WebsiteCollectorOptions>>().Value.WorkerType,
-					provider.GetRequiredService<IWorkerIdProvider>().WorkerId,
-					provider.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));
-
-			// Register schedule initialization service
-			services.AddScoped(provider => new ScheduleInitializationService(
-				provider.GetRequiredService<IScheduleService>(),
-				schedulerOptionSection,
-				provider.GetRequiredService<ILogger<ScheduleInitializationService>>()));
-
-			return services;
-		}
+		return services;
 	}
+
+	public static IServiceCollection RegisterEventBus(this IServiceCollection services, IConfiguration configuration)
+	{
+		var eventBusConnectionString = GetConnectionString(configuration, CreationDatabaseService.EventBusDatabaseName);
+
+		var eventBusOptions = new EventBusOptions();
+		configuration.GetSection(EventBusOptions.Name).Bind(eventBusOptions);
+		services.AddSingleton(eventBusOptions);
+
+		services.AddSingleton<IEventBusRepository>(new EventBusRepository(eventBusConnectionString, CreationDatabaseService.EventBusSchema));
+		services.AddSingleton<IEventAggregator, EventAggregator>();
+		services.AddSingleton<IEventBusService, EventBusService>();
+		services.AddSingleton<EventBusLeaseManager>();
+		services.AddSingleton<EventBusWorkProcessor>();
+		services.AddHostedService<EventBusWorker>();
+
+		return services;
+	}
+
+	public static IServiceCollection RegisterScheduler(this IServiceCollection services, IConfiguration configuration)
+	{
+		var schedulerConnectionString = GetConnectionString(configuration, CreationDatabaseService.SchedulerDatabaseName);
+
+		var schedulerOption = new SchedulerOption();
+		configuration.GetSection(SchedulerOption.Name).Bind(schedulerOption);
+
+		services.RegisterScheduler(
+			schedulerConnectionString,
+			schedulerSchema: CreationDatabaseService.SchedulerSchema,
+			pollIntervalSeconds: schedulerOption.PollIntervalSeconds);
+
+		services.AddScoped<IScheduleHandler>(p => new WebsiteCollectorScheduleHandler(
+			p.GetRequiredService<IWorkItemRepository>(),
+			p.GetRequiredService<SelectorManagementRepository>(),
+			p.GetRequiredService<IOptions<WebsiteCollectorOptions>>().Value.WorkerType,
+			p.GetRequiredService<IWorkerIdProvider>().WorkerId,
+			p.GetRequiredService<ILogger<WebsiteCollectorScheduleHandler>>()));
+
+		services.AddScoped(p => new ScheduleInitializationService(
+			p.GetRequiredService<IScheduleService>(),
+			schedulerOption,
+			p.GetRequiredService<ILogger<ScheduleInitializationService>>()));
+
+		return services;
+	}
+
+	private static string GetConnectionString(IConfiguration configuration, string name) =>
+		configuration.GetConnectionString(name)
+			?? throw new InvalidOperationException($"Missing '{name}' connection string");
 }

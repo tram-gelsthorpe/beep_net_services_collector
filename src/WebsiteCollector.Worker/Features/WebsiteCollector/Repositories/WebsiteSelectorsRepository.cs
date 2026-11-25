@@ -1,5 +1,4 @@
 using Beep.ServiceBus;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,24 +11,24 @@ namespace WebsiteCollector.Worker;
 public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 {
 	private readonly IOptions<WebsiteCollectorOptions> _websiteCollectorOptions;
-	private IWorkItemRepository _workItemRepository;
-	private SelectorManagementRepository _selectorManagementRepository;
+	private readonly IWorkItemRepository _workItemRepository;
+	private readonly SelectorManagementRepository _selectorManagementRepository;
 	private readonly ILogger<WebsiteSelectorsRepository> _logger;
 
 	public WebsiteSelectorsRepository(IWorkItemRepository workItemRepository,
 		SelectorManagementRepository selectorManagementRepository,
 		IOptions<WebsiteCollectorOptions> websiteCollectorOptions,
-		ILoggerFactory loggerFactory)
+		ILogger<WebsiteSelectorsRepository> logger)
 	{
-		_workItemRepository = workItemRepository;
-		_selectorManagementRepository = selectorManagementRepository;
+		_workItemRepository = workItemRepository ?? throw new ArgumentNullException(nameof(workItemRepository));
+		_selectorManagementRepository = selectorManagementRepository ?? throw new ArgumentNullException(nameof(selectorManagementRepository));
 		_websiteCollectorOptions = websiteCollectorOptions ?? throw new ArgumentNullException(nameof(websiteCollectorOptions));
-		_logger = loggerFactory.CreateLogger<WebsiteSelectorsRepository>();
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid workerId, int count, int lease, CancellationToken ct)
 	{
-		_logger.LogInformation(
+		_logger.LogDebug(
 			"ClaimAsync: Requesting {Count} work items for worker {WorkerId} with {LeaseSeconds}s lease",
 			count, workerId, lease);
 
@@ -40,17 +39,12 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 			leaseSeconds: lease,
 			cancellationToken: ct);
 
-		_logger.LogInformation(
-			"ClaimAsync: WorkItemRepository returned {ItemCount} items",
-			items.Count);
-
 		if (items.Count == 0)
 		{
-			_logger.LogWarning(
-				"ClaimAsync: No items claimed. Queue may be empty or all items already leased. " +
-				"WorkerId={WorkerId}, WorkerType={WorkerType}",
+			_logger.LogDebug(
+				"ClaimAsync: No items claimed. WorkerId={WorkerId}, WorkerType={WorkerType}",
 				workerId, _websiteCollectorOptions.Value.WorkerType);
-			return new List<ClaimedWebsiteSelector>().AsReadOnly();
+			return [];
 		}
 
 		var result = new List<ClaimedWebsiteSelector>();

@@ -256,11 +256,16 @@ public sealed class WorkItemRepository : IWorkItemRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var cmd = connection.CreateCommand();
-			cmd.CommandText = $"DECLARE @workItemId uniqueidentifier = NEWID(); " +
-				$"DECLARE @statusId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING'); " +
-				$"INSERT INTO {_schema}.WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt) " +
-				$"VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, @statusId, @MaxAttempts, @NextRunAt); " +
-				$"SELECT @workItemId; ";
+			// Use the database clock for NextRunAt: ClaimWorkItems compares against SYSUTCDATETIME(),
+			// so a client timestamp that is slightly ahead would make the item not yet due.
+			cmd.CommandText = $"""
+				DECLARE @workItemId uniqueidentifier = NEWID();
+				DECLARE @statusId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING');
+				INSERT INTO {_schema}.WorkItems (Id, WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
+				VALUES (@workItemId, @WorkerType, @DomainId, @DomainType, @statusId, @MaxAttempts,
+					CASE WHEN @ScheduleForNow = 1 THEN SYSUTCDATETIME() ELSE DATEADD(minute, 1, SYSUTCDATETIME()) END);
+				SELECT @workItemId;
+				""";
 
 			cmd.CommandTimeout = 10;
 
@@ -268,7 +273,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 			cmd.Parameters.AddWithValue("@DomainId", domainId);
 			cmd.Parameters.AddWithValue("@DomainType", domainType);
 			cmd.Parameters.AddWithValue("@MaxAttempts", maxAttempts);
-			cmd.Parameters.AddWithValue("@NextRunAt", scheduleForNow ? DateTimeOffset.UtcNow : DateTimeOffset.UtcNow.AddMinutes(1));
+			cmd.Parameters.AddWithValue("@ScheduleForNow", scheduleForNow);
 
 			var result = await cmd.ExecuteScalarAsync(cancellationToken);
 			var workItemId = (Guid)(result ?? Guid.Empty);

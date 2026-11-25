@@ -2,13 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>Disabled</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Beep.ServiceBus/Beep.ServiceBus.csproj" />
+    <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\SqlSchemaInitializer.cs" Link="Database\SqlSchemaInitializer.cs" />
+    <EmbeddedResource Include="Resource\*.sql" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,12 +21,6 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.14" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Embed SQL resources for database schema -->
-    <EmbeddedResource Include="Resource/**/*.sql" />
   </ItemGroup>
 
 </Project>

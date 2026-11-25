@@ -1,7 +1,6 @@
-﻿namespace WebsiteCollector.Worker
+namespace WebsiteCollector.Worker;
+
+public interface IWebsiteCollectorDatabase
 {
-	public interface IWebsiteCollectorDatabase
-	{
-		Task Create(CancellationToken cancellationToken = default);
-	}
+	Task Create(CancellationToken cancellationToken = default);
 }
