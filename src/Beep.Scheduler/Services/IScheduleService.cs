@@ -11,8 +11,15 @@ public interface IScheduleService
 	/// <param name="workerType">Unique identifier for the worker type</param>
 	/// <param name="description">Human-readable description of the schedule</param>
 	/// <param name="frequency">Schedule frequency (Daily, Weekly, Monthly, Hourly, Yearly)</param>
-	/// <param name="startTime">Time of day to run the schedule</param>
+	/// <param name="startTime">Local time of day to run the schedule, in <paramref name="timeZone"/></param>
 	/// <param name="isActive">Whether the schedule should be active</param>
+	/// <param name="timeZone">
+	/// IANA ("Asia/Bangkok") or Windows ("SE Asia Standard Time") time zone id; null or empty means
+	/// this machine's local time zone
+	/// </param>
+	/// <param name="dayOfWeek">Weekly: 0 (Sunday) to 6 (Saturday)</param>
+	/// <param name="dayOfMonth">Monthly: 1 to 31</param>
+	/// <param name="dayOfYear">Yearly: 1 to 366</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>The ID of the created/updated schedule</returns>
 	Task<int> CreateOrUpdateScheduleAsync(
@@ -21,6 +28,10 @@ public interface IScheduleService
 		string frequency,
 		TimeOnly startTime,
 		bool isActive = true,
+		string? timeZone = null,
+		int? dayOfWeek = null,
+		int? dayOfMonth = null,
+		int? dayOfYear = null,
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
@@ -65,6 +76,8 @@ public class ScheduleInfo
 	public string Description { get; set; } = string.Empty;
 	public string Frequency { get; set; } = string.Empty;
 	public TimeOnly StartTime { get; set; }
+	/// <summary>Windows time zone id that <see cref="StartTime"/> is in</summary>
+	public string TimeZone { get; set; } = "UTC";
 	public bool IsActive { get; set; }
 	public DateTimeOffset CreatedAt { get; set; }
 	public DateTimeOffset UpdatedAt { get; set; }

@@ -72,7 +72,8 @@ public sealed class SchedulerRepository
 					DayOfMonth = reader.IsDBNull(5) ? null : reader.GetInt32(5),
 					DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
 					MaxConcurrentRegistrations = reader.GetInt32(7),
-					LastRunAt = reader.IsDBNull(8) ? null : reader.GetDateTimeOffset(8)
+					LastRunAt = reader.IsDBNull(8) ? null : reader.GetDateTimeOffset(8),
+					TimeZone = reader.GetString(10)
 				}, reader.GetDateTimeOffset(9)));
 			}
 		}
@@ -108,7 +109,7 @@ public sealed class SchedulerRepository
 
 		using var command = new SqlCommand(
 			$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
-			$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt, Description " +
+			$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt, Description, TimeZone " +
 			$"FROM {_schema}.WorkerSchedules WHERE {whereClause}",
 			connection)
 		{
@@ -135,7 +136,8 @@ public sealed class SchedulerRepository
 			CreatedAt = reader.GetDateTimeOffset(9),
 			UpdatedAt = reader.GetDateTimeOffset(10),
 			LastRunAt = reader.IsDBNull(11) ? null : reader.GetDateTimeOffset(11),
-			Description = reader.IsDBNull(12) ? null : reader.GetString(12)
+			Description = reader.IsDBNull(12) ? null : reader.GetString(12),
+			TimeZone = reader.GetString(13)
 		};
 	}
 
@@ -204,14 +206,24 @@ public sealed class SchedulerRepository
 	/// <summary>
 	/// Create or update a schedule for a worker type
 	/// </summary>
+	/// <param name="timeZone">
+	/// Time zone of <paramref name="startTime"/> and the day fields: an IANA or Windows id; null means
+	/// this machine's local time zone (see <see cref="ScheduleTimeZone.Resolve"/>).
+	/// </param>
 	public async Task CreateOrUpdateScheduleAsync(
 		string workerType,
 		string description,
 		string frequency,
 		TimeOnly startTime,
 		bool isActive,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		string? timeZone = null,
+		int? dayOfWeek = null,
+		int? dayOfMonth = null,
+		int? dayOfYear = null)
 	{
+		var timeZoneId = ScheduleTimeZone.Resolve(timeZone);
+
 		try
 		{
 			using var connection = new SqlConnection(_connectionString);
@@ -221,16 +233,24 @@ public sealed class SchedulerRepository
 			// instances starting at the same time cannot both take the INSERT branch.
 			using var command = new SqlCommand($"""
 				SET XACT_ABORT ON;
+
+				-- GetDueSchedules uses AT TIME ZONE, which fails for an id this server does not know.
+				IF NOT EXISTS (SELECT 1 FROM sys.time_zone_info WHERE name = @TimeZone)
+					THROW 50000, 'The time zone is not known to this SQL Server (sys.time_zone_info).', 1;
+
 				BEGIN TRANSACTION;
 
 				UPDATE {_schema}.WorkerSchedules WITH (UPDLOCK, SERIALIZABLE)
 				SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime,
+					TimeZone = @TimeZone, DayOfWeek = @DayOfWeek, DayOfMonth = @DayOfMonth, DayOfYear = @DayOfYear,
 					IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME()
 				WHERE WorkerType = @WorkerType;
 
 				IF @@ROWCOUNT = 0
-					INSERT INTO {_schema}.WorkerSchedules (WorkerType, Description, Frequency, StartTime, IsActive)
-					VALUES (@WorkerType, @Description, @Frequency, @StartTime, @IsActive);
+					INSERT INTO {_schema}.WorkerSchedules
+						(WorkerType, Description, Frequency, StartTime, TimeZone, DayOfWeek, DayOfMonth, DayOfYear, IsActive)
+					VALUES
+						(@WorkerType, @Description, @Frequency, @StartTime, @TimeZone, @DayOfWeek, @DayOfMonth, @DayOfYear, @IsActive);
 
 				COMMIT TRANSACTION;
 				""",
@@ -244,8 +264,17 @@ public sealed class SchedulerRepository
 			command.Parameters.AddWithValue("@Frequency", frequency);
 			command.Parameters.AddWithValue("@StartTime", startTime.ToTimeSpan());
 			command.Parameters.AddWithValue("@IsActive", isActive);
+			command.Parameters.AddWithValue("@TimeZone", timeZoneId);
+			command.Parameters.AddWithValue("@DayOfWeek", (object?)dayOfWeek ?? DBNull.Value);
+			command.Parameters.AddWithValue("@DayOfMonth", (object?)dayOfMonth ?? DBNull.Value);
+			command.Parameters.AddWithValue("@DayOfYear", (object?)dayOfYear ?? DBNull.Value);
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
+		}
+		catch (SqlException ex) when (ex.Number == 50000)
+		{
+			throw new ArgumentException(
+				$"Time zone '{timeZoneId}' is not known to the SQL Server (sys.time_zone_info).", nameof(timeZone), ex);
 		}
 		catch (Exception ex)
 		{

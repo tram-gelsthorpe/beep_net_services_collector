@@ -9,6 +9,7 @@ public interface ISchedulerOption
 	public int? DayOfWeek { get; }
 	public int? DayOfMonth { get; }
 	public int? DayOfYear { get; }
+	public string? TimeZone { get; }
 	public int PollIntervalSeconds { get; }
 }
 
@@ -23,12 +24,28 @@ public class SchedulerOption : ISchedulerOption
 	public int? DayOfWeek { get; set; }
 	public int? DayOfMonth { get; set; }
 	public int? DayOfYear { get; set; }
+
+	/// <summary>
+	/// Time zone that <see cref="StartTime"/> and the day settings are in: an IANA id ("Asia/Bangkok")
+	/// or a Windows id ("SE Asia Standard Time"). Empty means this machine's local time zone.
+	/// </summary>
+	public string? TimeZone { get; set; }
+
 	public int PollIntervalSeconds { get; set; } = 30;
 
 	public virtual void Validate()
 	{
 		if (string.IsNullOrWhiteSpace(WorkerType))
 			throw new InvalidOperationException("WorkerType is required.");
+
+		try
+		{
+			ScheduleTimeZone.Resolve(TimeZone);
+		}
+		catch (ArgumentException ex)
+		{
+			throw new InvalidOperationException($"TimeZone is invalid: {ex.Message}", ex);
+		}
 
 		if (string.IsNullOrWhiteSpace(Frequency))
 			throw new InvalidOperationException("Frequency is required.");

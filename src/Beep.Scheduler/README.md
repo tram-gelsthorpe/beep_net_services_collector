@@ -147,9 +147,25 @@ VALUES ('FrequentProcess', 'Hourly', '00:00:00', 1);
 | **Yearly** | StartTime, DayOfYear | - | January 1st (DayOfYear=1) at midnight |
 | **Never** | - | - | Schedule disabled |
 
-All times are **UTC** on the database clock. A schedule runs at the first poll at or after its
-`StartTime` on a matching day, at most once that day (a worker that was down at `StartTime` catches
-up when it starts). Each `WorkerType` has one schedule (`UQ_WorkerSchedules_WorkerType`).
+`StartTime` and the day settings are read in the schedule's **time zone** (`TimeZone`: an IANA id
+such as `Asia/Bangkok` or a Windows id such as `SE Asia Standard Time`; empty means the machine's
+local time zone). Daylight saving is followed, and "once a day" means once per local day. The zone is
+stored as its Windows id, which is what SQL Server's `AT TIME ZONE` takes; an id the server does
+not know (`sys.time_zone_info`) is rejected when the schedule is saved. "Now" is the database clock.
+
+A schedule runs at the first poll at or after its `StartTime` on a matching day, at most once that
+day (a worker that was down at `StartTime` catches up when it starts). Each `WorkerType` has one
+schedule (`UQ_WorkerSchedules_WorkerType`).
+
+```json
+"Scheduler": {
+  "WorkerType": "WebsiteCollector",
+  "Frequency": "Weekly",
+  "StartTime": "01:00",
+  "DayOfWeek": 1,
+  "TimeZone": "Asia/Bangkok"
+}
+```
 
 Running a schedule is a ServiceBus work item (worker type `Scheduler`, DomainType `WorkerSchedule`):
 

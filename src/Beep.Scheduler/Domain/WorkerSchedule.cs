@@ -23,9 +23,15 @@ public class WorkerSchedule
 	public string Frequency { get; set; } = "Daily";
 
 	/// <summary>
-	/// Time of day to run (for daily/weekly/monthly)
+	/// Local time of day to run, in <see cref="TimeZone"/> (for daily/weekly/monthly/yearly)
 	/// </summary>
 	public TimeSpan StartTime { get; set; }
+
+	/// <summary>
+	/// Windows time zone id that <see cref="StartTime"/> and the day fields are read in
+	/// (see <see cref="ScheduleTimeZone"/>)
+	/// </summary>
+	public string TimeZone { get; set; } = "UTC";
 
 	/// <summary>
 	/// Day of week for weekly schedules (0=Sunday, 6=Saturday)

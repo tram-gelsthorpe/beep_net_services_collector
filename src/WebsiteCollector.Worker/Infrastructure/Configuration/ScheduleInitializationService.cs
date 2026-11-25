@@ -41,6 +41,10 @@ public class ScheduleInitializationService
 				frequency: _scheduleOption.Frequency,
 				startTime: _scheduleOption.StartTime!.Value,
 				isActive: true,
+				timeZone: _scheduleOption.TimeZone,
+				dayOfWeek: _scheduleOption.DayOfWeek,
+				dayOfMonth: _scheduleOption.DayOfMonth,
+				dayOfYear: _scheduleOption.DayOfYear,
 				cancellationToken: cancellationToken);
 
 			_logger.LogInformation("WebsiteCollector schedules initialized successfully");

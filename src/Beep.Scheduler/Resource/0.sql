@@ -59,7 +59,10 @@ CREATE TABLE dbo.WorkerSchedules (
 
 	-- Frequency configuration
 	Frequency NVARCHAR(50) NOT NULL,    -- 'Daily', 'Weekly', 'Monthly', 'Yearly', 'Hourly'
-	StartTime TIME NOT NULL,            -- Time to start (for daily/weekly/monthly/yearly)
+	StartTime TIME NOT NULL,            -- Local time of day to start, in TimeZone (daily/weekly/monthly/yearly)
+	-- Windows time zone id (sys.time_zone_info, e.g. 'SE Asia Standard Time'). StartTime and the
+	-- day of week/month/year are read on this zone's calendar, daylight saving included.
+	TimeZone NVARCHAR(100) NOT NULL DEFAULT 'UTC',
 	DayOfWeek INT NULL,                 -- 0-6 for weekly (0=Sunday)
 	DayOfMonth INT NULL,                -- 1-31 for monthly
 	DayOfYear INT NULL,                 -- 1-366 for yearly (1=Jan 1, 32=Feb 1, etc.)
@@ -125,14 +128,9 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	-- All times are UTC. StartTime is a UTC time of day.
+	-- @Now and LastRunAt are instants; each schedule reads them on its own TimeZone''s calendar:
+	-- StartTime is a local time of day, and "today" and the day of week/month/year are local.
 	SET @Now = COALESCE(@Now, SYSUTCDATETIME());
-	DECLARE @Today DATE = CAST(@Now AS DATE);
-	DECLARE @TimeOfDay TIME = CAST(@Now AS TIME);
-	-- 0 = Sunday ... 6 = Saturday regardless of @@DATEFIRST (1900-01-07 was a Sunday)
-	DECLARE @DayOfWeek INT = DATEDIFF(DAY, ''19000107'', @Today) % 7;
-	DECLARE @DayOfMonth INT = DAY(@Today);
-	DECLARE @DayOfYear INT = DATEPART(DAYOFYEAR, @Today);
 
 	SELECT
 		s.Id,
@@ -144,8 +142,19 @@ BEGIN
 		s.DayOfYear,
 		s.MaxConcurrentRegistrations,
 		s.LastRunAt,
-		@Now AS CheckedAt
+		@Now AS CheckedAt,
+		s.TimeZone
 	FROM dbo.WorkerSchedules s
+	CROSS APPLY (SELECT LocalNow = @Now AT TIME ZONE s.TimeZone) n
+	CROSS APPLY (SELECT
+		Today = CAST(n.LocalNow AS DATE),
+		TimeOfDay = CAST(n.LocalNow AS TIME),
+		LastRunDate = CAST(s.LastRunAt AT TIME ZONE s.TimeZone AS DATE)) l
+	-- 0 = Sunday ... 6 = Saturday regardless of @@DATEFIRST (1900-01-07 was a Sunday)
+	CROSS APPLY (SELECT
+		DayOfWeek = DATEDIFF(DAY, ''19000107'', l.Today) % 7,
+		DayOfMonth = DAY(l.Today),
+		DayOfYear = DATEPART(DAYOFYEAR, l.Today)) d
 	WHERE s.IsActive = 1
 		AND (@ScheduleId IS NULL OR s.Id = @ScheduleId)
 		AND (
@@ -156,12 +165,12 @@ BEGIN
 			-- Daily / Weekly / Monthly / Yearly: on a matching day, at or after StartTime,
 			-- and not already run today
 			OR (s.Frequency IN (''Daily'', ''Weekly'', ''Monthly'', ''Yearly'')
-				AND @TimeOfDay >= s.StartTime
-				AND (s.LastRunAt IS NULL OR CAST(s.LastRunAt AS DATE) < @Today)
+				AND l.TimeOfDay >= s.StartTime
+				AND (s.LastRunAt IS NULL OR l.LastRunDate < l.Today)
 				AND (s.Frequency = ''Daily''
-					OR (s.Frequency = ''Weekly'' AND s.DayOfWeek = @DayOfWeek)
-					OR (s.Frequency = ''Monthly'' AND s.DayOfMonth = @DayOfMonth)
-					OR (s.Frequency = ''Yearly'' AND s.DayOfYear = @DayOfYear)))
+					OR (s.Frequency = ''Weekly'' AND s.DayOfWeek = d.DayOfWeek)
+					OR (s.Frequency = ''Monthly'' AND s.DayOfMonth = d.DayOfMonth)
+					OR (s.Frequency = ''Yearly'' AND s.DayOfYear = d.DayOfYear)))
 		);
 END;
 ');

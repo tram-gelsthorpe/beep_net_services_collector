@@ -104,6 +104,82 @@ public sealed class SchedulerIntegrationTests
 		Assert.AreEqual(1, (await DueAsync(Day.AddHours(11).AddMinutes(59))).Count);
 	}
 
+	// ---------------------------------------------------------------- time zones
+
+	private const string Bangkok = "SE Asia Standard Time"; // UTC+7, no daylight saving
+
+	[TestMethod]
+	public async Task Daily_InATimeZone_StartsAtLocalStartTime_OncePerLocalDay()
+	{
+		// 01:00 in UTC+7 is 18:00 UTC the day before.
+		var id = await InsertScheduleAsync("Daily", new TimeSpan(1, 0, 0), timeZone: Bangkok);
+		await SetLastRunAsync(id, Day); // 07:00 local on Day
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(17).AddMinutes(59))).Count, "00:59 local on Day+1");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(18))).Count, "01:00 local on Day+1");
+
+		await SetLastRunAsync(id, Day.AddHours(18));
+
+		// Day+1 16:59 UTC is 23:59 local, still the local day of the last run (by UTC it is a new day).
+		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(16).AddMinutes(59))).Count, "already ran this local day");
+		Assert.AreEqual(1, (await DueAsync(Day.AddDays(1).AddHours(18))).Count, "01:00 local on Day+2");
+	}
+
+	[TestMethod]
+	public async Task Weekly_InATimeZone_MatchesTheLocalDayOfWeek()
+	{
+		var localDay = Day.AddDays(1); // 17:30 UTC on Day is 00:30 local on Day+1
+		await InsertScheduleAsync("Weekly", TimeSpan.Zero, dayOfWeek: (int)localDay.DayOfWeek, timeZone: Bangkok);
+
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(17).AddMinutes(30))).Count, "local day matches");
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(16).AddMinutes(30))).Count, "23:30 local on Day: wrong day");
+	}
+
+	[TestMethod]
+	public async Task Daily_InATimeZoneWithDaylightSaving_FollowsTheLocalClock()
+	{
+		var id = await InsertScheduleAsync("Daily", new TimeSpan(1, 0, 0), timeZone: "Eastern Standard Time");
+
+		// Winter: 01:00 EST = 06:00 UTC.
+		var winter = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero);
+		Assert.AreEqual(0, (await DueAsync(winter.AddHours(5).AddMinutes(59))).Count, "00:59 EST");
+		Assert.AreEqual(1, (await DueAsync(winter.AddHours(6))).Count, "01:00 EST");
+
+		// Summer: 01:00 EDT = 05:00 UTC.
+		await SetLastRunAsync(id, new DateTimeOffset(2026, 6, 30, 5, 0, 0, TimeSpan.Zero));
+		var summer = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero);
+		Assert.AreEqual(0, (await DueAsync(summer.AddHours(4).AddMinutes(59))).Count, "00:59 EDT");
+		Assert.AreEqual(1, (await DueAsync(summer.AddHours(5))).Count, "01:00 EDT");
+	}
+
+	[TestMethod]
+	public async Task CreateOrUpdateSchedule_StoresTimeZoneAndDays()
+	{
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "weekly", "Weekly", new TimeOnly(1, 0), isActive: true,
+			CancellationToken.None, timeZone: "Asia/Bangkok", dayOfWeek: 3);
+
+		var schedule = await _repository.GetScheduleByWorkerTypeAsync("Collector", CancellationToken.None);
+		Assert.IsNotNull(schedule);
+		Assert.AreEqual(Bangkok, schedule.TimeZone, "IANA id stored as its Windows id");
+		Assert.AreEqual(3, schedule.DayOfWeek);
+
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "daily", "Daily", new TimeOnly(1, 0), isActive: true,
+			CancellationToken.None);
+
+		schedule = await _repository.GetScheduleByWorkerTypeAsync("Collector", CancellationToken.None);
+		Assert.AreEqual(ScheduleTimeZone.Resolve(null), schedule!.TimeZone, "no time zone: this machine's");
+		Assert.IsNull(schedule.DayOfWeek, "update clears days that no longer apply");
+	}
+
+	[TestMethod]
+	public async Task CreateOrUpdateSchedule_WithUnknownTimeZone_Throws()
+	{
+		await Assert.ThrowsAsync<ArgumentException>(() => _repository.CreateOrUpdateScheduleAsync(
+			"Collector", "bad", "Daily", new TimeOnly(1, 0), isActive: true, CancellationToken.None, timeZone: "Mars/Olympus"));
+
+		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.WorkerSchedules"));
+	}
+
 	// ---------------------------------------------------------------- running through the ServiceBus
 
 	[TestMethod]
@@ -219,14 +295,20 @@ public sealed class SchedulerIntegrationTests
 		return claimed.Item.WorkItemId;
 	}
 
-	private static async Task<Guid> InsertScheduleAsync(string frequency, TimeSpan startTime, int? dayOfWeek = null)
+	private static async Task<Guid> InsertScheduleAsync(string frequency, TimeSpan startTime, int? dayOfWeek = null, string timeZone = "UTC")
 	{
 		await using var connection = TestDatabase.OpenScheduler();
 		return await connection.QuerySingleAsync<Guid>($"""
-			INSERT INTO {Schema}.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfWeek)
+			INSERT INTO {Schema}.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfWeek, TimeZone)
 			OUTPUT inserted.Id
-			VALUES (@worker, @frequency, @startTime, @dayOfWeek)
-			""", new { worker = HandlerWorkerType, frequency, startTime, dayOfWeek });
+			VALUES (@worker, @frequency, @startTime, @dayOfWeek, @timeZone)
+			""", new { worker = HandlerWorkerType, frequency, startTime, dayOfWeek, timeZone });
+	}
+
+	private static async Task SetLastRunAsync(Guid id, DateTimeOffset at)
+	{
+		await using var connection = TestDatabase.OpenScheduler();
+		await connection.ExecuteAsync($"UPDATE {Schema}.WorkerSchedules SET LastRunAt = @at WHERE Id = @id", new { id, at });
 	}
 
 	private static async Task<List<Guid>> DueAsync(DateTimeOffset now, int dateFirst = 7)

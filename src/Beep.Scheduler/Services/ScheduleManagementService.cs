@@ -24,6 +24,10 @@ public class ScheduleManagementService : IScheduleService
 		string frequency,
 		TimeOnly startTime,
 		bool isActive = true,
+		string? timeZone = null,
+		int? dayOfWeek = null,
+		int? dayOfMonth = null,
+		int? dayOfYear = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(workerType))
@@ -34,9 +38,11 @@ public class ScheduleManagementService : IScheduleService
 
 		try
 		{
+			var timeZoneId = ScheduleTimeZone.Resolve(timeZone);
+
 			_logger.LogInformation(
-				"Creating or updating schedule for worker type {WorkerType} with frequency {Frequency} at {StartTime}",
-				workerType, frequency, startTime);
+				"Creating or updating schedule for worker type {WorkerType} with frequency {Frequency} at {StartTime} ({TimeZone})",
+				workerType, frequency, startTime, timeZoneId);
 
 			await _database.CreateOrUpdateScheduleAsync(
 				workerType,
@@ -44,7 +50,11 @@ public class ScheduleManagementService : IScheduleService
 				frequency,
 				startTime,
 				isActive,
-				cancellationToken);
+				cancellationToken,
+				timeZoneId,
+				dayOfWeek,
+				dayOfMonth,
+				dayOfYear);
 
 			_logger.LogInformation(
 				"Schedule for worker type {WorkerType} created/updated",
@@ -105,6 +115,7 @@ public class ScheduleManagementService : IScheduleService
 				Description = schedule.Description ?? string.Empty,
 				Frequency = schedule.Frequency,
 				StartTime = TimeOnly.FromTimeSpan(schedule.StartTime),
+				TimeZone = schedule.TimeZone,
 				IsActive = schedule.IsActive,
 				CreatedAt = schedule.CreatedAt,
 				UpdatedAt = schedule.UpdatedAt,
