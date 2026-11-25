@@ -1,0 +1,336 @@
+using System.Text.Json;
+using Beep.Api.Controllers.Currency;
+using Beep.Api.Domain.Currency;
+using Beep.Api.Repositories.Collector;
+using Beep.Api.Repositories.Currency;
+using Dapper;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Beep.Collector.Tests.Integration;
+
+/// <summary>
+/// Beep.Api recording Vietcombank rates in Currency_Rate_Bank. Runs against its own LocalDB database with
+/// copies of A_1_Beep_Global_Currency's Bank, Currency and Currency_Rate_Bank tables, plus the Api's
+/// Currency_Rate_Bank_RateTime.sql script.
+/// </summary>
+[TestClass]
+[DoNotParallelize]
+public sealed class CurrencyRateIntegrationTests
+{
+	private const string DatabaseName = "WebsiteCollectorTests_Currency";
+	private const string Bic = VietcombankRateParser.BankBic;
+	private static readonly Guid CreatedBy = Guid.Parse("5e0b8a52-1c7d-4f3e-9a61-2b4d6c8e0f11");
+	private static readonly DateOnly Day = new(2026, 11, 26);
+
+	private static string _connectionString = string.Empty;
+	private static Guid _bankId;
+	private CurrencyRateRepository _repository = null!;
+
+	// Same columns, defaults and keys as A_1_Beep_Global_Currency (RateTime comes from the Api's script).
+	private const string SchemaSql = """
+		CREATE TABLE dbo.Bank (
+			Id uniqueidentifier NOT NULL CONSTRAINT DF_b_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_b_Id PRIMARY KEY,
+			Country_Id uniqueidentifier NOT NULL,
+			Bic varchar(20) NULL,
+			Name nvarchar(254) NOT NULL,
+			IsSynchronized bit NOT NULL CONSTRAINT DF_b_IsSynchronized DEFAULT 0);
+
+		CREATE TABLE dbo.Currency (
+			Id uniqueidentifier NOT NULL CONSTRAINT DF_cur_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_cur_Id PRIMARY KEY,
+			CodeISO char(3) NOT NULL CONSTRAINT AK_cur_CodeISO UNIQUE,
+			Name nvarchar(254) NOT NULL,
+			DecimalDigits tinyint NOT NULL CONSTRAINT DF_cur_DecimalDigits DEFAULT 2,
+			Symbol nvarchar(10) NULL,
+			IsSynchronized bit NOT NULL CONSTRAINT DF_cur_IsSynchronized DEFAULT 0);
+
+		CREATE TABLE dbo.Currency_Rate_Bank (
+			Id uniqueidentifier NOT NULL CONSTRAINT DF_currb_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_currb_Id PRIMARY KEY,
+			Version int NOT NULL,
+			Modified datetimeoffset NULL,
+			ModifiedBy uniqueidentifier NULL,
+			Created datetimeoffset NOT NULL,
+			CreatedBy uniqueidentifier NOT NULL,
+			Currency_Id uniqueidentifier NOT NULL CONSTRAINT FK_currb_Currency REFERENCES dbo.Currency (Id),
+			Bank_Id uniqueidentifier NOT NULL CONSTRAINT FK_currb_Bank REFERENCES dbo.Bank (Id),
+			[Date] date NOT NULL,
+			BuyingRateCash decimal(28, 18) NULL,
+			BuyingRateTransfer decimal(28, 18) NULL,
+			SellingRate decimal(28, 18) NULL,
+			IsSynchronized bit NOT NULL CONSTRAINT DF_currb_IsSynchronized DEFAULT 0);
+		""";
+
+	[ClassInitialize]
+	public static async Task ClassInitializeAsync(TestContext _)
+	{
+		_connectionString = new SqlConnectionStringBuilder(TestDatabase.CollectorConnectionString)
+		{
+			InitialCatalog = DatabaseName,
+		}.ConnectionString;
+
+		await TestDatabase.DropDatabaseAsync(_connectionString);
+		await using (var master = new SqlConnection(
+			new SqlConnectionStringBuilder(_connectionString) { InitialCatalog = "master" }.ConnectionString))
+			await master.ExecuteAsync($"CREATE DATABASE [{DatabaseName}]");
+
+		await using var connection = new SqlConnection(_connectionString);
+		await connection.ExecuteAsync(SchemaSql);
+
+		// The script must be safe to run again.
+		var script = await File.ReadAllTextAsync(
+			Path.Combine(AppContext.BaseDirectory, "ApiResource", "Currency_Rate_Bank_RateTime.sql"));
+		for (var run = 0; run < 2; run++)
+			foreach (var batch in SplitBatches(script))
+				await connection.ExecuteAsync(batch);
+
+		_bankId = await connection.ExecuteScalarAsync<Guid>(
+			"INSERT INTO dbo.Bank (Country_Id, Bic, Name) OUTPUT INSERTED.Id VALUES (NEWID(), @Bic, N'Vietcombank')",
+			new { Bic });
+		await connection.ExecuteAsync("""
+			INSERT INTO dbo.Currency (CodeISO, Name) VALUES ('USD', N'US Dollar'), ('EUR', N'Euro'), ('SEK', N'Swedish Krona');
+			""");
+	}
+
+	[ClassCleanup]
+	public static Task ClassCleanupAsync() => TestDatabase.DropDatabaseAsync(_connectionString);
+
+	[TestInitialize]
+	public async Task TestInitializeAsync()
+	{
+		await using var connection = new SqlConnection(_connectionString);
+		await connection.ExecuteAsync("DELETE FROM dbo.Currency_Rate_Bank");
+		_repository = new CurrencyRateRepository(_connectionString, CreatedBy);
+	}
+
+	// ---------------------------------------------------------------- reading Vietcombank's JSON
+
+	[TestMethod]
+	public void Parser_ReadsVietcombankRates()
+	{
+		// Shape of a real collection result (icon and currencyName are ignored).
+		const string json = """
+			{"ContentSelector":{"Count":3,"Date":"2026-11-26T00:00:00","UpdatedDate":"2026-11-25T23:00:00+07:00",
+			 "Data":[
+			  {"currencyName":"US DOLLAR","currencyCode":"USD","cash":"25,610.00","transfer":"25640.00","sell":"26020.00","icon":"/-/media/usa.svg"},
+			  {"currencyName":"SWEDISH KRONA","currencyCode":"sek","cash":"0.00","transfer":"2463.65","sell":"2568.18","icon":"/-/media/sek.svg"},
+			  {"currencyName":"US DOLLAR AGAIN","currencyCode":"USD","cash":"1","transfer":"1","sell":"1"},
+			  {"currencyName":"NO CODE","cash":"1","transfer":"1","sell":"1"}
+			 ]}}
+			""";
+
+		var rates = VietcombankRateParser.Parse(json);
+
+		Assert.HasCount(2, rates, "the repeated USD and the entry without a code are ignored");
+		var rateTime = new DateTimeOffset(2026, 11, 25, 23, 0, 0, TimeSpan.FromHours(7));
+		Assert.AreEqual(new CurrencyRateBank("USD", Day, rateTime, 25610.00m, 25640.00m, 26020.00m), rates[0]);
+		Assert.AreEqual(new CurrencyRateBank("SEK", Day, rateTime, null, 2463.65m, 2568.18m), rates[1],
+			"cash 0.00 means the bank does not buy SEK in cash");
+	}
+
+	[TestMethod]
+	[DataRow("", DisplayName = "empty")]
+	[DataRow("not json", DisplayName = "not JSON")]
+	[DataRow("""{"ContentSelector":"text"}""", DisplayName = "selector is not an object")]
+	[DataRow("""{"ContentSelector":{"Date":"2026-11-26","Data":[]}}""", DisplayName = "no UpdatedDate")]
+	[DataRow("""{"ContentSelector":{"Date":"2026-11-26","UpdatedDate":"2026-11-26T10:00:00+07:00"}}""", DisplayName = "no Data")]
+	[DataRow("""{"ContentSelector":{"Date":"2026-11-26","UpdatedDate":"2026-11-26T10:00:00+07:00","Data":[{"currencyCode":"USD","sell":"abc"}]}}""", DisplayName = "rate not a number")]
+	public void Parser_RejectsOtherShapes(string json) =>
+		Assert.ThrowsExactly<FormatException>(() => VietcombankRateParser.Parse(json));
+
+	// ---------------------------------------------------------------- rates within a day
+
+	[TestMethod]
+	public async Task LaterRateOfTheDay_IsAddedAndBecomesTheLatest()
+	{
+		// 26/11/2026 10:00 rate 1
+		var first = await SaveAsync(At(10), ("USD", 1m));
+		Assert.AreEqual(new CurrencyRateSaveResult(1, 0, []), first, CurrencyRateSaveResultComparer.Instance);
+
+		// 26/11/2026 14:00 rate 2: a new row; rate 1 is left as it was
+		await SaveAsync(At(14), ("USD", 2m));
+
+		var rates = await QueryRatesAsync("USD");
+		Assert.HasCount(2, rates);
+		var rate1 = rates.Single(r => r.SellingRate == 1m);
+		var rate2 = rates.Single(r => r.SellingRate == 2m);
+		Assert.AreEqual(At(10), rate1.RateTime);
+		Assert.AreEqual(At(14), rate2.RateTime);
+		Assert.AreEqual(1, rate1.Version);
+		Assert.IsNull(rate1.Modified, "earlier rates are not changed");
+		Assert.AreEqual(Day, DateOnly.FromDateTime(rate2.Date));
+		Assert.AreEqual(CreatedBy, rate2.CreatedBy);
+		Assert.AreEqual(2m, await LatestSellingRateAsync("USD", Day));
+	}
+
+	[TestMethod]
+	public async Task RepeatedDelivery_IsNotInsertedAgain()
+	{
+		await SaveAsync(At(10), ("USD", 1m), ("EUR", 1.1m));
+		var again = await SaveAsync(At(10), ("USD", 1m), ("EUR", 1.1m));
+
+		Assert.AreEqual(new CurrencyRateSaveResult(0, 2, []), again, CurrencyRateSaveResultComparer.Instance);
+		Assert.HasCount(1, await QueryRatesAsync("USD"));
+		Assert.HasCount(1, await QueryRatesAsync("EUR"));
+	}
+
+	[TestMethod]
+	public async Task EarlierRateArrivingLate_IsRecorded_AndLatestIsStillTheLatestTime()
+	{
+		await SaveAsync(At(14), ("USD", 2m));
+		var late = await SaveAsync(At(10), ("USD", 1m));
+
+		Assert.AreEqual(1, late.Inserted);
+		Assert.HasCount(2, await QueryRatesAsync("USD"));
+		Assert.AreEqual(2m, await LatestSellingRateAsync("USD", Day), "14:00 is still the latest");
+	}
+
+	[TestMethod]
+	public async Task RatePublishedTheEveningBefore_SortsBeforeTheMorningRate()
+	{
+		// Vietcombank's 01:00 result: Date 26/11, published 25/11 23:00 (+07:00).
+		var eveningBefore = new DateTimeOffset(2026, 11, 25, 23, 0, 0, TimeSpan.FromHours(7));
+		await _repository.SaveBankRatesAsync(Bic,
+			[new CurrencyRateBank("USD", Day, eveningBefore, 1m, 1m, 1m)], CancellationToken.None);
+		await SaveAsync(At(10), ("USD", 2m));
+
+		Assert.AreEqual(2m, await LatestSellingRateAsync("USD", Day));
+	}
+
+	[TestMethod]
+	public async Task OtherDaysAndCurrencies_AreSeparate()
+	{
+		await SaveAsync(At(10), ("USD", 1m), ("EUR", 1.1m));
+		await SaveAsync(At(14), ("USD", 2m));                    // EUR has no 14:00 rate
+		await SaveAsync(At(10, day: 27), ("USD", 3m));           // next day
+
+		Assert.AreEqual(1.1m, await LatestSellingRateAsync("EUR", Day));
+		Assert.AreEqual(2m, await LatestSellingRateAsync("USD", Day));
+		Assert.AreEqual(3m, await LatestSellingRateAsync("USD", Day.AddDays(1)));
+	}
+
+	[TestMethod]
+	public async Task UnknownCurrency_IsReported_AndUnknownBankFails()
+	{
+		var result = await SaveAsync(At(10), ("USD", 1m), ("XYZ", 9m));
+
+		Assert.AreEqual(1, result.Inserted);
+		CollectionAssert.AreEqual(new[] { "XYZ" }, result.UnknownCurrencies.ToArray());
+
+		var error = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+			_repository.SaveBankRatesAsync("NOTABANK", [Rate("USD", At(11), 1m)], CancellationToken.None));
+		StringAssert.Contains(error.Message, "NOTABANK");
+	}
+
+	// ---------------------------------------------------------------- the endpoint
+
+	[TestMethod]
+	public async Task Endpoint_ReadsCollectedData_AndRecordsVietcombankRates()
+	{
+		var collectedDataId = Guid.NewGuid();
+		var collected = new StubCollectedData { [collectedDataId] = VietcombankJson(At(10), ("USD", 1m), ("EUR", 1.1m)) };
+		var controller = new CurrencyRateController(collected, _repository, NullLogger<CurrencyRateController>.Instance);
+
+		var ok = await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None);
+		var result = (CurrencyRateSaveResult)((OkObjectResult)ok).Value!;
+		Assert.AreEqual(new CurrencyRateSaveResult(2, 0, []), result, CurrencyRateSaveResultComparer.Instance);
+
+		var again = await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None);
+		Assert.AreEqual(2, ((CurrencyRateSaveResult)((OkObjectResult)again).Value!).Duplicates, "a redelivery is accepted");
+
+		Assert.IsInstanceOfType<NotFoundObjectResult>(
+			await controller.RecordVietcombankCurrencyRate(Request(Guid.NewGuid()), CancellationToken.None));
+
+		collected[collectedDataId] = """{"ContentSelector":"something else"}""";
+		Assert.IsInstanceOfType<UnprocessableEntityObjectResult>(
+			await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None));
+
+		Assert.IsInstanceOfType<BadRequestObjectResult>(
+			await controller.RecordVietcombankCurrencyRate(Request(Guid.Empty), CancellationToken.None));
+	}
+
+	// ---------------------------------------------------------------- helpers
+
+	private static DateTimeOffset At(int hour, int day = 26) => new(2026, 11, day, hour, 0, 0, TimeSpan.FromHours(7));
+
+	private static CurrencyRateBank Rate(string code, DateTimeOffset at, decimal sell) =>
+		new(code, DateOnly.FromDateTime(at.DateTime), at, sell - 0.5m, sell - 0.25m, sell);
+
+	private Task<CurrencyRateSaveResult> SaveAsync(DateTimeOffset at, params (string Code, decimal Sell)[] rates) =>
+		_repository.SaveBankRatesAsync(Bic, [.. rates.Select(r => Rate(r.Code, at, r.Sell))], CancellationToken.None);
+
+	private static string VietcombankJson(DateTimeOffset at, params (string Code, decimal Sell)[] rates) =>
+		JsonSerializer.Serialize(new
+		{
+			ContentSelector = new
+			{
+				Count = rates.Length,
+				Date = $"{at:yyyy-MM-dd}T00:00:00",
+				UpdatedDate = at,
+				Data = rates.Select(r => new
+				{
+					currencyCode = r.Code,
+					cash = (r.Sell - 0.5m).ToString(System.Globalization.CultureInfo.InvariantCulture),
+					transfer = (r.Sell - 0.25m).ToString(System.Globalization.CultureInfo.InvariantCulture),
+					sell = r.Sell.ToString(System.Globalization.CultureInfo.InvariantCulture),
+				}),
+			},
+		});
+
+	private static CurrencyRateController.CollectionDeliveryRequest Request(Guid collectedDataId) => new()
+	{
+		WebsiteSelectorsId = Guid.NewGuid(),
+		CollectedDataId = collectedDataId,
+		CollectedAt = DateTimeOffset.UtcNow,
+	};
+
+	private static async Task<List<RateRow>> QueryRatesAsync(string code)
+	{
+		await using var connection = new SqlConnection(_connectionString);
+		return [.. await connection.QueryAsync<RateRow>("""
+			SELECT r.Id, r.[Date], r.RateTime, r.SellingRate, r.Version, r.Modified, r.CreatedBy
+			FROM dbo.Currency_Rate_Bank r JOIN dbo.Currency c ON c.Id = r.Currency_Id
+			WHERE c.CodeISO = @code AND r.Bank_Id = @bankId
+			""", new { code, bankId = _bankId })];
+	}
+
+	// How readers find the current rate: the highest RateTime of the day.
+	private static async Task<decimal?> LatestSellingRateAsync(string code, DateOnly day)
+	{
+		await using var connection = new SqlConnection(_connectionString);
+		return await connection.QuerySingleOrDefaultAsync<decimal?>("""
+			SELECT TOP (1) r.SellingRate
+			FROM dbo.Currency_Rate_Bank r JOIN dbo.Currency c ON c.Id = r.Currency_Id
+			WHERE c.CodeISO = @code AND r.Bank_Id = @bankId AND r.[Date] = @day
+			ORDER BY r.RateTime DESC
+			""", new { code, bankId = _bankId, day = day.ToDateTime(TimeOnly.MinValue) });
+	}
+
+	private static IEnumerable<string> SplitBatches(string script) =>
+		System.Text.RegularExpressions.Regex.Split(script, @"^\s*GO\s*$",
+				System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+			.Where(b => !string.IsNullOrWhiteSpace(b));
+
+	private sealed record RateRow(
+		Guid Id, DateTime Date, DateTimeOffset? RateTime, decimal? SellingRate, int Version,
+		DateTimeOffset? Modified, Guid CreatedBy);
+
+	private sealed class StubCollectedData : Dictionary<Guid, string>, ICollectedDataRepository
+	{
+		public Task<string?> GetExtractedJsonAsync(Guid collectedDataId, CancellationToken cancellationToken) =>
+			Task.FromResult(TryGetValue(collectedDataId, out var json) ? json : null);
+	}
+
+	// Records with a list compare the list by reference; compare its items instead.
+	private sealed class CurrencyRateSaveResultComparer : IEqualityComparer<CurrencyRateSaveResult>
+	{
+		public static readonly CurrencyRateSaveResultComparer Instance = new();
+
+		public bool Equals(CurrencyRateSaveResult? x, CurrencyRateSaveResult? y) =>
+			x is not null && y is not null
+			&& (x.Inserted, x.Duplicates) == (y.Inserted, y.Duplicates)
+			&& x.UnknownCurrencies.SequenceEqual(y.UnknownCurrencies);
+
+		public int GetHashCode(CurrencyRateSaveResult obj) => HashCode.Combine(obj.Inserted, obj.Duplicates);
+	}
+}

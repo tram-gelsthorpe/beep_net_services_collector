@@ -113,7 +113,7 @@ public static class TestDatabase
 	public static SqlConnection OpenEventBus() => new(EventBusConnectionString);
 	public static SqlConnection OpenScheduler() => new(SchedulerConnectionString);
 
-	private static async Task DropDatabaseAsync(string connectionString)
+	internal static async Task DropDatabaseAsync(string connectionString)
 	{
 		if (string.IsNullOrEmpty(connectionString))
 			return;

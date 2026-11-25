@@ -1,0 +1,136 @@
+using System.Data;
+using Beep.Api.Domain.Currency;
+using Dapper;
+using Microsoft.Data.SqlClient;
+
+namespace Beep.Api.Repositories.Currency;
+
+/// <summary>
+/// Records bank rates in <c>dbo.Currency_Rate_Bank</c> (A_1_Beep_Global_Currency).
+/// </summary>
+/// <remarks>
+/// Each rate is a row for its bank, currency, <c>Date</c> and <c>RateTime</c>; earlier rows are never
+/// changed. The latest rate of a day is the row with the highest <c>RateTime</c>. A rate whose time is
+/// already recorded for that bank, currency and day is a repeated delivery and is skipped.
+/// </remarks>
+public interface ICurrencyRateRepository
+{
+	/// <summary>Record the rates of the bank with BIC <paramref name="bankBic"/> (<c>dbo.Bank.Bic</c>).</summary>
+	/// <exception cref="InvalidOperationException">No bank, or more than one, has that BIC.</exception>
+	Task<CurrencyRateSaveResult> SaveBankRatesAsync(
+		string bankBic, IReadOnlyList<CurrencyRateBank> rates, CancellationToken cancellationToken);
+}
+
+/// <param name="Inserted">Rates recorded</param>
+/// <param name="Duplicates">Already recorded (same bank, currency, day and time)</param>
+/// <param name="UnknownCurrencies">Codes not in dbo.Currency; nothing recorded for them</param>
+public sealed record CurrencyRateSaveResult(int Inserted, int Duplicates, IReadOnlyList<string> UnknownCurrencies);
+
+public sealed class CurrencyRateRepository : ICurrencyRateRepository
+{
+	// One currency's rate. UPDLOCK + HOLDLOCK keep the (bank, currency, day, time) range locked until
+	// commit, so two deliveries of the same rate cannot both insert it.
+	private const string SaveRateSql = """
+		IF EXISTS (SELECT 1 FROM dbo.Currency_Rate_Bank WITH (UPDLOCK, HOLDLOCK)
+		           WHERE Bank_Id = @BankId AND Currency_Id = @CurrencyId AND [Date] = @Date AND RateTime = @RateTime)
+		BEGIN
+			SELECT 0; -- repeated delivery
+			RETURN;
+		END
+
+		INSERT INTO dbo.Currency_Rate_Bank
+			(Version, Created, CreatedBy, Currency_Id, Bank_Id, [Date], RateTime,
+			 BuyingRateCash, BuyingRateTransfer, SellingRate)
+		VALUES
+			(1, SYSDATETIMEOFFSET(), @CreatedBy, @CurrencyId, @BankId, @Date, @RateTime,
+			 @BuyingRateCash, @BuyingRateTransfer, @SellingRate);
+
+		SELECT 1;
+		""";
+
+	private readonly string _connectionString;
+	private readonly Guid _createdBy;
+
+	/// <param name="connectionString">A_1_Beep_Global_Currency (<c>ConnectionStrings:Currency</c>)</param>
+	/// <param name="createdBy">User recorded in CreatedBy (<c>Audit:CreatedBy</c>)</param>
+	public CurrencyRateRepository(string connectionString, Guid createdBy)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+		if (createdBy == Guid.Empty)
+			throw new ArgumentException("CreatedBy must be a user id, not an empty GUID", nameof(createdBy));
+
+		_connectionString = connectionString;
+		_createdBy = createdBy;
+	}
+
+	public async Task<CurrencyRateSaveResult> SaveBankRatesAsync(
+		string bankBic, IReadOnlyList<CurrencyRateBank> rates, CancellationToken cancellationToken)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(bankBic);
+		ArgumentNullException.ThrowIfNull(rates);
+
+		await using var connection = new SqlConnection(_connectionString);
+		await connection.OpenAsync(cancellationToken);
+		await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+		var bankId = await GetBankIdAsync(connection, transaction, bankBic, cancellationToken);
+
+		var codes = rates.Select(r => r.CurrencyCode).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+		var currencyIds = codes.Count == 0
+			? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
+			: (await connection.QueryAsync<(Guid Id, string CodeISO)>(new CommandDefinition(
+					"SELECT Id, RTRIM(CodeISO) AS CodeISO FROM dbo.Currency WHERE CodeISO IN @codes",
+					new { codes }, transaction, cancellationToken: cancellationToken)))
+				.ToDictionary(c => c.CodeISO, c => c.Id, StringComparer.OrdinalIgnoreCase);
+
+		int inserted = 0, duplicates = 0;
+		var unknown = new List<string>();
+
+		foreach (var rate in rates)
+		{
+			if (!currencyIds.TryGetValue(rate.CurrencyCode, out var currencyId))
+			{
+				unknown.Add(rate.CurrencyCode);
+				continue;
+			}
+
+			var parameters = new DynamicParameters();
+			parameters.Add("BankId", bankId);
+			parameters.Add("CurrencyId", currencyId);
+			parameters.Add("Date", rate.Date.ToDateTime(TimeOnly.MinValue), DbType.Date);
+			parameters.Add("RateTime", rate.RateTime);
+			parameters.Add("BuyingRateCash", rate.BuyingRateCash);
+			parameters.Add("BuyingRateTransfer", rate.BuyingRateTransfer);
+			parameters.Add("SellingRate", rate.SellingRate);
+			parameters.Add("CreatedBy", _createdBy);
+
+			var recorded = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+				SaveRateSql, parameters, transaction, cancellationToken: cancellationToken));
+
+			if (recorded == 1)
+				inserted++;
+			else
+				duplicates++;
+		}
+
+		await transaction.CommitAsync(cancellationToken);
+		return new CurrencyRateSaveResult(inserted, duplicates, unknown);
+	}
+
+	private static async Task<Guid> GetBankIdAsync(
+		SqlConnection connection, SqlTransaction transaction, string bankBic, CancellationToken cancellationToken)
+	{
+		var ids = (await connection.QueryAsync<Guid>(new CommandDefinition(
+			"SELECT Id FROM dbo.Bank WHERE Bic = @bic",
+			new { bic = new DbString { Value = bankBic, IsAnsi = true, Length = 20 } },
+			transaction,
+			cancellationToken: cancellationToken))).ToList();
+
+		return ids.Count switch
+		{
+			1 => ids[0],
+			0 => throw new InvalidOperationException($"No bank with BIC '{bankBic}' in dbo.Bank"),
+			_ => throw new InvalidOperationException($"{ids.Count} banks have BIC '{bankBic}' in dbo.Bank"),
+		};
+	}
+}
