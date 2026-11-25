@@ -1,0 +1,118 @@
+@page
+@model IndexModel
+@{
+	ViewData["Title"] = "Latest rates";
+}
+
+<h1>Latest bank rates</h1>
+
+<form method="get" class="filters">
+	<label>
+		Country
+		<select name="country" onchange="this.form.submit()">
+			<option value="">All countries</option>
+			@foreach (var c in Model.Countries)
+			{
+				<option value="@c.Code" selected="@(string.Equals(c.Code, Model.Country, StringComparison.OrdinalIgnoreCase))">@c.Name</option>
+			}
+		</select>
+	</label>
+	<label>
+		Date
+		<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd")" />
+	</label>
+	<label class="grow">
+		Bank name or BIC
+		<input type="search" name="bank" value="@Model.Bank" list="banks" placeholder="e.g. Vietcombank or BFTVVNVX" />
+		<datalist id="banks">
+			@foreach (var b in Model.Banks)
+			{
+				<option value="@b.Bic">@b.Name</option>
+			}
+		</datalist>
+	</label>
+	<div class="actions">
+		<button type="submit">Show rates</button>
+		<a asp-page="/Index" class="reset">Reset</a>
+	</div>
+</form>
+
+@if (Model.Error is not null)
+{
+	<p class="message error">@Model.Error</p>
+}
+else if (Model.Results is null)
+{
+	<p class="message">
+		Choose a country, a date or a bank to see the latest rates.
+		@if (Model.Banks.Count > 0)
+		{
+			<span>@Model.Banks.Count bank(s) have rates.</span>
+		}
+	</p>
+}
+else if (Model.Results.Count == 0)
+{
+	<p class="message">
+		No rates match this search@(Model.Date is { } d ? " on or before " + d.ToString("dd/MM/yyyy") : "").
+	</p>
+}
+else
+{
+	foreach (var bank in Model.Results)
+	{
+		<section class="bank">
+			<header>
+				<h2>@bank.Name</h2>
+				<span class="meta">
+					@bank.Bic
+					@if (bank.CountryName is not null)
+					{
+						<text> · @bank.CountryName</text>
+					}
+					@if (bank.SameDate)
+					{
+						<text> · rates of @bank.LastDate.ToString("dd/MM/yyyy")</text>
+						@if (bank.PublishedAt is { } published)
+						{
+							<text>, published @published.ToString("dd/MM/yyyy HH:mm zzz")</text>
+						}
+					}
+					else
+					{
+						<text> · rates of @bank.FirstDate.ToString("dd/MM/yyyy") to @bank.LastDate.ToString("dd/MM/yyyy")</text>
+					}
+				</span>
+			</header>
+			<table>
+				<thead>
+					<tr>
+						<th>Currency</th>
+						<th class="num">Buy (cash)</th>
+						<th class="num">Buy (transfer)</th>
+						<th class="num">Sell</th>
+						@if (!bank.SameDate)
+						{
+							<th>Date</th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var r in bank.Rates)
+					{
+						<tr>
+							<td><strong>@r.CurrencyCode</strong> <span class="muted">@r.CurrencyName</span></td>
+							<td class="num">@IndexModel.Format(r.BuyingRateCash)</td>
+							<td class="num">@IndexModel.Format(r.BuyingRateTransfer)</td>
+							<td class="num">@IndexModel.Format(r.SellingRate)</td>
+							@if (!bank.SameDate)
+							{
+								<td>@r.Date.ToString("dd/MM/yyyy")</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		</section>
+	}
+}

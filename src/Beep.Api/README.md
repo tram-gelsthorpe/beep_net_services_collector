@@ -1,13 +1,30 @@
 # Beep.Api
 
 ASP.NET Core Web API for the Beep collector system. It receives collection results from the Beep.Collector
-EventBus and records bank currency rates; see the [solution README](../../README.md) for the overall architecture.
+EventBus and records bank currency rates, and serves the recorded rates (to Beep.Website.Currency); see the
+[solution README](../../README.md) for the overall architecture.
 
 ## Endpoints
 
 | Method | Route | Description |
 | --- | --- | --- |
 | `POST` | `/api/currencyrate/currency/vietcombank` | Record Vietcombank's rates (bank BIC `BFTVVNVX`) from a collection result. |
+| `GET` | `/api/currencyrate/countries` | Countries that have a bank with rates: `[{ "code", "name" }]`. |
+| `GET` | `/api/currencyrate/banks?country=&bank=` | Banks with rates and their latest date. |
+| `GET` | `/api/currencyrate/latest?date=&country=&bank=` | The latest rate of each bank and currency. |
+
+### Reading the latest rates
+
+All filters are optional and combine:
+
+- `date` (`yyyy-MM-dd`): rates on or before that day. Without it, the latest recorded.
+- `country`: a country code from A_1_Beep_Global_Country's `dbo.Country` (e.g. `VN`).
+- `bank`: a BIC (`BFTVVNVX`) or part of a bank name (`vietcombank`), matched literally.
+
+For each bank and currency, `latest` returns the row with the highest `Date`, then the highest `RateTime`:
+`{ "bic", "bankName", "countryCode", "countryName", "currencyCode", "currencyName", "date", "rateTime",
+"buyingRateCash", "buyingRateTransfer", "sellingRate" }`. A currency a bank stopped publishing keeps its last
+rate, so dates can differ within a bank. An unknown country or a malformed date gives `400`.
 
 ### Recording bank rates
 
@@ -69,6 +86,7 @@ Every endpoint except `/swagger`, `/api-docs` and `/health` requires an `X-API-K
 | --- | --- |
 | `ConnectionStrings:Currency` | A_1_Beep_Global_Currency, where rates are recorded |
 | `ConnectionStrings:Collector` | Beep.Collector's database, where collection results are read |
+| `ConnectionStrings:Country` | A_1_Beep_Global_Country, for country codes and names (cached for an hour) |
 | `Audit:CreatedBy` | GUID of the user recorded as `CreatedBy` on everything this API writes |
 | `Authentication:ApiKeys` | Accepted API keys |
 

@@ -11,7 +11,8 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | `src/Beep.Scheduler` | Recurring schedules (`Schedules`) that call an `IScheduleHandler` to enqueue work. |
 | `src/Beep.EventBus` | Publisher for HTTP POST deliveries to registered endpoints, delivered through ServiceBus work items; plus an in-process event aggregator. |
 | `src/Beep.Collector` | The host: website selectors, collection worker, schedule handler, subscriber. |
-| `src/Beep.Api` | ASP.NET Core API (API-key protected). Currently a stub. |
+| `src/Beep.Api` | ASP.NET Core API (API-key protected): records the bank rates the Collector delivers and serves them. |
+| `src/Beep.Website.Currency` | Razor Pages website: latest bank rates by country, date and bank name or BIC, read through Beep.Api. |
 | `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |
 | `src/Beep.Configuration` | Optional Azure Key Vault source and startup checks for required settings and secrets. |
 
@@ -76,8 +77,10 @@ Settings are read in this order, later ones winning: `appsettings.json` → `app
 | --- | --- | --- | --- |
 | Worker | `ConnectionStrings:Scheduler` / `ServiceBus` / `EventBus` / `Collector` | `ConnectionStrings__Collector`, ... | `ConnectionStrings--Collector`, ... |
 | Worker | `BeepNLog:DatabaseConnection` | `BeepNLog__DatabaseConnection` | `BeepNLog--DatabaseConnection` |
-| Api | `ConnectionStrings:Currency` | `ConnectionStrings__Currency` | `ConnectionStrings--Currency` |
+| Api | `ConnectionStrings:Currency` / `Collector` / `Country` | `ConnectionStrings__Currency`, ... | `ConnectionStrings--Currency`, ... |
+| Api | `Audit:CreatedBy` | `Audit__CreatedBy` | `Audit--CreatedBy` |
 | Api | `Authentication:ApiKeys` (one or more) | `Authentication__ApiKeys__0`, `__1`, ... | `Authentication--ApiKeys--0`, ... |
+| Website.Currency | `BeepApi:BaseUrl`, `BeepApi:ApiKey` | `BeepApi__BaseUrl`, `BeepApi__ApiKey` | `BeepApi--BaseUrl`, `BeepApi--ApiKey` |
 
 Optional: `EventBus:ApiKey` (`EventBus__ApiKey`, `EventBus--ApiKey`), sent as `X-API-Key` with
 EventBus deliveries so they pass the Api's key check. It is sent only to the origins listed in
@@ -103,6 +106,9 @@ dotnet user-secrets set --project src/Beep.Api "Authentication:ApiKeys:0" "dev-a
 # Let the Worker's deliveries reach the local Api
 dotnet user-secrets set --project src/Beep.Collector "EventBus:ApiKey" "dev-api-key-12345"
 dotnet user-secrets set --project src/Beep.Collector "EventBus:ApiKeyOrigins:0" "https://localhost:55281"
+# Let the currency website read rates from the local Api
+dotnet user-secrets set --project src/Beep.Website.Currency "BeepApi:BaseUrl" "https://localhost:55281/"
+dotnet user-secrets set --project src/Beep.Website.Currency "BeepApi:ApiKey" "dev-api-key-12345"
 dotnet user-secrets list --project src/Beep.Collector
 ```
 

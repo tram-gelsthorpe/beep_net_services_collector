@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Beep.Website.Currency": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:55291;http://localhost:55292"
+    }
+  }
+}

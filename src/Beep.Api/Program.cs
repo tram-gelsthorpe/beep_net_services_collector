@@ -3,6 +3,7 @@ using Beep.Configuration;
 using Beep.Api.Infrastructure.Audit;
 using Beep.Api.Infrastructure.Authentication;
 using Beep.Api.Repositories.Collector;
+using Beep.Api.Repositories.Country;
 using Beep.Api.Repositories.Currency;
 
 // "backfill vietcombank ..." fills past rates and exits instead of starting the web server.
@@ -14,9 +15,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Settings: appsettings.json (no secrets), then user secrets (Development only), environment
 // variables, command line, and Azure Key Vault when KeyVault:Uri is set.
 builder.Configuration.AddKeyVaultIfConfigured();
-// Currency: A_1_Beep_Global_Currency (rates are written here). Collector: Beep.Collector's database
-// (collection results are read from here).
-builder.Configuration.RequireConnectionStrings("Currency", "Collector");
+// Currency: A_1_Beep_Global_Currency (rates are written and read here). Collector: Beep.Collector's database
+// (collection results are read from here). Country: A_1_Beep_Global_Country (country names).
+builder.Configuration.RequireConnectionStrings("Currency", "Collector", "Country");
 builder.Configuration.Require("Audit:CreatedBy");
 
 // Audit values (CreatedBy) shared by everything this API records.
@@ -46,6 +47,10 @@ builder.Services.AddCors(options =>
 // API repositories
 builder.Services.AddSingleton<ICollectedDataRepository>(
 	new CollectedDataRepository(builder.Configuration.GetConnectionString("Collector")!));
+builder.Services.AddSingleton<ICurrencyRateQueries>(
+	new CurrencyRateQueries(builder.Configuration.GetConnectionString("Currency")!));
+builder.Services.AddSingleton<ICountryRepository>(
+	new CountryRepository(builder.Configuration.GetConnectionString("Country")!));
 builder.Services.AddSingleton<ICurrencyRateRepository>(
 	new CurrencyRateRepository(builder.Configuration.GetConnectionString("Currency")!, audit.CreatedBy));
 

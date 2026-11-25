@@ -23,6 +23,8 @@ public sealed class CurrencyRateIntegrationTests
 {
 	private const string DatabaseName = "WebsiteCollectorTests_Currency";
 	private const string Bic = VietcombankRateParser.BankBic;
+	private const string OtherBic = "ASCBVNVX";
+	private static readonly Guid OtherCountryId = Guid.Parse("0d6f3c1e-7a42-4b8e-9c5d-1e2f3a4b5c6d");
 	private static readonly Guid CreatedBy = Guid.Parse("5e0b8a52-1c7d-4f3e-9a61-2b4d6c8e0f11");
 	private static readonly DateOnly Day = new(2026, 11, 26);
 
@@ -92,6 +94,10 @@ public sealed class CurrencyRateIntegrationTests
 		await connection.ExecuteAsync("""
 			INSERT INTO dbo.Currency (CodeISO, Name) VALUES ('USD', N'US Dollar'), ('EUR', N'Euro'), ('SEK', N'Swedish Krona');
 			""");
+		// A bank of another country, for the read queries.
+		await connection.ExecuteAsync(
+			"INSERT INTO dbo.Bank (Country_Id, Bic, Name) VALUES (@OtherCountryId, @OtherBic, N'Asia Commercial 50% Bank')",
+			new { OtherCountryId, OtherBic });
 	}
 
 	[ClassCleanup]
@@ -317,6 +323,64 @@ public sealed class CurrencyRateIntegrationTests
 			VietcombankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 16, 30, 0, TimeSpan.Zero)));
 	}
 
+	// ---------------------------------------------------------------- reading the latest rates
+
+	[TestMethod]
+	public async Task LatestRates_AreTheLatestDateAndTime_OnOrBeforeTheDate()
+	{
+		await _repository.SaveBankRatesAsync(Bic,
+			[Rate("USD", At(10), 1m), Rate("USD", At(14), 2m), Rate("USD", At(23, day: 27), 3m), Rate("EUR", At(23, day: 25), 4m)],
+			CancellationToken.None);
+		await _repository.SaveBankRatesAsync(OtherBic, [Rate("USD", At(9), 9m)], CancellationToken.None);
+		var queries = new CurrencyRateQueries(_connectionString);
+
+		Assert.AreEqual("ACB USD 9 | VCB EUR 4 | VCB USD 3",
+			Describe(await queries.GetLatestRatesAsync(null, null, null, CancellationToken.None)));
+		Assert.AreEqual("ACB USD 9 | VCB EUR 4 | VCB USD 2",
+			Describe(await queries.GetLatestRatesAsync(Day, null, null, CancellationToken.None)),
+			"on the 26th: the 14:00 rate, not the 27th's");
+		Assert.AreEqual("VCB EUR 4",
+			Describe(await queries.GetLatestRatesAsync(Day.AddDays(-1), null, null, CancellationToken.None)));
+		Assert.AreEqual("",
+			Describe(await queries.GetLatestRatesAsync(Day.AddDays(-2), null, null, CancellationToken.None)));
+
+		var latest = (await queries.GetLatestRatesAsync(Day, null, Bic, CancellationToken.None)).Single(r => r.CurrencyCode == "USD");
+		Assert.AreEqual(At(14), latest.RateTime);
+		Assert.AreEqual(new DateTime(2026, 11, 26), latest.Date);
+		Assert.AreEqual("US Dollar", latest.CurrencyName);
+	}
+
+	[TestMethod]
+	public async Task LatestRates_FilterByBicOrName_AndCountry()
+	{
+		await _repository.SaveBankRatesAsync(Bic, [Rate("USD", At(10), 1m)], CancellationToken.None);
+		await _repository.SaveBankRatesAsync(OtherBic, [Rate("USD", At(9), 9m)], CancellationToken.None);
+		var queries = new CurrencyRateQueries(_connectionString);
+
+		Assert.AreEqual("VCB USD 1", Describe(await queries.GetLatestRatesAsync(null, null, Bic, CancellationToken.None)));
+		Assert.AreEqual("VCB USD 1", Describe(await queries.GetLatestRatesAsync(null, null, " vietcom ", CancellationToken.None)));
+		Assert.AreEqual("ACB USD 9", Describe(await queries.GetLatestRatesAsync(null, null, "50%", CancellationToken.None)),
+			"% is matched literally");
+		Assert.AreEqual("", Describe(await queries.GetLatestRatesAsync(null, null, "5_%", CancellationToken.None)));
+		Assert.AreEqual("ACB USD 9", Describe(await queries.GetLatestRatesAsync(null, OtherCountryId, null, CancellationToken.None)));
+		Assert.AreEqual("", Describe(await queries.GetLatestRatesAsync(null, OtherCountryId, Bic, CancellationToken.None)));
+
+		var banks = await queries.GetBanksWithRatesAsync(null, null, CancellationToken.None);
+		CollectionAssert.AreEqual(new[] { OtherBic, Bic }, banks.Select(b => b.Bic).ToArray(), "ordered by name");
+		Assert.AreEqual(new DateTime(2026, 11, 26), banks[1].LatestDate);
+		Assert.AreEqual(OtherBic, (await queries.GetBanksWithRatesAsync(OtherCountryId, null, CancellationToken.None)).Single().Bic);
+	}
+
+	[TestMethod]
+	public async Task Banks_WithoutRates_AreNotListed()
+	{
+		await _repository.SaveBankRatesAsync(Bic, [Rate("USD", At(10), 1m)], CancellationToken.None);
+		var queries = new CurrencyRateQueries(_connectionString);
+
+		Assert.AreEqual(Bic, (await queries.GetBanksWithRatesAsync(null, null, CancellationToken.None)).Single().Bic);
+		Assert.AreEqual("VCB USD 1", Describe(await queries.GetLatestRatesAsync(null, null, null, CancellationToken.None)));
+	}
+
 	// ---------------------------------------------------------------- helpers
 
 	private static DateTimeOffset At(int hour, int day = 26) => new(2026, 11, day, hour, 0, 0, TimeSpan.FromHours(7));
@@ -344,6 +408,11 @@ public sealed class CurrencyRateIntegrationTests
 				sell = r.Sell.ToString(System.Globalization.CultureInfo.InvariantCulture),
 			}),
 		});
+
+	// "VCB USD 2 | ACB USD 9": bank, currency and selling rate of each row, in the query's order.
+	private static string Describe(IEnumerable<LatestBankRate> rates) =>
+		string.Join(" | ", rates.Select(r =>
+			$"{(r.Bic == Bic ? "VCB" : "ACB")} {r.CurrencyCode} {r.SellingRate!.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}"));
 
 	private static string VietcombankJson(DateTimeOffset at, params (string Code, decimal Sell)[] rates) =>
 		JsonSerializer.Serialize(new

@@ -1,0 +1,60 @@
+:root {
+	--bg: #f6f7f9;
+	--card: #ffffff;
+	--text: #1d2330;
+	--muted: #6b7280;
+	--line: #e3e6eb;
+	--accent: #0b6e4f;
+	--error: #b42318;
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	color: var(--text);
+	background: var(--bg);
+}
+
+body { margin: 0; }
+
+.site-header {
+	display: flex; align-items: baseline; gap: 1rem;
+	padding: 0.9rem 1.5rem; background: var(--accent); color: #fff;
+}
+.site-header .brand { color: #fff; font-weight: 700; font-size: 1.15rem; text-decoration: none; }
+.site-header .tagline { opacity: 0.85; font-size: 0.9rem; }
+
+.container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+
+.filters {
+	display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
+	padding: 1rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+}
+.filters label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.filters label.grow { flex: 1; min-width: 220px; }
+.filters select, .filters input {
+	font: inherit; font-size: 0.95rem; color: var(--text);
+	padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+}
+.filters .actions { display: flex; gap: 0.75rem; align-items: center; }
+.filters button {
+	font: inherit; padding: 0.5rem 1rem; border: 0; border-radius: 6px;
+	background: var(--accent); color: #fff; cursor: pointer;
+}
+.filters .reset { color: var(--muted); font-size: 0.9rem; }
+
+.message { margin: 1.5rem 0; color: var(--muted); }
+.message.error { color: var(--error); }
+
+.bank {
+	margin-top: 1.5rem; background: var(--card);
+	border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.bank header { padding: 0.9rem 1rem; border-bottom: 1px solid var(--line); }
+.bank h2 { margin: 0; font-size: 1.1rem; }
+.bank .meta { font-size: 0.85rem; color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #f9fafb; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); font-size: 0.85rem; }
