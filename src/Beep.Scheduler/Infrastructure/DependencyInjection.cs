@@ -1,3 +1,4 @@
+using Beep.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -9,38 +10,46 @@ namespace Beep.Scheduler;
 public static class DependencyInjection
 {
 	/// <summary>
-	/// Register the scheduler framework with dependency injection
+	/// Register the scheduler framework with dependency injection.
+	/// The host must also register <see cref="IWorkItemRepository"/>: each due schedule is run as a
+	/// ServiceBus work item, which gives one run per schedule across any number of instances, lease
+	/// renewal while a handler runs, crash recovery and retries.
 	/// </summary>
 	/// <param name="services">Service collection</param>
 	/// <param name="connectionString">Database connection string for scheduler tables</param>
 	/// <param name="schedulerSchema">Database schema that holds the scheduler tables (default: dbo)</param>
-	/// <param name="pollIntervalSeconds">How often to poll for due schedules (default: 30)</param>
-	/// <param name="claimLeaseSeconds">
-	/// How long a due schedule stays claimed by the instance running it (default: 1 hour).
-	/// Must be longer than the slowest handler run.
-	/// </param>
+	/// <param name="pollIntervalSeconds">How often to look for due schedules (default: 30)</param>
+	/// <param name="workerOptions">How schedule work items are run (default: <see cref="SchedulerWorkerOptions"/>)</param>
 	public static IServiceCollection RegisterScheduler(
 		this IServiceCollection services,
 		string connectionString,
 		string schedulerSchema = "dbo",
 		int pollIntervalSeconds = 30,
-		int claimLeaseSeconds = 3600)
+		SchedulerWorkerOptions? workerOptions = null)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 		ArgumentException.ThrowIfNullOrWhiteSpace(schedulerSchema);
 
-		// Stateless (connection per call), so safe to share with the hosted SchedulerService.
+		workerOptions ??= new SchedulerWorkerOptions();
+		workerOptions.Validate();
+		services.AddSingleton(workerOptions);
+
+		// Stateless (connection per call), so safe to share with the hosted services.
 		services.AddSingleton(provider => new SchedulerRepository(
 			connectionString,
 			schedulerSchema,
 			provider.GetRequiredService<ILogger<SchedulerRepository>>()));
 
+		// Finds due schedules and queues them; the worker runs them.
 		services.AddHostedService(provider => new SchedulerService(
 			provider.GetRequiredService<SchedulerRepository>(),
-			provider.GetRequiredService<IServiceScopeFactory>(),
+			provider.GetRequiredService<IWorkItemRepository>(),
+			workerOptions,
 			provider.GetRequiredService<ILogger<SchedulerService>>(),
-			pollIntervalSeconds,
-			claimLeaseSeconds));
+			pollIntervalSeconds));
+
+		services.AddSingleton<SchedulerWorkProcessor>();
+		services.AddHostedService<SchedulerWorker>();
 
 		services.AddScoped<IScheduleService, ScheduleManagementService>();
 

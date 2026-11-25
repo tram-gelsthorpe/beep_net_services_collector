@@ -20,7 +20,7 @@ The ServiceBus is the only place that coordinates workers: every job (a collecti
 `WorkItems` row that is claimed with a lease, renewed while it runs, retried with back-off up to
 `MaxAttempts`, and reclaimed if its worker dies. Any number of worker instances can run.
 
-1. **Schedule** – `SchedulerService` claims due schedules with `Scheduler.ClaimDueSchedules` (one instance per run;
+1. **Schedule** – `SchedulerService` queues each due schedule as a ServiceBus work item, which `SchedulerWorker` runs (once;
    `StartTime` is UTC). When the `WebsiteCollector` schedule is due, `WebsiteCollectorScheduleHandler` pages through
    the enabled `WebsiteSelectors` rows (5,000 at a time). For each page it registers the selectors' `DispatchUrl`s as
    EventBus endpoints, then enqueues a collection work item per selector, skipping selectors that still have an

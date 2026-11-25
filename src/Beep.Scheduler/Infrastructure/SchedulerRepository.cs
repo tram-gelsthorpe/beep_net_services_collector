@@ -21,34 +21,48 @@ public sealed class SchedulerRepository
 	}
 
 	/// <summary>
-	/// Claim and return the schedules that are due to run. A claimed schedule is not returned
-	/// to any other caller until <see cref="LogExecutionAsync"/> records the run or the claim
-	/// expires after <paramref name="leaseSeconds"/> (for an instance that died mid-run).
-	/// Due-ness uses the database clock.
+	/// Get the schedules that are due to run now (database clock). Read-only: the caller
+	/// enqueues a ServiceBus work item per schedule, and the ServiceBus makes sure only one
+	/// worker runs it.
 	/// </summary>
-	public async Task<List<WorkerSchedule>> ClaimDueSchedulesAsync(int leaseSeconds, CancellationToken cancellationToken)
+	public async Task<List<WorkerSchedule>> GetDueSchedulesAsync(CancellationToken cancellationToken)
 	{
-		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(leaseSeconds);
+		var due = await QueryDueSchedulesAsync(null, cancellationToken);
+		return [.. due.Select(d => d.Schedule)];
+	}
 
-		var schedules = new List<WorkerSchedule>();
+	/// <summary>
+	/// Check whether one schedule is still due. Returns the database time of the check (used as
+	/// the run's start time for <see cref="LogExecutionAsync"/>), or null when it is not due:
+	/// inactive, deleted, or already run this period.
+	/// </summary>
+	public async Task<DateTimeOffset?> CheckDueAsync(Guid scheduleId, CancellationToken cancellationToken)
+	{
+		var due = await QueryDueSchedulesAsync(scheduleId, cancellationToken);
+		return due.Count == 0 ? null : due[0].CheckedAt;
+	}
+
+	private async Task<List<(WorkerSchedule Schedule, DateTimeOffset CheckedAt)>> QueryDueSchedulesAsync(
+		Guid? scheduleId, CancellationToken cancellationToken)
+	{
+		var schedules = new List<(WorkerSchedule, DateTimeOffset)>();
 
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
+			await using var connection = new SqlConnection(_connectionString);
 			await connection.OpenAsync(cancellationToken);
 
-			using var command = new SqlCommand($"{_schema}.ClaimDueSchedules", connection)
+			await using var command = new SqlCommand($"{_schema}.GetDueSchedules", connection)
 			{
 				CommandType = CommandType.StoredProcedure,
 				CommandTimeout = 30
 			};
+			command.Parameters.AddWithValue("@ScheduleId", (object?)scheduleId ?? DBNull.Value);
 
-			command.Parameters.AddWithValue("@LeaseSeconds", leaseSeconds);
-
-			using var reader = await command.ExecuteReaderAsync(cancellationToken);
+			await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 			while (await reader.ReadAsync(cancellationToken))
 			{
-				schedules.Add(new WorkerSchedule
+				schedules.Add((new WorkerSchedule
 				{
 					Id = reader.GetGuid(0),
 					WorkerType = reader.GetString(1),
@@ -59,12 +73,12 @@ public sealed class SchedulerRepository
 					DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
 					MaxConcurrentRegistrations = reader.GetInt32(7),
 					LastRunAt = reader.IsDBNull(8) ? null : reader.GetDateTimeOffset(8)
-				});
+				}, reader.GetDateTimeOffset(9)));
 			}
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is not OperationCanceledException)
 		{
-			_logger.LogError(ex, "Error claiming due schedules");
+			_logger.LogError(ex, "Error reading due schedules");
 			throw;
 		}
 
@@ -74,26 +88,6 @@ public sealed class SchedulerRepository
 	/// <summary>
 	/// Get a single schedule by ID
 	/// </summary>
-	/// <summary>
-	/// Release a claim taken by <see cref="ClaimDueSchedulesAsync"/> without recording a run,
-	/// so the schedule is due again straight away (used when shutting down mid-run).
-	/// </summary>
-	public async Task ReleaseClaimAsync(Guid scheduleId, CancellationToken cancellationToken)
-	{
-		await using var connection = new SqlConnection(_connectionString);
-		await connection.OpenAsync(cancellationToken);
-
-		await using var command = new SqlCommand(
-			$"UPDATE {_schema}.WorkerSchedules SET ClaimedAt = NULL, ClaimedUntil = NULL WHERE Id = @ScheduleId",
-			connection)
-		{
-			CommandTimeout = 30
-		};
-		command.Parameters.AddWithValue("@ScheduleId", scheduleId);
-
-		await command.ExecuteNonQueryAsync(cancellationToken);
-	}
-
 	public async Task<WorkerSchedule?> GetScheduleAsync(Guid scheduleId, CancellationToken cancellationToken)
 	{
 		try
@@ -148,6 +142,11 @@ public sealed class SchedulerRepository
 	/// <summary>
 	/// Log a schedule execution
 	/// </summary>
+	/// <param name="completesRun">
+	/// True when the run is finished (succeeded, skipped, or failed on its last attempt): LastRunAt is
+	/// set to <paramref name="startedAt"/> and the schedule waits for its next period. False for a
+	/// failed attempt the ServiceBus will retry.
+	/// </param>
 	public async Task LogExecutionAsync(
 		Guid scheduleId,
 		string status,
@@ -155,7 +154,8 @@ public sealed class SchedulerRepository
 		string? error,
 		string? handlerName,
 		DateTimeOffset startedAt,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		bool completesRun = true)
 	{
 		try
 		{
@@ -174,6 +174,7 @@ public sealed class SchedulerRepository
 			command.Parameters.AddWithValue("@Error", error ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("@HandlerName", handlerName ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("@StartedAt", startedAt);
+			command.Parameters.AddWithValue("@CompletesRun", completesRun);
 
 			await command.ExecuteNonQueryAsync(cancellationToken);
 		}

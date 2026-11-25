@@ -66,7 +66,11 @@ src/Beep.Scheduler/
 │   └── IScheduleHandler.cs             (Interface for implementations)
 │
 ├── Services/
-│   └── SchedulerService.cs             (Main orchestrator)
+│   └── SchedulerService.cs             (Queues due schedules as ServiceBus work items)
+│
+├── Workers/
+│   ├── SchedulerWorker.cs              (Claims and runs schedule work items)
+│   └── SchedulerWorkProcessor.cs
 │
 ├── Infrastructure/
 │   ├── DependencyInjection.cs
@@ -147,9 +151,15 @@ All times are **UTC** on the database clock. A schedule runs at the first poll a
 `StartTime` on a matching day, at most once that day (a worker that was down at `StartTime` catches
 up when it starts). Each `WorkerType` has one schedule (`UQ_WorkerSchedules_WorkerType`).
 
-With several worker instances, `ClaimDueSchedules` hands each due schedule to exactly one of them.
-The claim lasts `claimLeaseSeconds` (`RegisterScheduler`, default 1 hour): if that instance dies
-mid-run, another one runs the schedule once the claim expires. Set it longer than your slowest run.
+Running a schedule is a ServiceBus work item (worker type `Scheduler`, DomainType `WorkerSchedule`):
+
+- `SchedulerService` polls `GetDueSchedules` (read-only) and enqueues a work item per due schedule.
+  Every instance can poll: the ServiceBus skips a schedule that already has an unfinished work item.
+- `SchedulerWorker` claims the work item, checks the schedule is still due (a late duplicate does
+  nothing), and runs its `IScheduleHandler`. The lease is renewed while the handler runs, so long runs
+  are fine; if the instance dies, the run is reclaimed when the lease expires.
+- A failed run is retried by the ServiceBus with back-off (`SchedulerWorkerOptions.MaxAttempts`,
+  default 3). The last failed attempt still sets `LastRunAt`, so the schedule waits for its next period.
 
 ### Day of Week Values (for Weekly)
 - 0 = Sunday

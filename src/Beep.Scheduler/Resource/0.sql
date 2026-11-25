@@ -71,13 +71,9 @@ CREATE TABLE dbo.WorkerSchedules (
 	-- Audit
 	CreatedAt DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
 	UpdatedAt DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-	LastRunAt DATETIMEOFFSET(7) NULL,   -- When the last completed run started (UTC)
-
-	-- Claim: set by ClaimDueSchedules so only one worker instance runs a due schedule.
-	-- Cleared by LogScheduleExecution; if the instance dies mid-run the claim expires
-	-- at ClaimedUntil and the schedule becomes due again.
-	ClaimedAt DATETIMEOFFSET(7) NULL,
-	ClaimedUntil DATETIMEOFFSET(7) NULL,
+	-- When the last finished run started (UTC, database clock). Running a schedule is a ServiceBus
+	-- work item (DomainType 'WorkerSchedule'); claiming, leases and retries live there.
+	LastRunAt DATETIMEOFFSET(7) NULL,
 
 	-- One schedule per worker type (CreateOrUpdateSchedule upserts on it)
 	CONSTRAINT UQ_WorkerSchedules_WorkerType UNIQUE (WorkerType),
@@ -117,11 +113,14 @@ CREATE TABLE dbo.ScheduleExecutionLogs (
 -- Stored Procedures
 -- =====================================================
 
--- Claim the schedules that are due to run
+-- Get the schedules that are due to run (read-only).
+-- SchedulerService enqueues a ServiceBus work item for each; the worker that runs it calls this
+-- again with @ScheduleId to check the schedule is still due (a late duplicate item does nothing).
+-- CheckedAt is the database time of the check: the run start recorded as LastRunAt.
 EXEC(N'
-CREATE OR ALTER PROCEDURE dbo.ClaimDueSchedules
-	@LeaseSeconds INT = 3600,
-	@Now DATETIMEOFFSET(7) = NULL  -- Defaults to the database clock; tests pass a fixed time
+CREATE OR ALTER PROCEDURE dbo.GetDueSchedules
+	@ScheduleId UNIQUEIDENTIFIER = NULL,  -- Only this schedule
+	@Now DATETIMEOFFSET(7) = NULL         -- Defaults to the database clock; tests pass a fixed time
 AS
 BEGIN
 	SET NOCOUNT ON;
@@ -135,26 +134,20 @@ BEGIN
 	DECLARE @DayOfMonth INT = DAY(@Today);
 	DECLARE @DayOfYear INT = DATEPART(DAYOFYEAR, @Today);
 
-	-- One UPDATE both claims and returns the due rows. A concurrent caller blocks on the
-	-- row lock and re-checks the WHERE clause after the first commits, so it sees the claim
-	-- and skips the row: each due schedule is handed to exactly one worker instance.
-	UPDATE s
-	SET ClaimedAt = @Now,
-		ClaimedUntil = DATEADD(SECOND, @LeaseSeconds, @Now)
-	OUTPUT
-		inserted.Id,
-		inserted.WorkerType,
-		inserted.Frequency,
-		inserted.StartTime,
-		inserted.DayOfWeek,
-		inserted.DayOfMonth,
-		inserted.DayOfYear,
-		inserted.MaxConcurrentRegistrations,
-		inserted.LastRunAt
+	SELECT
+		s.Id,
+		s.WorkerType,
+		s.Frequency,
+		s.StartTime,
+		s.DayOfWeek,
+		s.DayOfMonth,
+		s.DayOfYear,
+		s.MaxConcurrentRegistrations,
+		s.LastRunAt,
+		@Now AS CheckedAt
 	FROM dbo.WorkerSchedules s
 	WHERE s.IsActive = 1
-		-- Not claimed by another instance (or that claim has expired)
-		AND (s.ClaimedUntil IS NULL OR s.ClaimedUntil <= @Now)
+		AND (@ScheduleId IS NULL OR s.Id = @ScheduleId)
 		AND (
 			-- Hourly: at least an hour since the last run started
 			(s.Frequency = ''Hourly''
@@ -181,7 +174,11 @@ CREATE OR ALTER PROCEDURE dbo.LogScheduleExecution
 	@ItemsRegistered INT = 0,
 	@Error NVARCHAR(2000) = NULL,
 	@HandlerName NVARCHAR(256) = NULL,
-	@StartedAt DATETIMEOFFSET(7) = NULL
+	@StartedAt DATETIMEOFFSET(7) = NULL,
+	-- 1: the run is finished (succeeded, skipped, or failed on its last attempt), so LastRunAt
+	--    is set and the schedule is not due again until its next period.
+	-- 0: a failed attempt that the ServiceBus will retry; only the log row is written.
+	@CompletesRun BIT = 1
 AS
 BEGIN
 	SET NOCOUNT ON;
@@ -206,14 +203,12 @@ BEGIN
 		@HandlerName
 	);
 
-	-- Record when the run started (the claim time, so a run that crosses midnight still
-	-- counts for the day it started) and release the claim.
-	UPDATE dbo.WorkerSchedules
-	SET LastRunAt = COALESCE(ClaimedAt, @Now),
-		ClaimedAt = NULL,
-		ClaimedUntil = NULL,
-		UpdatedAt = @Now
-	WHERE Id = @ScheduleId;
+	-- Record when the run started, so a run that crosses midnight still counts for the day it started.
+	IF @CompletesRun = 1
+		UPDATE dbo.WorkerSchedules
+		SET LastRunAt = @StartedAt,
+			UpdatedAt = @Now
+		WHERE Id = @ScheduleId;
 END;
 ');
 

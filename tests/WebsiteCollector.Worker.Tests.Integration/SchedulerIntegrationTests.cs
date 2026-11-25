@@ -1,28 +1,41 @@
 using Beep.Scheduler;
+using Beep.ServiceBus;
 using Dapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace WebsiteCollector.Worker.Tests.Integration;
 
 /// <summary>
-/// Integration tests for when a schedule runs: StartTime, once per day, one row per worker type,
-/// and exactly one worker instance claiming a due schedule.
-/// Most tests call ClaimDueSchedules with a fixed @Now so they do not depend on the time of day.
+/// When a schedule is due (StartTime, once per period, weekday, hourly), one row per worker type,
+/// and running schedules through the ServiceBus: one run across instances, retries, and the
+/// last failed attempt finishing the run.
+/// Due-time tests call GetDueSchedules with a fixed @Now so they do not depend on the time of day.
 /// </summary>
 [TestClass]
+[DoNotParallelize] // schedule runs are ServiceBus work items (shared ServiceBus database)
 public sealed class SchedulerIntegrationTests
 {
 	private const string Schema = TestDatabase.SchedulerSchema;
-	private static readonly DateTimeOffset Day = new(2026, 3, 10, 0, 0, 0, TimeSpan.Zero);
+	private const string HandlerWorkerType = "Test";
 
+	/// <summary>A fixed UTC day, recent enough that run durations computed against the real clock stay small.</summary>
+	private static readonly DateTimeOffset Day = new(DateTime.UtcNow.Date.AddDays(-2), TimeSpan.Zero);
+
+	private readonly SchedulerWorkerOptions _options = new() { PollIntervalSeconds = 1, LeaseSeconds = 60 };
 	private SchedulerRepository _repository = null!;
+	private WorkItemRepository _workItems = null!;
 
 	[TestInitialize]
 	public async Task TestInitializeAsync()
 	{
+		await TestDatabase.ClearDataAsync();
 		await TestDatabase.ClearSchedulerDataAsync();
 		_repository = new SchedulerRepository(TestDatabase.SchedulerConnectionString, Schema, NullLogger<SchedulerRepository>.Instance);
+		_workItems = new WorkItemRepository(TestDatabase.ServiceBusConnectionString, TestDatabase.ServiceBusSchema, NullLogger<WorkItemRepository>.Instance);
 	}
+
+	// ---------------------------------------------------------------- when a schedule is due
 
 	[TestMethod]
 	public async Task CreateOrUpdateSchedule_CalledConcurrently_KeepsOneRowPerWorkerType()
@@ -30,27 +43,24 @@ public sealed class SchedulerIntegrationTests
 		await Task.WhenAll(Enumerable.Range(0, 20).Select(i => _repository.CreateOrUpdateScheduleAsync(
 			"Collector", $"run {i}", "Daily", new TimeOnly(2, 0), isActive: true, CancellationToken.None)));
 
-		await using var connection = TestDatabase.OpenScheduler();
-		Assert.AreEqual(1, await connection.QuerySingleAsync<int>(
-			$"SELECT COUNT(*) FROM {Schema}.WorkerSchedules WHERE WorkerType = 'Collector'"));
+		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.WorkerSchedules WHERE WorkerType = 'Collector'"));
 	}
 
 	[TestMethod]
-	public async Task Daily_RunsAtOrAfterStartTime_OncePerDay()
+	public async Task Daily_IsDueAtOrAfterStartTime_UntilTheRunIsRecorded()
 	{
 		var id = await InsertScheduleAsync("Daily", new TimeSpan(2, 0, 0));
 
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddHours(1).AddMinutes(59))).Count, "before StartTime");
-		CollectionAssert.AreEqual(new[] { id }, (await ClaimAsync(Day.AddHours(2))).ToArray(), "at StartTime");
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddHours(2).AddMinutes(1))).Count, "claimed by the first caller");
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(1).AddMinutes(59))).Count, "before StartTime");
+		CollectionAssert.AreEqual(new[] { id }, (await DueAsync(Day.AddHours(2))).ToArray(), "at StartTime");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(2).AddMinutes(1))).Count, "still due: reading does not claim");
 
-		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", DateTimeOffset.UtcNow, CancellationToken.None);
+		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(2), CancellationToken.None);
 
-		Assert.AreEqual(Day.AddHours(2), await QueryAsync<DateTimeOffset>(id, "LastRunAt"), "LastRunAt is the claim time");
-		Assert.IsNull(await QueryAsync<DateTimeOffset?>(id, "ClaimedUntil"), "claim released");
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddHours(23))).Count, "already ran today");
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddDays(1).AddHours(1))).Count, "next day, before StartTime");
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddDays(1).AddHours(2))).Count, "next day, at StartTime");
+		Assert.AreEqual(Day.AddHours(2), await QueryAsync<DateTimeOffset>(id, "LastRunAt"), "LastRunAt is the run start");
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(23))).Count, "already ran today");
+		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(1))).Count, "next day, before StartTime");
+		Assert.AreEqual(1, (await DueAsync(Day.AddDays(1).AddHours(2))).Count, "next day, at StartTime");
 	}
 
 	[TestMethod]
@@ -58,40 +68,18 @@ public sealed class SchedulerIntegrationTests
 	{
 		await InsertScheduleAsync("Daily", new TimeSpan(2, 0, 0));
 
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(15))).Count);
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(15))).Count);
 	}
 
 	[TestMethod]
-	public async Task Claim_WhenInstanceDiesMidRun_ExpiresAfterLease()
-	{
-		await InsertScheduleAsync("Daily", TimeSpan.Zero);
-
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(2), leaseSeconds: 3600)).Count);
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddHours(2).AddMinutes(59), leaseSeconds: 3600)).Count, "lease still held");
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(3), leaseSeconds: 3600)).Count, "lease expired");
-	}
-
-	[TestMethod]
-	public async Task ReleaseClaim_MakesScheduleDueAgainImmediately()
+	public async Task LogExecution_ForAttemptThatWillBeRetried_DoesNotFinishTheRun()
 	{
 		var id = await InsertScheduleAsync("Daily", TimeSpan.Zero);
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(2))).Count);
 
-		await _repository.ReleaseClaimAsync(id, CancellationToken.None);
+		await _repository.LogExecutionAsync(id, "Retrying", 0, "boom", "Test", Day.AddHours(2), CancellationToken.None, completesRun: false);
 
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(2).AddMinutes(1))).Count);
-	}
-
-	[TestMethod]
-	public async Task Claim_ByConcurrentInstances_HandsScheduleToExactlyOne()
-	{
-		// Due right now on the real database clock: StartTime midnight, never run.
-		await InsertScheduleAsync("Daily", TimeSpan.Zero);
-
-		var results = await Task.WhenAll(Enumerable.Range(0, 20)
-			.Select(_ => _repository.ClaimDueSchedulesAsync(3600, CancellationToken.None)));
-
-		Assert.AreEqual(1, results.Sum(r => r.Count));
+		Assert.IsNull(await QueryAsync<DateTimeOffset?>(id, "LastRunAt"));
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(3))).Count);
 	}
 
 	[TestMethod]
@@ -100,20 +88,135 @@ public sealed class SchedulerIntegrationTests
 		await InsertScheduleAsync("Weekly", TimeSpan.Zero, dayOfWeek: (int)Day.DayOfWeek);
 
 		// DATEFIRST changes DATEPART(WEEKDAY); the procedure must not depend on it.
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddDays(1).AddHours(1), dateFirst: 1)).Count, "wrong day");
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(1), dateFirst: 1)).Count, "matching day");
+		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(1), dateFirst: 1)).Count, "wrong day");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(1), dateFirst: 1)).Count, "matching day");
 	}
 
 	[TestMethod]
-	public async Task Hourly_RunsOneHourAfterPreviousRunStarted()
+	public async Task Hourly_IsDueOneHourAfterPreviousRunStarted()
 	{
 		var id = await InsertScheduleAsync("Hourly", TimeSpan.Zero);
 		await using (var connection = TestDatabase.OpenScheduler())
 			await connection.ExecuteAsync($"UPDATE {Schema}.WorkerSchedules SET LastRunAt = @at WHERE Id = @id",
 				new { id, at = Day.AddHours(10).AddMinutes(59) });
 
-		Assert.AreEqual(0, (await ClaimAsync(Day.AddHours(11))).Count, "one minute later is not an hour");
-		Assert.AreEqual(1, (await ClaimAsync(Day.AddHours(11).AddMinutes(59))).Count);
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(11))).Count, "one minute later is not an hour");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(11).AddMinutes(59))).Count);
+	}
+
+	// ---------------------------------------------------------------- running through the ServiceBus
+
+	[TestMethod]
+	public async Task TwoInstances_RunADueScheduleOnce()
+	{
+		var id = await InsertScheduleAsync("Daily", TimeSpan.Zero); // due now on the real clock
+		var handler = new TestHandler { Delay = TimeSpan.FromSeconds(1.5) };
+		using var provider = BuildProvider(handler);
+
+		var services = Enumerable.Range(0, 2).Select(_ => new SchedulerService(
+			_repository, _workItems, _options, NullLogger<SchedulerService>.Instance)).ToList();
+		var workers = Enumerable.Range(0, 2).Select(_ => new SchedulerWorker(
+			_workItems, CreateProcessor(provider), _options, NullLogger<SchedulerWorker>.Instance)).ToList();
+
+		var hosted = services.Cast<Microsoft.Extensions.Hosting.IHostedService>().Concat(workers).ToList();
+		foreach (var service in hosted)
+			await service.StartAsync(CancellationToken.None);
+		try
+		{
+			await WaitUntilAsync(async () => await QueryAsync<DateTimeOffset?>(id, "LastRunAt") is not null, TimeSpan.FromSeconds(30));
+			await Task.Delay(TimeSpan.FromSeconds(2)); // give a duplicate run the chance to show up
+		}
+		finally
+		{
+			foreach (var service in hosted)
+				await service.StopAsync(CancellationToken.None);
+		}
+
+		Assert.AreEqual(1, handler.Calls, "handler ran once");
+		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.ScheduleExecutionLogs WHERE Status = 'Success'"));
+		Assert.AreEqual(0, (await _repository.GetDueSchedulesAsync(CancellationToken.None)).Count);
+	}
+
+	[TestMethod]
+	public async Task FailedRun_IsRetriedByServiceBus_AndSucceeds()
+	{
+		var id = await InsertScheduleAsync("Daily", TimeSpan.Zero);
+		var handler = new TestHandler { FailTimes = 1 };
+		using var provider = BuildProvider(handler);
+		var processor = CreateProcessor(provider);
+
+		Assert.AreEqual(1, await NewSchedulerService().EnqueueDueSchedulesAsync(CancellationToken.None));
+		var workItemId = await ProcessOneAsync(processor);
+		Assert.AreEqual("FAILED", await QueryWorkItemStatusAsync(workItemId), "retry scheduled");
+		Assert.IsNull(await QueryAsync<DateTimeOffset?>(id, "LastRunAt"), "run not finished");
+		Assert.AreEqual(0, await NewSchedulerService().EnqueueDueSchedulesAsync(CancellationToken.None), "retry already queued");
+
+		await MakeDueAsync(workItemId);
+		await ProcessOneAsync(processor);
+
+		Assert.AreEqual(2, handler.Calls);
+		Assert.AreEqual("SUCCEEDED", await QueryWorkItemStatusAsync(workItemId));
+		CollectionAssert.AreEqual(new[] { "Retrying", "Success" },
+			(await QueryLogStatusesAsync()).ToArray());
+		Assert.IsNotNull(await QueryAsync<DateTimeOffset?>(id, "LastRunAt"));
+	}
+
+	[TestMethod]
+	public async Task FailedLastAttempt_FinishesTheRun_SoItIsNotQueuedAgainUntilNextPeriod()
+	{
+		var id = await InsertScheduleAsync("Daily", TimeSpan.Zero);
+		var handler = new TestHandler { FailTimes = int.MaxValue };
+		using var provider = BuildProvider(handler);
+		_options.MaxAttempts = 1;
+
+		await NewSchedulerService().EnqueueDueSchedulesAsync(CancellationToken.None);
+		var workItemId = await ProcessOneAsync(CreateProcessor(provider));
+
+		Assert.AreEqual("ABANDONED", await QueryWorkItemStatusAsync(workItemId));
+		CollectionAssert.AreEqual(new[] { "Failed" }, (await QueryLogStatusesAsync()).ToArray());
+		Assert.IsNotNull(await QueryAsync<DateTimeOffset?>(id, "LastRunAt"));
+		Assert.AreEqual(0, await NewSchedulerService().EnqueueDueSchedulesAsync(CancellationToken.None));
+	}
+
+	[TestMethod]
+	public async Task LateDuplicateWorkItem_AfterTheRun_IsSkipped()
+	{
+		var id = await InsertScheduleAsync("Daily", TimeSpan.Zero);
+		var handler = new TestHandler();
+		using var provider = BuildProvider(handler);
+		var processor = CreateProcessor(provider);
+
+		await NewSchedulerService().EnqueueDueSchedulesAsync(CancellationToken.None);
+		await ProcessOneAsync(processor);
+
+		// Another instance read the schedule as due just before the run was recorded, and enqueues now.
+		await _workItems.EnqueueBatchAsync(_options.WorkerType, SchedulerWorkerOptions.ScheduleDomainType, [new WorkItemRequest(id)]);
+		var duplicate = await ProcessOneAsync(processor);
+
+		Assert.AreEqual(1, handler.Calls);
+		Assert.AreEqual("SUCCEEDED", await QueryWorkItemStatusAsync(duplicate));
+	}
+
+	// ---------------------------------------------------------------- helpers
+
+	private SchedulerService NewSchedulerService() =>
+		new(_repository, _workItems, _options, NullLogger<SchedulerService>.Instance);
+
+	private SchedulerWorkProcessor CreateProcessor(ServiceProvider provider) => new(
+		_repository, _workItems, provider.GetRequiredService<IServiceScopeFactory>(), _options,
+		NullLogger<SchedulerWorkProcessor>.Instance);
+
+	private static ServiceProvider BuildProvider(TestHandler handler) =>
+		new ServiceCollection().AddScoped<IScheduleHandler>(_ => handler).BuildServiceProvider();
+
+	/// <summary>Claim one schedule work item through the ServiceBus and run it like SchedulerWorker does.</summary>
+	private async Task<Guid> ProcessOneAsync(SchedulerWorkProcessor processor)
+	{
+		var lease = new WorkItemLeaseManager(_workItems, _options.WorkerType);
+		var claimed = (await lease.ClaimAsync(Guid.NewGuid(), 1, _options.LeaseSeconds, CancellationToken.None)).Single();
+		var result = await processor.ProcessAsync(claimed.Item, claimed.LeaseToken, CancellationToken.None);
+		await processor.CompleteAsync(claimed.Item, claimed.LeaseToken, result, CancellationToken.None);
+		return claimed.Item.WorkItemId;
 	}
 
 	private static async Task<Guid> InsertScheduleAsync(string frequency, TimeSpan startTime, int? dayOfWeek = null)
@@ -122,16 +225,15 @@ public sealed class SchedulerIntegrationTests
 		return await connection.QuerySingleAsync<Guid>($"""
 			INSERT INTO {Schema}.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfWeek)
 			OUTPUT inserted.Id
-			VALUES ('Test', @frequency, @startTime, @dayOfWeek)
-			""", new { frequency, startTime, dayOfWeek });
+			VALUES (@worker, @frequency, @startTime, @dayOfWeek)
+			""", new { worker = HandlerWorkerType, frequency, startTime, dayOfWeek });
 	}
 
-	private static async Task<List<Guid>> ClaimAsync(DateTimeOffset now, int leaseSeconds = 3600, int dateFirst = 7)
+	private static async Task<List<Guid>> DueAsync(DateTimeOffset now, int dateFirst = 7)
 	{
 		await using var connection = TestDatabase.OpenScheduler();
 		var ids = await connection.QueryAsync<Guid>(
-			$"SET DATEFIRST {dateFirst}; EXEC {Schema}.ClaimDueSchedules @LeaseSeconds = @leaseSeconds, @Now = @now;",
-			new { leaseSeconds, now });
+			$"SET DATEFIRST {dateFirst}; EXEC {Schema}.GetDueSchedules @Now = @now;", new { now });
 		return ids.AsList();
 	}
 
@@ -139,5 +241,68 @@ public sealed class SchedulerIntegrationTests
 	{
 		await using var connection = TestDatabase.OpenScheduler();
 		return await connection.QuerySingleAsync<T>($"SELECT {column} FROM {Schema}.WorkerSchedules WHERE Id = @id", new { id });
+	}
+
+	private static async Task<int> CountAsync(string sqlWithSchemaPlaceholder)
+	{
+		await using var connection = TestDatabase.OpenScheduler();
+		return await connection.QuerySingleAsync<int>(string.Format(sqlWithSchemaPlaceholder, Schema));
+	}
+
+	/// <summary>Logged statuses, sorted by name: attempts run milliseconds apart, so FinishedAt can tie.</summary>
+	private static async Task<List<string>> QueryLogStatusesAsync()
+	{
+		await using var connection = TestDatabase.OpenScheduler();
+		return (await connection.QueryAsync<string>($"SELECT Status FROM {Schema}.ScheduleExecutionLogs ORDER BY Status")).AsList();
+	}
+
+	private static async Task<string> QueryWorkItemStatusAsync(Guid workItemId)
+	{
+		await using var connection = TestDatabase.OpenServiceBus();
+		return await connection.QuerySingleAsync<string>($"""
+			SELECT s.Name FROM {TestDatabase.ServiceBusSchema}.WorkItems w
+			JOIN {TestDatabase.ServiceBusSchema}.WorkItemStatuses s ON s.Id = w.StatusId
+			WHERE w.Id = @workItemId
+			""", new { workItemId });
+	}
+
+	private static async Task MakeDueAsync(Guid workItemId)
+	{
+		await using var connection = TestDatabase.OpenServiceBus();
+		await connection.ExecuteAsync(
+			$"UPDATE {TestDatabase.ServiceBusSchema}.WorkItems SET NextRunAt = SYSUTCDATETIME() WHERE Id = @workItemId",
+			new { workItemId });
+	}
+
+	private static async Task WaitUntilAsync(Func<Task<bool>> condition, TimeSpan timeout)
+	{
+		var deadline = DateTime.UtcNow + timeout;
+		while (!await condition())
+		{
+			if (DateTime.UtcNow > deadline)
+				Assert.Fail("Timed out waiting for the schedule to run");
+			await Task.Delay(200);
+		}
+	}
+
+	private sealed class TestHandler : IScheduleHandler
+	{
+		private int _calls;
+
+		public string WorkerType => HandlerWorkerType;
+		public Guid WorkerId => Guid.Empty;
+		public int Calls => _calls;
+		public TimeSpan Delay { get; init; }
+		public int FailTimes { get; init; }
+
+		public async Task<ScheduleHandlerResult> RegisterItemsAsync(WorkerSchedule schedule, CancellationToken cancellationToken)
+		{
+			var call = Interlocked.Increment(ref _calls);
+			if (Delay > TimeSpan.Zero)
+				await Task.Delay(Delay, cancellationToken);
+			return call <= FailTimes
+				? new ScheduleHandlerResult { Success = false, Error = $"failure {call}" }
+				: new ScheduleHandlerResult { ItemsRegistered = 1 };
+		}
 	}
 }
