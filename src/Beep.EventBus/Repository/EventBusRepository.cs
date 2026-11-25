@@ -96,9 +96,13 @@ public sealed class EventBusRepository : IEventBusRepository
 			SELECT @changed AS Changed, @disabled AS Disabled;
 			""";
 
-		await using var connection = Open();
-		return await connection.QuerySingleAsync<EndpointRegistrationResult>(
-			new CommandDefinition(sql, new { Endpoints = new DbString { Value = json, Length = -1 } }, commandTimeout: 60, cancellationToken: ct));
+		// One transaction: a deadlock victim is rolled back entirely, so it is retried.
+		return await SqlRetry.OnDeadlockAsync(async () =>
+		{
+			await using var connection = Open();
+			return await connection.QuerySingleAsync<EndpointRegistrationResult>(
+				new CommandDefinition(sql, new { Endpoints = new DbString { Value = json, Length = -1 } }, commandTimeout: 60, cancellationToken: ct));
+		}, ct);
 	}
 
 	public async Task<IReadOnlyList<WorkItemRequest>> CreateDeliveriesAsync(
@@ -131,12 +135,17 @@ public sealed class EventBusRepository : IEventBusRepository
 				AND d.DeliveredAt IS NULL;
 			""";
 
-		await using var connection = Open();
-		var rows = await connection.QueryAsync<WorkItemRequest>(new CommandDefinition(
-			sql,
-			new { OwnerId = ownerId, EventId = eventId, Payload = new DbString { Value = payload, Length = -1 } },
-			cancellationToken: ct));
-		return rows.AsList();
+		// The INSERT skips deliveries that exist, so a deadlock victim (concurrent publishes lock
+		// overlapping key ranges) is safe to retry.
+		return await SqlRetry.OnDeadlockAsync(async () =>
+		{
+			await using var connection = Open();
+			var rows = await connection.QueryAsync<WorkItemRequest>(new CommandDefinition(
+				sql,
+				new { OwnerId = ownerId, EventId = eventId, Payload = new DbString { Value = payload, Length = -1 } },
+				cancellationToken: ct));
+			return (IReadOnlyList<WorkItemRequest>)rows.AsList();
+		}, ct);
 	}
 
 	public async Task<EventBusDelivery?> GetDeliveryAsync(Guid deliveryId, CancellationToken ct)

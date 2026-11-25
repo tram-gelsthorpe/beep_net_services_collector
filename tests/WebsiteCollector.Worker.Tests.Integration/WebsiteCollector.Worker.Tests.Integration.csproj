@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The worker's real settings, so EndToEndIntegrationTests runs with what is deployed -->
+    <None Include="..\..\src\WebsiteCollector.Worker\appsettings.json" Link="WorkerSettings\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

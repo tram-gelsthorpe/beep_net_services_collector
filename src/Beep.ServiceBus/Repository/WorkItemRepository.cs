@@ -39,33 +39,38 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			using var cmd = connection.CreateCommand();
-			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = $"{_schema}.ClaimWorkItems";
-			cmd.CommandTimeout = 30;
-
-			cmd.Parameters.AddWithValue("@WorkerType", workerType);
-			cmd.Parameters.AddWithValue("@WorkerId", workerId);
-			cmd.Parameters.AddWithValue("@BatchSize", batchSize);
-			cmd.Parameters.AddWithValue("@LeaseSeconds", leaseSeconds);
-
-			var items = new List<IClaimedWorkItem>();
-
-			using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-			while (await reader.ReadAsync(cancellationToken))
+			var items = await SqlRetry.OnDeadlockAsync(async () =>
 			{
-				items.Add(new ClaimedWorkItem(
-					WorkItemId: reader.GetGuid(0),
-					DomainId: reader.GetGuid(1),
-					DomainType: reader.GetString(2),
-					LeaseToken: reader.GetGuid(3),
-					AttemptNumber: reader.GetInt32(4),
-					MaxAttempts: reader.GetInt32(5)
-				));
-			}
+				await using var connection = new SqlConnection(_connectionString);
+				await connection.OpenAsync(cancellationToken);
+
+				await using var cmd = connection.CreateCommand();
+				cmd.CommandType = CommandType.StoredProcedure;
+				cmd.CommandText = $"{_schema}.ClaimWorkItems";
+				cmd.CommandTimeout = 30;
+
+				cmd.Parameters.AddWithValue("@WorkerType", workerType);
+				cmd.Parameters.AddWithValue("@WorkerId", workerId);
+				cmd.Parameters.AddWithValue("@BatchSize", batchSize);
+				cmd.Parameters.AddWithValue("@LeaseSeconds", leaseSeconds);
+
+				var claimed = new List<IClaimedWorkItem>();
+
+				await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+				while (await reader.ReadAsync(cancellationToken))
+				{
+					claimed.Add(new ClaimedWorkItem(
+						WorkItemId: reader.GetGuid(0),
+						DomainId: reader.GetGuid(1),
+						DomainType: reader.GetString(2),
+						LeaseToken: reader.GetGuid(3),
+						AttemptNumber: reader.GetInt32(4),
+						MaxAttempts: reader.GetInt32(5)
+					));
+				}
+
+				return claimed;
+			}, cancellationToken);
 
 			_logger.LogDebug("Claimed {Count} work items for worker type {WorkerType}", items.Count, workerType);
 			return items;
@@ -85,30 +90,29 @@ public sealed class WorkItemRepository : IWorkItemRepository
 	{
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			using var cmd = connection.CreateCommand();
-			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = $"{_schema}.RenewWorkItemLease";
-			cmd.CommandTimeout = 10;
-
-			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
-			cmd.Parameters.AddWithValue("@LeaseToken", leaseToken);
-			cmd.Parameters.AddWithValue("@LeaseSeconds", leaseSeconds);
-
-			using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-			if (await reader.ReadAsync(cancellationToken))
+			var success = await SqlRetry.OnDeadlockAsync(async () =>
 			{
-				var success = reader.GetBoolean(0);
-				if (success)
-					_logger.LogDebug("Renewed lease for work item {WorkItemId}", workItemId);
-				else
-					_logger.LogWarning("Failed to renew lease for work item {WorkItemId} - lease expired or invalid", workItemId);
-				return success;
-			}
+				await using var connection = new SqlConnection(_connectionString);
+				await connection.OpenAsync(cancellationToken);
 
-			return false;
+				await using var cmd = connection.CreateCommand();
+				cmd.CommandType = CommandType.StoredProcedure;
+				cmd.CommandText = $"{_schema}.RenewWorkItemLease";
+				cmd.CommandTimeout = 10;
+
+				cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
+				cmd.Parameters.AddWithValue("@LeaseToken", leaseToken);
+				cmd.Parameters.AddWithValue("@LeaseSeconds", leaseSeconds);
+
+				await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+				return await reader.ReadAsync(cancellationToken) && reader.GetBoolean(0);
+			}, cancellationToken);
+
+			if (success)
+				_logger.LogDebug("Renewed lease for work item {WorkItemId}", workItemId);
+			else
+				_logger.LogWarning("Failed to renew lease for work item {WorkItemId} - lease expired or invalid", workItemId);
+			return success;
 		}
 		catch (Exception ex)
 		{
@@ -124,27 +128,26 @@ public sealed class WorkItemRepository : IWorkItemRepository
 	{
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
-
-			using var cmd = connection.CreateCommand();
-			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = $"{_schema}.ReleaseWorkItemLease";
-			cmd.CommandTimeout = 10;
-
-			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
-			cmd.Parameters.AddWithValue("@LeaseToken", leaseToken);
-
-			using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-			if (await reader.ReadAsync(cancellationToken))
+			var success = await SqlRetry.OnDeadlockAsync(async () =>
 			{
-				bool success = reader.GetBoolean(0);
-				if (success)
-					_logger.LogDebug("Released lease for work item {WorkItemId}", workItemId);
-				return success;
-			}
+				await using var connection = new SqlConnection(_connectionString);
+				await connection.OpenAsync(cancellationToken);
 
-			return false;
+				await using var cmd = connection.CreateCommand();
+				cmd.CommandType = CommandType.StoredProcedure;
+				cmd.CommandText = $"{_schema}.ReleaseWorkItemLease";
+				cmd.CommandTimeout = 10;
+
+				cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
+				cmd.Parameters.AddWithValue("@LeaseToken", leaseToken);
+
+				await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+				return await reader.ReadAsync(cancellationToken) && reader.GetBoolean(0);
+			}, cancellationToken);
+
+			if (success)
+				_logger.LogDebug("Released lease for work item {WorkItemId}", workItemId);
+			return success;
 		}
 		catch (Exception ex)
 		{
@@ -164,22 +167,26 @@ public sealed class WorkItemRepository : IWorkItemRepository
 	{
 		try
 		{
-			using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
+			// One transaction in the procedure: a deadlock victim is rolled back entirely, so it is retried.
+			await SqlRetry.OnDeadlockAsync(async () =>
+			{
+				await using var connection = new SqlConnection(_connectionString);
+				await connection.OpenAsync(cancellationToken);
 
-			using var cmd = connection.CreateCommand();
-			cmd.CommandType = CommandType.StoredProcedure;
-			cmd.CommandText = $"{_schema}.CompleteWorkItem";
-			cmd.CommandTimeout = 30;
+				await using var cmd = connection.CreateCommand();
+				cmd.CommandType = CommandType.StoredProcedure;
+				cmd.CommandText = $"{_schema}.CompleteWorkItem";
+				cmd.CommandTimeout = 30;
 
-			cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
-			cmd.Parameters.AddWithValue("@LeaseToken", leaseToken);
-			cmd.Parameters.AddWithValue("@Succeeded", succeeded);
-			cmd.Parameters.AddWithValue("@Error", (object?)error ?? DBNull.Value);
-			cmd.Parameters.AddWithValue("@ResultData", (object?)resultData ?? DBNull.Value);
-			cmd.Parameters.AddWithValue("@BackoffStrategyName", backoffStrategy);
+				cmd.Parameters.AddWithValue("@WorkItemId", workItemId);
+				cmd.Parameters.AddWithValue("@LeaseToken", leaseToken);
+				cmd.Parameters.AddWithValue("@Succeeded", succeeded);
+				cmd.Parameters.AddWithValue("@Error", (object?)error ?? DBNull.Value);
+				cmd.Parameters.AddWithValue("@ResultData", (object?)resultData ?? DBNull.Value);
+				cmd.Parameters.AddWithValue("@BackoffStrategyName", backoffStrategy);
 
-			await cmd.ExecuteNonQueryAsync(cancellationToken);
+				await cmd.ExecuteNonQueryAsync(cancellationToken);
+			}, cancellationToken);
 
 			_logger.LogInformation(
 				"Completed work item {WorkItemId}: Success={Success}, Backoff={Backoff}",
@@ -261,34 +268,39 @@ public sealed class WorkItemRepository : IWorkItemRepository
 
 		try
 		{
-			await using var connection = new SqlConnection(_connectionString);
-			await connection.OpenAsync(cancellationToken);
+			// One INSERT statement, and it skips entities that already have an unfinished item, so a
+			// deadlock victim (concurrent enqueues lock overlapping key ranges) is safe to retry.
+			var inserted = await SqlRetry.OnDeadlockAsync(async () =>
+			{
+				await using var connection = new SqlConnection(_connectionString);
+				await connection.OpenAsync(cancellationToken);
 
-			await using var cmd = connection.CreateCommand();
-			cmd.CommandText = $"""
-				DECLARE @pendingId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING');
+				await using var cmd = connection.CreateCommand();
+				cmd.CommandText = $"""
+					DECLARE @pendingId uniqueidentifier = (SELECT Id FROM {_schema}.WorkItemStatuses WHERE Name = 'PENDING');
 
-				INSERT INTO {_schema}.WorkItems (WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
-				SELECT @WorkerType, i.DomainId, @DomainType, @pendingId, i.MaxAttempts, SYSUTCDATETIME()
-				FROM OPENJSON(@Items) WITH (DomainId uniqueidentifier '$.DomainId', MaxAttempts int '$.MaxAttempts') i
-				WHERE NOT EXISTS (
-					SELECT 1
-					FROM {_schema}.WorkItems w WITH (UPDLOCK, HOLDLOCK)
-					JOIN {_schema}.WorkItemStatuses s ON s.Id = w.StatusId
-					WHERE w.DomainType = @DomainType
-						AND w.DomainId = i.DomainId
-						AND w.WorkerType = @WorkerType
-						AND s.Name NOT IN ('SUCCEEDED', 'ABANDONED'));
+					INSERT INTO {_schema}.WorkItems (WorkerType, DomainId, DomainType, StatusId, MaxAttempts, NextRunAt)
+					SELECT @WorkerType, i.DomainId, @DomainType, @pendingId, i.MaxAttempts, SYSUTCDATETIME()
+					FROM OPENJSON(@Items) WITH (DomainId uniqueidentifier '$.DomainId', MaxAttempts int '$.MaxAttempts') i
+					WHERE NOT EXISTS (
+						SELECT 1
+						FROM {_schema}.WorkItems w WITH (UPDLOCK, HOLDLOCK)
+						JOIN {_schema}.WorkItemStatuses s ON s.Id = w.StatusId
+						WHERE w.DomainType = @DomainType
+							AND w.DomainId = i.DomainId
+							AND w.WorkerType = @WorkerType
+							AND s.Name NOT IN ('SUCCEEDED', 'ABANDONED'));
 
-				SELECT @@ROWCOUNT;
-				""";
-			cmd.CommandTimeout = 60;
+					SELECT @@ROWCOUNT;
+					""";
+				cmd.CommandTimeout = 60;
 
-			cmd.Parameters.AddWithValue("@WorkerType", workerType);
-			cmd.Parameters.AddWithValue("@DomainType", domainType);
-			cmd.Parameters.Add("@Items", SqlDbType.NVarChar, -1).Value = json;
+				cmd.Parameters.AddWithValue("@WorkerType", workerType);
+				cmd.Parameters.AddWithValue("@DomainType", domainType);
+				cmd.Parameters.Add("@Items", SqlDbType.NVarChar, -1).Value = json;
 
-			var inserted = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken));
+				return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken));
+			}, cancellationToken);
 
 			_logger.LogDebug(
 				"Enqueued {Inserted} of {Requested} work items for {DomainType}",
