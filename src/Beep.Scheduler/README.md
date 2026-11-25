@@ -37,7 +37,7 @@ Supports multiple worker types (WebsiteCollector, BigDataProcess, etc.) and freq
 
 Consumer Projects:
 ┌─────────────────────────────────────┐  ┌──────────────────────┐
-│ WebsiteCollector.Worker             │  │ BigDataProcess       │
+│ Beep.Collector             │  │ BigDataProcess       │
 ├─────────────────────────────────────┤  ├──────────────────────┤
 │ Handlers/                           │  │ Handlers/            │
 │  └─ WebsiteCollectorScheduler...    │  │  └─ BigDataScheduler │
@@ -102,7 +102,7 @@ Scheduler Service Loop:
 ## Usage Example
 
 ```csharp
-// In WebsiteCollector.Worker DependencyInjection.cs
+// In Beep.Collector DependencyInjection.cs
 services.RegisterScheduler(configuration);  // Register framework
 services.RegisterScheduleHandler<WebsiteCollectorScheduleHandler>();
 

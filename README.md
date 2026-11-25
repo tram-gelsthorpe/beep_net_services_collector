@@ -10,8 +10,8 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | `src/Beep.ServiceBus` | Generic work queue: `WorkItems` table, claim/renew/complete stored procedures, `GenericWorkerBase<T>` polling worker. |
 | `src/Beep.Scheduler` | Recurring schedules (`Schedules`) that call an `IScheduleHandler` to enqueue work. |
 | `src/Beep.EventBus` | Publisher for HTTP POST deliveries to registered endpoints, delivered through ServiceBus work items; plus an in-process event aggregator. |
-| `src/WebsiteCollector.Worker` | The host: website selectors, collection worker, schedule handler, subscriber. |
-| `src/WebsiteCollector.Api` | ASP.NET Core API (API-key protected). Currently a stub. |
+| `src/Beep.Collector` | The host: website selectors, collection worker, schedule handler, subscriber. |
+| `src/Beep.Api` | ASP.NET Core API (API-key protected). Currently a stub. |
 | `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |
 | `src/Beep.Configuration` | Optional Azure Key Vault source and startup checks for required settings and secrets. |
 
@@ -61,7 +61,7 @@ from `Resource/0.sql` and applies newer upgrade scripts (`1.sql`, `2.sql`, ...),
 
 ## Configuration
 
-`src/WebsiteCollector.Worker/appsettings.json` holds the non-secret settings: `WebsiteCollector` and
+`src/Beep.Collector/appsettings.json` holds the non-secret settings: `WebsiteCollector` and
 `EventBus` (worker concurrency, poll interval, lease length), `Scheduler` (frequency, start time, time
 zone) and `BeepNLog`. Connection strings and API keys are **not** committed: their keys are there with
 empty values, and each environment supplies them.
@@ -97,13 +97,13 @@ The Worker's launch profile runs it as `Development`, which loads user secrets (
 outside the repo):
 
 ```powershell
-dotnet user-secrets set --project src/WebsiteCollector.Worker "ConnectionStrings:Collector" "Server=.\SQLEXPRESS;Database=WebsiteCollector;Integrated Security=true;Encrypt=false;TrustServerCertificate=true;"
+dotnet user-secrets set --project src/Beep.Collector "ConnectionStrings:Collector" "Server=.\SQLEXPRESS;Database=WebsiteCollector;Integrated Security=true;Encrypt=false;TrustServerCertificate=true;"
 # ... Scheduler, ServiceBus, EventBus, BeepNLog:DatabaseConnection
-dotnet user-secrets set --project src/WebsiteCollector.Api "Authentication:ApiKeys:0" "dev-api-key-12345"
+dotnet user-secrets set --project src/Beep.Api "Authentication:ApiKeys:0" "dev-api-key-12345"
 # Let the Worker's deliveries reach the local Api
-dotnet user-secrets set --project src/WebsiteCollector.Worker "EventBus:ApiKey" "dev-api-key-12345"
-dotnet user-secrets set --project src/WebsiteCollector.Worker "EventBus:ApiKeyOrigins:0" "https://localhost:55281"
-dotnet user-secrets list --project src/WebsiteCollector.Worker
+dotnet user-secrets set --project src/Beep.Collector "EventBus:ApiKey" "dev-api-key-12345"
+dotnet user-secrets set --project src/Beep.Collector "EventBus:ApiKeyOrigins:0" "https://localhost:55281"
+dotnet user-secrets list --project src/Beep.Collector
 ```
 
 `dotnet run --no-launch-profile` (or a service) defaults to `Production`, which does not read user secrets.
@@ -152,5 +152,5 @@ dotnet test --solution beep_net_services_collector.slnx
 Build through the solution file: the shared Beep pipeline build targets need `$(SolutionDir)`.
 
 Integration tests create and drop their own databases on `(localdb)\MSSQLLocalDB`
-(see `tests/WebsiteCollector.Worker.Tests.Integration/appsettings.json`; override with
+(see `tests/Beep.Collector.Tests.Integration/appsettings.json`; override with
 `ConnectionStrings__ServiceBus` / `ConnectionStrings__Collector`).
