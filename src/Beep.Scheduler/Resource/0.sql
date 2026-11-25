@@ -13,7 +13,7 @@ SET QUOTED_IDENTIFIER ON;
 -- Defines when schedules should run
 
 EXEC(N'
-CREATE OR ALTER VIEW Scheduler.ScheduleFrequencies AS
+CREATE OR ALTER VIEW dbo.ScheduleFrequencies AS
 SELECT 
 	CAST(1 AS INT) AS Id, 
 	''Hourly'' AS Name,
@@ -34,7 +34,7 @@ SELECT 6, ''Never'', ''Disabled - will not run''
 -- Database Version Tracking
 -- =====================================================
 
-CREATE TABLE Scheduler.DatabaseVersion (
+CREATE TABLE dbo.DatabaseVersion (
     Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
     Version nvarchar(20) NOT NULL UNIQUE,
     CreatedAt datetimeoffset(7) NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -42,7 +42,7 @@ CREATE TABLE Scheduler.DatabaseVersion (
 );
 
 -- Insert initial database version
-INSERT INTO Scheduler.DatabaseVersion (Version)
+INSERT INTO dbo.DatabaseVersion (Version)
 VALUES ('0');
 
 -- =====================================================
@@ -50,7 +50,7 @@ VALUES ('0');
 -- =====================================================
 -- Defines schedules for each worker type
 
-CREATE TABLE Scheduler.WorkerSchedules (
+CREATE TABLE dbo.WorkerSchedules (
 	Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 
 	-- Worker identification
@@ -82,7 +82,7 @@ CREATE TABLE Scheduler.WorkerSchedules (
 -- =====================================================
 -- Audit trail of schedule executions
 
-CREATE TABLE Scheduler.ScheduleExecutionLogs (
+CREATE TABLE dbo.ScheduleExecutionLogs (
 	Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 
 	-- Reference
@@ -101,7 +101,7 @@ CREATE TABLE Scheduler.ScheduleExecutionLogs (
 	-- Context
 	HandlerName NVARCHAR(256) NULL,
 
-	FOREIGN KEY (ScheduleId) REFERENCES Scheduler.WorkerSchedules(Id),
+	FOREIGN KEY (ScheduleId) REFERENCES dbo.WorkerSchedules(Id),
 	INDEX IX_ScheduleExecutionLogs_Schedule (ScheduleId, StartedAt),
 	INDEX IX_ScheduleExecutionLogs_Status (Status, StartedAt)
 );
@@ -112,7 +112,7 @@ CREATE TABLE Scheduler.ScheduleExecutionLogs (
 
 -- Get schedules that are due to run
 EXEC(N'
-CREATE OR ALTER PROCEDURE Scheduler.GetDueSchedules
+CREATE OR ALTER PROCEDURE dbo.GetDueSchedules
 	@Now DATETIMEOFFSET(7) = NULL
 AS
 BEGIN
@@ -130,7 +130,7 @@ BEGIN
 		s.MaxConcurrentRegistrations,
 		s.LastRunAt,
 		DATEDIFF(SECOND, s.LastRunAt, @Now) as SecondsSinceLastRun
-	FROM Scheduler.WorkerSchedules s
+	FROM dbo.WorkerSchedules s
 	WHERE s.IsActive = 1
 		AND (
 			-- Daily: run if last run was yesterday or earlier
@@ -167,7 +167,7 @@ END;
 
 -- Record schedule execution
 EXEC(N'
-CREATE OR ALTER PROCEDURE Scheduler.LogScheduleExecution
+CREATE OR ALTER PROCEDURE dbo.LogScheduleExecution
 	@ScheduleId UNIQUEIDENTIFIER,
 	@Status NVARCHAR(50),
 	@ItemsRegistered INT = 0,
@@ -183,7 +183,7 @@ BEGIN
 	DECLARE @DurationMs INT = DATEDIFF(MILLISECOND, @StartedAt, @Now);
 
 	-- Log execution
-	INSERT INTO Scheduler.ScheduleExecutionLogs (
+	INSERT INTO dbo.ScheduleExecutionLogs (
 		ScheduleId, StartedAt, FinishedAt, DurationMs, Status, ItemsRegistered, 
 		Error, HandlerName
 	)
@@ -199,7 +199,7 @@ BEGIN
 	);
 
 	-- Update schedule last run time
-	UPDATE Scheduler.WorkerSchedules
+	UPDATE dbo.WorkerSchedules
 	SET LastRunAt = @Now, UpdatedAt = @Now
 	WHERE Id = @ScheduleId;
 END;
@@ -207,7 +207,7 @@ END;
 
 -- Get execution history
 EXEC(N'
-CREATE OR ALTER PROCEDURE Scheduler.GetScheduleHistory
+CREATE OR ALTER PROCEDURE dbo.GetScheduleHistory
 	@ScheduleId UNIQUEIDENTIFIER,
 	@Limit INT = 100
 AS
@@ -224,7 +224,7 @@ BEGIN
 		ItemsRegistered,
 		Error,
 		HandlerName
-	FROM Scheduler.ScheduleExecutionLogs
+	FROM dbo.ScheduleExecutionLogs
 	WHERE ScheduleId = @ScheduleId
 	ORDER BY StartedAt DESC;
 END;

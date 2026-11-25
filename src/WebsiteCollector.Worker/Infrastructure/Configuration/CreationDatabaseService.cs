@@ -27,14 +27,15 @@ public sealed class CreationDatabaseService(
 	public const string SelectorSchema = "dbo";
 
 	/// <summary>
-	/// (connection string name, assembly embedding the scripts, schema the scripts are written in, target schema)
+	/// (connection string name, assembly embedding the scripts, target schema).
+	/// All scripts are written against dbo and rewritten to the target schema.
 	/// </summary>
-	private static readonly (string ConnectionName, Assembly Scripts, string ScriptSchema, string Schema)[] Databases =
+	private static readonly (string ConnectionName, Assembly Scripts, string Schema)[] Databases =
 	[
-		(SchedulerDatabaseName, typeof(SchedulerRepository).Assembly, "Scheduler", SchedulerSchema),
-		(ServiceBusDatabaseName, typeof(WorkItemRepository).Assembly, "dbo", ServiceBusSchema),
-		(EventBusDatabaseName, typeof(EventBusRepository).Assembly, "dbo", EventBusSchema),
-		(SelectorDatabaseName, typeof(CreationDatabaseService).Assembly, "dbo", SelectorSchema),
+		(SchedulerDatabaseName, typeof(SchedulerRepository).Assembly, SchedulerSchema),
+		(ServiceBusDatabaseName, typeof(WorkItemRepository).Assembly, ServiceBusSchema),
+		(EventBusDatabaseName, typeof(EventBusRepository).Assembly, EventBusSchema),
+		(SelectorDatabaseName, typeof(CreationDatabaseService).Assembly, SelectorSchema),
 	];
 
 	/// <summary>
@@ -45,7 +46,7 @@ public sealed class CreationDatabaseService(
 	{
 		logger.LogInformation("Starting database initialization...");
 
-		foreach (var (connectionName, scripts, scriptSchema, schema) in Databases)
+		foreach (var (connectionName, scripts, schema) in Databases)
 		{
 			var connectionString = configuration.GetConnectionString(connectionName)
 				?? throw new InvalidOperationException($"Missing '{connectionName}' connection string");
@@ -53,7 +54,7 @@ public sealed class CreationDatabaseService(
 			try
 			{
 				logger.LogInformation("Initializing {Database} database...", connectionName);
-				await new SqlDatabaseInitializer(connectionString, scripts, logger, scriptSchema)
+				await new SqlDatabaseInitializer(connectionString, scripts, logger)
 					.CreateOrUpdateAsync(schema, cancellationToken);
 				logger.LogInformation("{Database} database initialized successfully", connectionName);
 			}

@@ -13,12 +13,12 @@ public static class DependencyInjection
 	/// </summary>
 	/// <param name="services">Service collection</param>
 	/// <param name="connectionString">Database connection string for scheduler tables</param>
-	/// <param name="schedulerSchema">Database schema that holds the scheduler tables</param>
+	/// <param name="schedulerSchema">Database schema that holds the scheduler tables (default: dbo)</param>
 	/// <param name="pollIntervalSeconds">How often to poll for due schedules (default: 30)</param>
 	public static IServiceCollection RegisterScheduler(
 		this IServiceCollection services,
 		string connectionString,
-		string schedulerSchema,
+		string schedulerSchema = "dbo",
 		int pollIntervalSeconds = 30)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
