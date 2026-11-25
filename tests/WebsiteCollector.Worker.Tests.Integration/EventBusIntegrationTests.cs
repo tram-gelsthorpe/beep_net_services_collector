@@ -39,7 +39,7 @@ public sealed class EventBusIntegrationTests
 		_publisher = new EventBusPublisher(_repository, _workItems, _options, NullLogger<EventBusPublisher>.Instance);
 		_processor = new EventBusWorkProcessor(
 			_repository,
-			new EventBusSender(new StubHttpClientFactory(_http), NullLogger<EventBusSender>.Instance),
+			new EventBusSender(new StubHttpClientFactory(_http), _options, NullLogger<EventBusSender>.Instance),
 			_workItems,
 			_options,
 			NullLogger<EventBusWorkProcessor>.Instance);
@@ -136,6 +136,43 @@ public sealed class EventBusIntegrationTests
 		await ProcessOneAsync();
 		Assert.AreEqual("ABANDONED", await QueryStatusAsync(workItemId), "MaxAttempts reached");
 		Assert.AreEqual(2, _http.Requests.Count);
+	}
+
+	[TestMethod]
+	public async Task ApiKey_IsSentOnlyToConfiguredOrigins()
+	{
+		_options.ApiKey = "test-api-key";
+		_options.ApiKeyOrigins = ["https://API.example.com:443/"];
+		_options.Validate();
+
+		var api = Guid.NewGuid();
+		var other = Guid.NewGuid();
+		await _repository.RegisterEndpointsAsync(
+			[new(api, "https://api.example.com/rates"), new(other, "https://other.example.com/hook"), new(other, "https://api.example.com:8443/x")], default);
+		await _publisher.PublishAsync(api, Guid.NewGuid(), new { });
+		await _publisher.PublishAsync(other, Guid.NewGuid(), new { });
+
+		for (var i = 0; i < 3; i++)
+			await ProcessOneAsync();
+
+		var sent = _http.ApiKeys.ToDictionary(r => r.Url, r => r.ApiKey);
+		Assert.HasCount(3, sent);
+		Assert.AreEqual("test-api-key", sent["https://api.example.com/rates"]);
+		Assert.IsNull(sent["https://other.example.com/hook"], "another site never gets the key");
+		Assert.IsNull(sent["https://api.example.com:8443/x"], "another port is another origin");
+	}
+
+	[TestMethod]
+	public void ApiKey_WithoutOrigins_IsRejected()
+	{
+		var options = new EventBusOptions { ApiKey = "test-api-key" };
+		var error = Assert.ThrowsExactly<ArgumentException>(options.Validate);
+		StringAssert.Contains(error.Message, "ApiKeyOrigins");
+
+		options.ApiKeyOrigins = ["not a url"];
+		Assert.ThrowsExactly<ArgumentException>(options.Validate);
+
+		new EventBusOptions().Validate(); // no key: nothing to check
 	}
 
 	[TestMethod]
@@ -260,6 +297,7 @@ public sealed class EventBusIntegrationTests
 	private sealed class StubHttpHandler : HttpMessageHandler
 	{
 		public ConcurrentQueue<(string Url, string Body)> Requests { get; } = new();
+		public ConcurrentQueue<(string Url, string? ApiKey)> ApiKeys { get; } = new();
 		public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
 		public TimeSpan Delay { get; set; } = TimeSpan.Zero;
 
@@ -267,6 +305,7 @@ public sealed class EventBusIntegrationTests
 		{
 			var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct);
 			Requests.Enqueue((request.RequestUri!.ToString(), body));
+			ApiKeys.Enqueue((request.RequestUri!.ToString(), request.Headers.TryGetValues("X-API-Key", out var keys) ? keys.Single() : null));
 			if (Delay > TimeSpan.Zero)
 				await Task.Delay(Delay, ct);
 			return new HttpResponseMessage(Status);

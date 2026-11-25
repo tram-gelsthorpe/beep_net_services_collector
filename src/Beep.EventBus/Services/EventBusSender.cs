@@ -19,6 +19,7 @@ public interface IEventBusSender
 
 public sealed class EventBusSender(
 	IHttpClientFactory httpClientFactory,
+	EventBusOptions options,
 	ILogger<EventBusSender> logger) : IEventBusSender
 {
 	/// <summary>Name of the HttpClient used for deliveries (configure it with AddHttpClient).</summary>
@@ -33,9 +34,15 @@ public sealed class EventBusSender(
 
 		try
 		{
-			using var content = new StringContent(delivery.Payload, Encoding.UTF8, "application/json");
+			using var request = new HttpRequestMessage(HttpMethod.Post, delivery.DeliveryUrl)
+			{
+				Content = new StringContent(delivery.Payload, Encoding.UTF8, "application/json"),
+			};
+			if (options.SendsApiKeyTo(delivery.DeliveryUrl))
+				request.Headers.TryAddWithoutValidation(options.ApiKeyHeader, options.ApiKey);
+
 			using var response = await httpClientFactory.CreateClient(HttpClientName)
-				.PostAsync(delivery.DeliveryUrl, content, timeout.Token);
+				.SendAsync(request, timeout.Token);
 
 			var status = (int)response.StatusCode;
 			if (response.IsSuccessStatusCode)

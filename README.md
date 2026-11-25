@@ -79,6 +79,11 @@ Settings are read in this order, later ones winning: `appsettings.json` → `app
 | Api | `ConnectionStrings:Currency` | `ConnectionStrings__Currency` | `ConnectionStrings--Currency` |
 | Api | `Authentication:ApiKeys` (one or more) | `Authentication__ApiKeys__0`, `__1`, ... | `Authentication--ApiKeys--0`, ... |
 
+Optional: `EventBus:ApiKey` (`EventBus__ApiKey`, `EventBus--ApiKey`), sent as `X-API-Key` with
+EventBus deliveries so they pass the Api's key check. It is sent only to the origins listed in
+`EventBus:ApiKeyOrigins` (e.g. `https://api.example.com`), never to other DispatchUrls, and the
+Worker does not start if a key is set without origins. Use one of the Api's `Authentication:ApiKeys`.
+
 Both hosts check these at startup (`Beep.Configuration`) and stop with the names of what is missing.
 Outside Development each API key must be at least 32 characters and not a placeholder. Generate one with:
 
@@ -95,6 +100,9 @@ outside the repo):
 dotnet user-secrets set --project src/WebsiteCollector.Worker "ConnectionStrings:Collector" "Server=.\SQLEXPRESS;Database=WebsiteCollector;Integrated Security=true;Encrypt=false;TrustServerCertificate=true;"
 # ... Scheduler, ServiceBus, EventBus, BeepNLog:DatabaseConnection
 dotnet user-secrets set --project src/WebsiteCollector.Api "Authentication:ApiKeys:0" "dev-api-key-12345"
+# Let the Worker's deliveries reach the local Api
+dotnet user-secrets set --project src/WebsiteCollector.Worker "EventBus:ApiKey" "dev-api-key-12345"
+dotnet user-secrets set --project src/WebsiteCollector.Worker "EventBus:ApiKeyOrigins:0" "https://localhost:55281"
 dotnet user-secrets list --project src/WebsiteCollector.Worker
 ```
 
