@@ -84,6 +84,7 @@ public static class DependencyInjection
 	}
 
 	private static string GetConnectionString(IConfiguration configuration, string name) =>
-		configuration.GetConnectionString(name)
-			?? throw new InvalidOperationException($"Missing '{name}' connection string");
+		configuration.GetConnectionString(name) is { } value && !string.IsNullOrWhiteSpace(value)
+			? value
+			: throw new InvalidOperationException($"Missing '{name}' connection string");
 }

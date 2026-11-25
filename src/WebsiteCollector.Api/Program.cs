@@ -1,7 +1,17 @@
+using Beep.Configuration;
 using WebsiteCollector.Api.Infrastructure.Authentication;
 using WebsiteCollector.Api.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Settings: appsettings.json (no secrets), then user secrets (Development only), environment
+// variables, command line, and Azure Key Vault when KeyVault:Uri is set.
+builder.Configuration.AddKeyVaultIfConfigured();
+builder.Configuration.RequireConnectionStrings("Currency");
+
+// API keys: at least one; outside Development each must be 32+ characters and not a placeholder.
+builder.Services.AddSingleton(new ApiKeyValidator(
+	builder.Configuration.GetRequiredSecrets("Authentication:ApiKeys", builder.Environment)));
 
 // Add services
 builder.Services.AddControllers();

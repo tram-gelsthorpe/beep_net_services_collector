@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>83101f3e-6c69-40e5-b861-f48618864dbb</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Beep.Configuration\Beep.Configuration.csproj" />
     <ProjectReference Include="..\Beep.Database\Beep.Database.csproj" />
     <ProjectReference Include="..\Beep.EventBus\Beep.EventBus.csproj" />
     <ProjectReference Include="..\Beep.Scheduler\Beep.Scheduler.csproj" />

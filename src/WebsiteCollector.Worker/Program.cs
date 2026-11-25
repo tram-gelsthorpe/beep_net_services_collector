@@ -1,3 +1,4 @@
+using Beep.Configuration;
 using Beep.EventBus;
 using Beep.Log.NLog;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,6 +6,16 @@ using Microsoft.Extensions.Hosting;
 using WebsiteCollector.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// Settings: appsettings.json (no secrets), then user secrets (Development only), environment
+// variables, command line, and Azure Key Vault when KeyVault:Uri is set.
+builder.Configuration.AddKeyVaultIfConfigured();
+builder.Configuration.RequireConnectionStrings(
+	CreationDatabaseService.SchedulerDatabaseName,
+	CreationDatabaseService.ServiceBusDatabaseName,
+	CreationDatabaseService.EventBusDatabaseName,
+	CreationDatabaseService.SelectorDatabaseName);
+builder.Configuration.Require("BeepNLog:DatabaseConnection");
 
 //Logs
 builder.Services.RegisterBeepLog(builder.Configuration);

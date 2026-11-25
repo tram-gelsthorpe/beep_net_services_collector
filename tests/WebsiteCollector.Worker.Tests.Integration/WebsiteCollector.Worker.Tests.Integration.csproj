@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\WebsiteCollector.Api\WebsiteCollector.Api.csproj" />
     <ProjectReference Include="..\..\src\WebsiteCollector.Worker\WebsiteCollector.Worker.csproj" />
   </ItemGroup>
 

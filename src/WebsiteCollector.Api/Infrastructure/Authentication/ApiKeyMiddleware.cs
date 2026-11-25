@@ -8,14 +8,14 @@ public class ApiKeyMiddleware
 {
 	private readonly RequestDelegate _next;
 	private readonly ILogger<ApiKeyMiddleware> _logger;
-	private readonly IConfiguration _configuration;
+	private readonly ApiKeyValidator _validator;
 	private const string ApiKeyHeader = "X-API-Key";
 
-	public ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, IConfiguration configuration)
+	public ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, ApiKeyValidator validator)
 	{
 		_next = next;
 		_logger = logger;
-		_configuration = configuration;
+		_validator = validator;
 	}
 
 	public async Task InvokeAsync(HttpContext context)
@@ -37,16 +37,8 @@ public class ApiKeyMiddleware
 			return;
 		}
 
-		var validApiKeys = _configuration.GetSection("Authentication:ApiKeys").Get<string[]>();
-		if (validApiKeys == null || validApiKeys.Length == 0)
-		{
-			_logger.LogError("No valid API keys configured");
-			context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-			await context.Response.WriteAsJsonAsync(new { error = "Server configuration error" });
-			return;
-		}
-
-		if (!validApiKeys.Contains(apiKeyValue.ToString()))
+		// The keys are checked at startup (Program.cs), so there is always at least one.
+		if (!_validator.IsValid(apiKeyValue.ToString()))
 		{
 			_logger.LogWarning("Invalid API key provided. Path: {Path}", context.Request.Path);
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;

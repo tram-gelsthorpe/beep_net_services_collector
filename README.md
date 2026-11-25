@@ -13,6 +13,7 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | `src/WebsiteCollector.Worker` | The host: website selectors, collection worker, schedule handler, subscriber. |
 | `src/WebsiteCollector.Api` | ASP.NET Core API (API-key protected). Currently a stub. |
 | `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |
+| `src/Beep.Configuration` | Optional Azure Key Vault source and startup checks for required settings and secrets. |
 
 ## How it works
 
@@ -60,9 +61,67 @@ from `Resource/0.sql` and applies newer upgrade scripts (`1.sql`, `2.sql`, ...),
 
 ## Configuration
 
-`src/WebsiteCollector.Worker/appsettings.json` holds the connection strings above plus `BeepNLog`,
-`WebsiteCollector` and `EventBus` (worker concurrency, poll interval, lease length) and `Scheduler`
-(frequency and start time). Override any value with environment variables, e.g. `ConnectionStrings__Collector`.
+`src/WebsiteCollector.Worker/appsettings.json` holds the non-secret settings: `WebsiteCollector` and
+`EventBus` (worker concurrency, poll interval, lease length), `Scheduler` (frequency, start time, time
+zone) and `BeepNLog`. Connection strings and API keys are **not** committed: their keys are there with
+empty values, and each environment supplies them.
+
+Settings are read in this order, later ones winning: `appsettings.json` → `appsettings.{Environment}.json`
+→ user secrets (Development only) → environment variables → command line → Azure Key Vault (when
+`KeyVault:Uri` is set).
+
+### Required settings
+
+| Host | Setting | Environment variable | Key Vault secret |
+| --- | --- | --- | --- |
+| Worker | `ConnectionStrings:Scheduler` / `ServiceBus` / `EventBus` / `Collector` | `ConnectionStrings__Collector`, ... | `ConnectionStrings--Collector`, ... |
+| Worker | `BeepNLog:DatabaseConnection` | `BeepNLog__DatabaseConnection` | `BeepNLog--DatabaseConnection` |
+| Api | `ConnectionStrings:Currency` | `ConnectionStrings__Currency` | `ConnectionStrings--Currency` |
+| Api | `Authentication:ApiKeys` (one or more) | `Authentication__ApiKeys__0`, `__1`, ... | `Authentication--ApiKeys--0`, ... |
+
+Both hosts check these at startup (`Beep.Configuration`) and stop with the names of what is missing.
+Outside Development each API key must be at least 32 characters and not a placeholder. Generate one with:
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(36))
+```
+
+### Developer machine: user secrets
+
+The Worker's launch profile runs it as `Development`, which loads user secrets (stored in your profile,
+outside the repo):
+
+```powershell
+dotnet user-secrets set --project src/WebsiteCollector.Worker "ConnectionStrings:Collector" "Server=.\SQLEXPRESS;Database=WebsiteCollector;Integrated Security=true;Encrypt=false;TrustServerCertificate=true;"
+# ... Scheduler, ServiceBus, EventBus, BeepNLog:DatabaseConnection
+dotnet user-secrets set --project src/WebsiteCollector.Api "Authentication:ApiKeys:0" "dev-api-key-12345"
+dotnet user-secrets list --project src/WebsiteCollector.Worker
+```
+
+`dotnet run --no-launch-profile` (or a service) defaults to `Production`, which does not read user secrets.
+
+### Azure: Key Vault with a managed identity
+
+1. Store the settings as secrets, `:` written as `--` (e.g. `ConnectionStrings--Collector`).
+2. Enable a managed identity on the App Service / VM and grant it **Key Vault Secrets User** on the vault.
+3. Set `KeyVault__Uri=https://<vault>.vault.azure.net/` (and `KeyVault__ManagedIdentityClientId` for a
+   user-assigned identity).
+
+For Azure SQL, prefer `Authentication=Active Directory Managed Identity` in the connection string, so it
+holds no password.
+
+### Windows server
+
+Either set machine environment variables for the service account:
+
+```powershell
+[Environment]::SetEnvironmentVariable("ConnectionStrings__Collector", "Server=...;Integrated Security=true;...", "Machine")
+```
+
+or use the same Key Vault: set `KeyVault__Uri` and give the server an identity, either Azure Arc's managed
+identity or a service principal (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_CERTIFICATE_PATH` or
+`AZURE_CLIENT_SECRET`). Run the service as a dedicated account (or gMSA) with `Integrated Security=true`
+so connection strings need no password.
 
 ## Adding a website
 
