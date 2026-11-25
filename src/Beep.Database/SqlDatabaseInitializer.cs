@@ -7,19 +7,26 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Shared;
+namespace Beep.Database;
 
 /// <summary>
-/// Creates a SQL Server database from the embedded <c>Resource/0.sql</c> script of the
-/// assembly it is compiled into, then applies upgrade scripts <c>Resource/1.sql</c>,
-/// <c>Resource/2.sql</c>, ... that are newer than the version recorded in
-/// <c>{schema}.DatabaseVersion</c>.
+/// Creates a SQL Server database from the <c>Resource/0.sql</c> script embedded in a given
+/// assembly, then applies upgrade scripts <c>Resource/1.sql</c>, <c>Resource/2.sql</c>, ...
+/// that are newer than the version recorded in <c>{schema}.DatabaseVersion</c>.
 /// </summary>
 /// <remarks>
-/// This file is linked into each project that owns a schema (see the projects' .csproj),
-/// so every assembly reads its own embedded scripts.
+/// A project that owns a schema embeds its scripts with
+/// <c>&lt;EmbeddedResource Include="Resource\*.sql" /&gt;</c>. Each script must create a
+/// <c>DatabaseVersion (Id, Version, CreatedAt)</c> table in 0.sql and be a single batch
+/// (no <c>GO</c>; wrap DDL such as procedures in <c>EXEC(N'...')</c>).
 /// </remarks>
-internal sealed class SqlSchemaInitializer
+/// <example>
+/// <code>
+/// var initializer = new SqlDatabaseInitializer(connectionString, typeof(WorkItemRepository).Assembly, logger);
+/// await initializer.CreateOrUpdateAsync("ServiceBus");
+/// </code>
+/// </example>
+public sealed class SqlDatabaseInitializer : IDatabaseInitializer
 {
 	private const string CreateDatabaseScript = """
 		IF DB_ID(@databaseName) IS NULL
@@ -53,16 +60,21 @@ internal sealed class SqlSchemaInitializer
 	private readonly string _masterConnectionString;
 	private readonly string _databaseName;
 	private readonly string _scriptSchema;
-	private readonly Assembly _assembly = typeof(SqlSchemaInitializer).Assembly;
+	private readonly Assembly _assembly;
 	private readonly string _resourcePrefix;
 	private readonly ILogger _logger;
 
 	/// <param name="connectionString">Connection string whose Initial Catalog is the database to create.</param>
-	/// <param name="scriptSchema">The schema name the embedded scripts are written against (e.g. "dbo").</param>
+	/// <param name="scriptAssembly">Assembly that embeds the <c>Resource/{n}.sql</c> scripts.</param>
 	/// <param name="logger">Logger.</param>
-	public SqlSchemaInitializer(string connectionString, string scriptSchema, ILogger logger)
+	/// <param name="scriptSchema">
+	/// The schema name the scripts are written against. References to it are rewritten to the
+	/// schema passed to <see cref="CreateOrUpdateAsync"/>.
+	/// </param>
+	public SqlDatabaseInitializer(string connectionString, Assembly scriptAssembly, ILogger logger, string scriptSchema = "dbo")
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+		ArgumentNullException.ThrowIfNull(scriptAssembly);
 		ArgumentException.ThrowIfNullOrWhiteSpace(scriptSchema);
 
 		var builder = new SqlConnectionStringBuilder(connectionString);
@@ -73,15 +85,13 @@ internal sealed class SqlSchemaInitializer
 		builder.InitialCatalog = "master";
 		_masterConnectionString = builder.ConnectionString;
 
+		_assembly = scriptAssembly;
 		_scriptSchema = scriptSchema;
 		_resourcePrefix = $"{_assembly.GetName().Name}.Resource.";
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
-	/// <summary>
-	/// Creates the database and its objects in <paramref name="schema"/> if the database does not exist;
-	/// otherwise applies any pending upgrade scripts.
-	/// </summary>
+	/// <inheritdoc />
 	public async Task CreateOrUpdateAsync(string schema, CancellationToken cancellationToken = default)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(schema);

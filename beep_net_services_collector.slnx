@@ -4,6 +4,7 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Beep.Database/Beep.Database.csproj" />
     <Project Path="src/Beep.EventBus/Beep.EventBus.csproj" />
     <Project Path="src/Beep.Scheduler/Beep.Scheduler.csproj" />
     <Project Path="src/Beep.ServiceBus/Beep.ServiceBus.csproj" />

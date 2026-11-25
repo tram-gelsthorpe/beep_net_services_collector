@@ -1,3 +1,4 @@
+using Beep.Database;
 using Beep.ServiceBus;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -52,8 +53,10 @@ public static class TestDatabase
 	/// <summary>Runs the production initializers (create on first call, upgrade check afterwards).</summary>
 	public static async Task CreateAsync()
 	{
-		await new SqlServiceBusDatabase(ServiceBusConnectionString, NullLogger.Instance).Create(ServiceBusSchema);
-		await new SqlWebsiteCollectorDatabase(CollectorConnectionString, NullLogger.Instance).Create();
+		await new SqlDatabaseInitializer(ServiceBusConnectionString, typeof(WorkItemRepository).Assembly, NullLogger.Instance)
+			.CreateOrUpdateAsync(ServiceBusSchema);
+		await new SqlDatabaseInitializer(CollectorConnectionString, typeof(CreationDatabaseService).Assembly, NullLogger.Instance)
+			.CreateOrUpdateAsync(CreationDatabaseService.SelectorSchema);
 	}
 
 	public static async Task ClearDataAsync()

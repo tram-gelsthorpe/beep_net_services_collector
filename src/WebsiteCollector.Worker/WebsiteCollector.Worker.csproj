@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\Shared\SqlSchemaInitializer.cs" Link="Database\SqlSchemaInitializer.cs" />
     <EmbeddedResource Include="Resource\*.sql" />
   </ItemGroup>
 
@@ -29,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Beep.Database\Beep.Database.csproj" />
     <ProjectReference Include="..\Beep.EventBus\Beep.EventBus.csproj" />
     <ProjectReference Include="..\Beep.Scheduler\Beep.Scheduler.csproj" />
     <ProjectReference Include="..\Beep.ServiceBus\Beep.ServiceBus.csproj" />

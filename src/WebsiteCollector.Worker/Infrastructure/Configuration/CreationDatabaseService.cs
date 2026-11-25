@@ -1,3 +1,5 @@
+using System.Reflection;
+using Beep.Database;
 using Beep.EventBus;
 using Beep.Scheduler;
 using Beep.ServiceBus;
@@ -7,8 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace WebsiteCollector.Worker;
 
 /// <summary>
-/// Initializes all required databases and schemas on application startup.
-/// Handles ServiceBus (WorkItems), EventBus (Deliveries), and WebsiteCollector schema creation.
+/// Creates or upgrades every database the worker uses, on application startup,
+/// from the SQL scripts embedded in each owning assembly.
 /// </summary>
 public sealed class CreationDatabaseService(
 	IConfiguration configuration,
@@ -22,6 +24,18 @@ public sealed class CreationDatabaseService(
 	public const string SchedulerSchema = "Scheduler";
 	public const string ServiceBusSchema = "ServiceBus";
 	public const string EventBusSchema = "EventBus";
+	public const string SelectorSchema = "dbo";
+
+	/// <summary>
+	/// (connection string name, assembly embedding the scripts, schema the scripts are written in, target schema)
+	/// </summary>
+	private static readonly (string ConnectionName, Assembly Scripts, string ScriptSchema, string Schema)[] Databases =
+	[
+		(SchedulerDatabaseName, typeof(SchedulerRepository).Assembly, "Scheduler", SchedulerSchema),
+		(ServiceBusDatabaseName, typeof(WorkItemRepository).Assembly, "dbo", ServiceBusSchema),
+		(EventBusDatabaseName, typeof(EventBusRepository).Assembly, "dbo", EventBusSchema),
+		(SelectorDatabaseName, typeof(CreationDatabaseService).Assembly, "dbo", SelectorSchema),
+	];
 
 	/// <summary>
 	/// Initialize all databases and schemas.
@@ -29,54 +43,25 @@ public sealed class CreationDatabaseService(
 	/// </summary>
 	public async Task InitializeAsync(CancellationToken cancellationToken = default)
 	{
-		try
+		logger.LogInformation("Starting database initialization...");
+
+		foreach (var (connectionName, scripts, scriptSchema, schema) in Databases)
 		{
-			logger.LogInformation("Starting database initialization...");
+			var connectionString = configuration.GetConnectionString(connectionName)
+				?? throw new InvalidOperationException($"Missing '{connectionName}' connection string");
 
-			// Get connection string for Scheduler database
-			var schedulerConnectionString = configuration.GetConnectionString("Scheduler")
-				?? throw new InvalidOperationException("Missing Scheduler connection string");
-
-			logger.LogInformation("Initializing Scheduler database...");
-			var shchedulerDb = new SqlSchedulerDatabase(schedulerConnectionString, logger);
-			await shchedulerDb.Create(SchedulerSchema, cancellationToken);
-			logger.LogInformation("Scheduler database initialized successfully");
-
-			// Get connection string - uses ServiceBus connection for WorkItems storage
-			var connectionString = configuration.GetConnectionString("ServiceBus")
-				?? throw new InvalidOperationException("Missing ServiceBus connection string");
-
-			// Initialize ServiceBus database (WorkItems table and stored procedures)
-			logger.LogInformation("Initializing ServiceBus database...");
-			var serviceBusDb = new SqlServiceBusDatabase(connectionString, logger);
-			await serviceBusDb.Create(ServiceBusSchema, cancellationToken);
-			logger.LogInformation("ServiceBus database initialized successfully");
-
-			// Initialize EventBus database (EventBus and EventBusDeliveries tables)
-			// If a separate Webhook database is configured, initialize it too
-			var eventBusConnectionString = configuration.GetConnectionString("EventBus")
-				?? throw new InvalidOperationException("Missing EventBus connection string ");
-
-			logger.LogInformation("Initializing EventBus database...");
-			var eventBusDb = new SqlEventBusDatabase(eventBusConnectionString, logger);
-			await eventBusDb.Create(EventBusSchema, cancellationToken);
-			logger.LogInformation("EventBus database initialized successfully");
-
-
-			// Initialize WebsiteCollector schema (WebsiteSelectors, WebsiteSelectionWebhooks, WebsiteSelectorsCollectedData)
-			var collectorConnectionString = configuration.GetConnectionString("Collector") 
-				?? throw new InvalidOperationException("Missing Collector connection string ");
-
-			logger.LogInformation("Initializing WebsiteCollector database...");
-			var collectorDb = new SqlWebsiteCollectorDatabase(collectorConnectionString, logger);
-			await collectorDb.Create(cancellationToken);
-			logger.LogInformation("WebsiteCollector database initialized successfully");
-
-		}
-		catch (Exception ex)
-		{
-			logger.LogError(ex, "Database initialization failed");
-			throw;
+			try
+			{
+				logger.LogInformation("Initializing {Database} database...", connectionName);
+				await new SqlDatabaseInitializer(connectionString, scripts, logger, scriptSchema)
+					.CreateOrUpdateAsync(schema, cancellationToken);
+				logger.LogInformation("{Database} database initialized successfully", connectionName);
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "{Database} database initialization failed", connectionName);
+				throw;
+			}
 		}
 	}
 }

@@ -12,7 +12,7 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | `src/Beep.EventBus` | In-process event aggregator plus queued HTTP POST deliveries (`EventBus`, `EventBusDeliveries`). |
 | `src/WebsiteCollector.Worker` | The host: website selectors, collection worker, schedule handler, subscriber. |
 | `src/WebsiteCollector.Api` | ASP.NET Core API (API-key protected). Currently a stub. |
-| `src/Shared` | Source shared by linking into projects (`SqlSchemaInitializer`). |
+| `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |
 
 ## How it works
 
@@ -27,7 +27,8 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 
 ## Databases
 
-Each library owns its schema as embedded scripts in `Resource/`. At startup the worker creates any missing database
+Each library owns its schema as embedded scripts in `Resource/`. At startup the worker (`CreationDatabaseService`) uses
+`Beep.Database` to create any missing database
 from `Resource/0.sql` and applies newer upgrade scripts (`1.sql`, `2.sql`, ...), tracking the version in
 `<schema>.DatabaseVersion`. To change a schema, add the next numbered script — never edit a released one.
 

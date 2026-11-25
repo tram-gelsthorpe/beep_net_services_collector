@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Shared\SqlSchemaInitializer.cs" Link="Database\SqlSchemaInitializer.cs" />
     <EmbeddedResource Include="Resource\*.sql" />
   </ItemGroup>
 
