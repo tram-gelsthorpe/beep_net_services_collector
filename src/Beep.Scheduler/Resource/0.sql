@@ -46,11 +46,11 @@ INSERT INTO dbo.DatabaseVersion (Version)
 VALUES ('0');
 
 -- =====================================================
--- WorkerSchedules Table
+-- Schedules Table
 -- =====================================================
 -- Defines schedules for each worker type
 
-CREATE TABLE dbo.WorkerSchedules (
+CREATE TABLE dbo.Schedules (
 	Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 
 	-- Worker identification
@@ -79,16 +79,16 @@ CREATE TABLE dbo.WorkerSchedules (
 	LastRunAt DATETIMEOFFSET(7) NULL,
 
 	-- One schedule per worker type (CreateOrUpdateSchedule upserts on it)
-	CONSTRAINT UQ_WorkerSchedules_WorkerType UNIQUE (WorkerType),
-	INDEX IX_WorkerSchedules_Active (IsActive, Frequency)
+	CONSTRAINT UQ_Schedules_WorkerType UNIQUE (WorkerType),
+	INDEX IX_Schedules_Active (IsActive, Frequency)
 );
 
 -- =====================================================
--- ScheduleExecutionLogs Table
+-- ScheduleExecutions Table
 -- =====================================================
 -- Audit trail of schedule executions
 
-CREATE TABLE dbo.ScheduleExecutionLogs (
+CREATE TABLE dbo.ScheduleExecutions (
 	Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 
 	-- Reference
@@ -107,9 +107,9 @@ CREATE TABLE dbo.ScheduleExecutionLogs (
 	-- Context
 	HandlerName NVARCHAR(256) NULL,
 
-	FOREIGN KEY (ScheduleId) REFERENCES dbo.WorkerSchedules(Id),
-	INDEX IX_ScheduleExecutionLogs_Schedule (ScheduleId, StartedAt),
-	INDEX IX_ScheduleExecutionLogs_Status (Status, StartedAt)
+	FOREIGN KEY (ScheduleId) REFERENCES dbo.Schedules(Id),
+	INDEX IX_ScheduleExecutions_Schedule (ScheduleId, StartedAt),
+	INDEX IX_ScheduleExecutions_Status (Status, StartedAt)
 );
 
 -- =====================================================
@@ -144,7 +144,7 @@ BEGIN
 		s.LastRunAt,
 		@Now AS CheckedAt,
 		s.TimeZone
-	FROM dbo.WorkerSchedules s
+	FROM dbo.Schedules s
 	CROSS APPLY (SELECT LocalNow = @Now AT TIME ZONE s.TimeZone) n
 	CROSS APPLY (SELECT
 		Today = CAST(n.LocalNow AS DATE),
@@ -197,7 +197,7 @@ BEGIN
 	DECLARE @DurationMs INT = DATEDIFF(MILLISECOND, @StartedAt, @Now);
 
 	-- Log execution
-	INSERT INTO dbo.ScheduleExecutionLogs (
+	INSERT INTO dbo.ScheduleExecutions (
 		ScheduleId, StartedAt, FinishedAt, DurationMs, Status, ItemsRegistered, 
 		Error, HandlerName
 	)
@@ -214,7 +214,7 @@ BEGIN
 
 	-- Record when the run started, so a run that crosses midnight still counts for the day it started.
 	IF @CompletesRun = 1
-		UPDATE dbo.WorkerSchedules
+		UPDATE dbo.Schedules
 		SET LastRunAt = @StartedAt,
 			UpdatedAt = @Now
 		WHERE Id = @ScheduleId;
@@ -240,7 +240,7 @@ BEGIN
 		ItemsRegistered,
 		Error,
 		HandlerName
-	FROM dbo.ScheduleExecutionLogs
+	FROM dbo.ScheduleExecutions
 	WHERE ScheduleId = @ScheduleId
 	ORDER BY StartedAt DESC;
 END;

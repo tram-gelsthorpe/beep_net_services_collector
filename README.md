@@ -8,7 +8,7 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | Project | Purpose |
 | --- | --- |
 | `src/Beep.ServiceBus` | Generic work queue: `WorkItems` table, claim/renew/complete stored procedures, `GenericWorkerBase<T>` polling worker. |
-| `src/Beep.Scheduler` | Recurring schedules (`WorkerSchedules`) that call an `IScheduleHandler` to enqueue work. |
+| `src/Beep.Scheduler` | Recurring schedules (`Schedules`) that call an `IScheduleHandler` to enqueue work. |
 | `src/Beep.EventBus` | Publisher for HTTP POST deliveries to registered endpoints, delivered through ServiceBus work items; plus an in-process event aggregator. |
 | `src/WebsiteCollector.Worker` | The host: website selectors, collection worker, schedule handler, subscriber. |
 | `src/WebsiteCollector.Api` | ASP.NET Core API (API-key protected). Currently a stub. |

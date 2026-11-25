@@ -110,7 +110,7 @@ public sealed class SchedulerRepository
 		using var command = new SqlCommand(
 			$"SELECT Id, WorkerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
 			$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt, Description, TimeZone " +
-			$"FROM {_schema}.WorkerSchedules WHERE {whereClause}",
+			$"FROM {_schema}.Schedules WHERE {whereClause}",
 			connection)
 		{
 			CommandTimeout = 30
@@ -240,14 +240,14 @@ public sealed class SchedulerRepository
 
 				BEGIN TRANSACTION;
 
-				UPDATE {_schema}.WorkerSchedules WITH (UPDLOCK, SERIALIZABLE)
+				UPDATE {_schema}.Schedules WITH (UPDLOCK, SERIALIZABLE)
 				SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime,
 					TimeZone = @TimeZone, DayOfWeek = @DayOfWeek, DayOfMonth = @DayOfMonth, DayOfYear = @DayOfYear,
 					IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME()
 				WHERE WorkerType = @WorkerType;
 
 				IF @@ROWCOUNT = 0
-					INSERT INTO {_schema}.WorkerSchedules
+					INSERT INTO {_schema}.Schedules
 						(WorkerType, Description, Frequency, StartTime, TimeZone, DayOfWeek, DayOfMonth, DayOfYear, IsActive)
 					VALUES
 						(@WorkerType, @Description, @Frequency, @StartTime, @TimeZone, @DayOfWeek, @DayOfMonth, @DayOfYear, @IsActive);
@@ -297,7 +297,7 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				$"UPDATE {_schema}.WorkerSchedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
+				$"UPDATE {_schema}.Schedules SET IsActive = @IsActive WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30
@@ -328,7 +328,7 @@ public sealed class SchedulerRepository
 			await connection.OpenAsync(cancellationToken);
 
 			using var command = new SqlCommand(
-				$"DELETE FROM {_schema}.WorkerSchedules WHERE WorkerType = @WorkerType",
+				$"DELETE FROM {_schema}.Schedules WHERE WorkerType = @WorkerType",
 				connection)
 			{
 				CommandTimeout = 30

@@ -24,7 +24,7 @@ Supports multiple worker types (WebsiteCollector, BigDataProcess, etc.) and freq
 │  ┌──────────────────────┐   │Website- │      │BigData- │    │
 │  │  Database Schema     │   │Collector│      │Process  │    │
 │  │                      │   │Handler  │      │Handler  │    │
-│  │ - WorkerSchedules    │   └─────────┘      └─────────┘    │
+│  │ - Schedules          │   └─────────┘      └─────────┘    │
 │  │ - ScheduleFrequency  │                                     │
 │  │ - ExecutionLog       │         (Registered via DI)         │
 │  └──────────────────────┘                                     │
@@ -87,7 +87,7 @@ src/Beep.Scheduler/
 ```
 Scheduler Service Loop:
 ├─ Every 30 seconds:
-│   ├─ Query WorkerSchedules table
+│   ├─ Query Schedules table
 │   ├─ For each schedule:
 │   │  ├─ Check if it's due to run
 │   │  ├─ If yes: Find matching handler
@@ -115,24 +115,24 @@ On startup, create schedules:
 
 ```sql
 -- Daily schedule
-INSERT INTO Scheduler.WorkerSchedules (WorkerType, Frequency, StartTime, IsActive)
+INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, IsActive)
 VALUES ('WebsiteCollector', 'Daily', '01:00:00', 1);
 
 -- Weekly schedule (Sundays at midnight)
-INSERT INTO Scheduler.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfWeek, IsActive)
+INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, DayOfWeek, IsActive)
 VALUES ('BigDataProcess', 'Weekly', '00:00:00', 0, 1);
 
 -- Monthly schedule (15th of each month)
-INSERT INTO Scheduler.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfMonth, IsActive)
+INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, DayOfMonth, IsActive)
 VALUES ('ReportProcess', 'Monthly', '09:00:00', 15, 1);
 
 -- Yearly schedule (January 1st at midnight)
 -- DayOfYear = 1 for Jan 1, = 32 for Feb 1, = 60 for Mar 1, etc.
-INSERT INTO Scheduler.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfYear, IsActive)
+INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, DayOfYear, IsActive)
 VALUES ('AnnualReport', 'Yearly', '00:00:00', 1, 1);
 
 -- Hourly schedule
-INSERT INTO Scheduler.WorkerSchedules (WorkerType, Frequency, StartTime, IsActive)
+INSERT INTO Scheduler.Schedules (WorkerType, Frequency, StartTime, IsActive)
 VALUES ('FrequentProcess', 'Hourly', '00:00:00', 1);
 ```
 
@@ -155,7 +155,7 @@ not know (`sys.time_zone_info`) is rejected when the schedule is saved. "Now" is
 
 A schedule runs at the first poll at or after its `StartTime` on a matching day, at most once that
 day (a worker that was down at `StartTime` catches up when it starts). Each `WorkerType` has one
-schedule (`UQ_WorkerSchedules_WorkerType`).
+schedule (`UQ_Schedules_WorkerType`).
 
 ```json
 "Scheduler": {

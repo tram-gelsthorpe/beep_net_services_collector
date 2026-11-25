@@ -105,7 +105,7 @@ public static class TestDatabase
 	public static async Task ClearSchedulerDataAsync()
 	{
 		await using var scheduler = new SqlConnection(SchedulerConnectionString);
-		await scheduler.ExecuteAsync($"DELETE FROM {SchedulerSchema}.ScheduleExecutionLogs; DELETE FROM {SchedulerSchema}.WorkerSchedules;");
+		await scheduler.ExecuteAsync($"DELETE FROM {SchedulerSchema}.ScheduleExecutions; DELETE FROM {SchedulerSchema}.Schedules;");
 	}
 
 	public static SqlConnection OpenServiceBus() => new(ServiceBusConnectionString);

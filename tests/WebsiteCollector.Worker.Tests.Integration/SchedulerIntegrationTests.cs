@@ -43,7 +43,7 @@ public sealed class SchedulerIntegrationTests
 		await Task.WhenAll(Enumerable.Range(0, 20).Select(i => _repository.CreateOrUpdateScheduleAsync(
 			"Collector", $"run {i}", "Daily", new TimeOnly(2, 0), isActive: true, CancellationToken.None)));
 
-		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.WorkerSchedules WHERE WorkerType = 'Collector'"));
+		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules WHERE WorkerType = 'Collector'"));
 	}
 
 	[TestMethod]
@@ -97,7 +97,7 @@ public sealed class SchedulerIntegrationTests
 	{
 		var id = await InsertScheduleAsync("Hourly", TimeSpan.Zero);
 		await using (var connection = TestDatabase.OpenScheduler())
-			await connection.ExecuteAsync($"UPDATE {Schema}.WorkerSchedules SET LastRunAt = @at WHERE Id = @id",
+			await connection.ExecuteAsync($"UPDATE {Schema}.Schedules SET LastRunAt = @at WHERE Id = @id",
 				new { id, at = Day.AddHours(10).AddMinutes(59) });
 
 		Assert.AreEqual(0, (await DueAsync(Day.AddHours(11))).Count, "one minute later is not an hour");
@@ -177,7 +177,7 @@ public sealed class SchedulerIntegrationTests
 		await Assert.ThrowsAsync<ArgumentException>(() => _repository.CreateOrUpdateScheduleAsync(
 			"Collector", "bad", "Daily", new TimeOnly(1, 0), isActive: true, CancellationToken.None, timeZone: "Mars/Olympus"));
 
-		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.WorkerSchedules"));
+		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules"));
 	}
 
 	// ---------------------------------------------------------------- running through the ServiceBus
@@ -209,7 +209,7 @@ public sealed class SchedulerIntegrationTests
 		}
 
 		Assert.AreEqual(1, handler.Calls, "handler ran once");
-		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.ScheduleExecutionLogs WHERE Status = 'Success'"));
+		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.ScheduleExecutions WHERE Status = 'Success'"));
 		Assert.AreEqual(0, (await _repository.GetDueSchedulesAsync(CancellationToken.None)).Count);
 	}
 
@@ -299,7 +299,7 @@ public sealed class SchedulerIntegrationTests
 	{
 		await using var connection = TestDatabase.OpenScheduler();
 		return await connection.QuerySingleAsync<Guid>($"""
-			INSERT INTO {Schema}.WorkerSchedules (WorkerType, Frequency, StartTime, DayOfWeek, TimeZone)
+			INSERT INTO {Schema}.Schedules (WorkerType, Frequency, StartTime, DayOfWeek, TimeZone)
 			OUTPUT inserted.Id
 			VALUES (@worker, @frequency, @startTime, @dayOfWeek, @timeZone)
 			""", new { worker = HandlerWorkerType, frequency, startTime, dayOfWeek, timeZone });
@@ -308,7 +308,7 @@ public sealed class SchedulerIntegrationTests
 	private static async Task SetLastRunAsync(Guid id, DateTimeOffset at)
 	{
 		await using var connection = TestDatabase.OpenScheduler();
-		await connection.ExecuteAsync($"UPDATE {Schema}.WorkerSchedules SET LastRunAt = @at WHERE Id = @id", new { id, at });
+		await connection.ExecuteAsync($"UPDATE {Schema}.Schedules SET LastRunAt = @at WHERE Id = @id", new { id, at });
 	}
 
 	private static async Task<List<Guid>> DueAsync(DateTimeOffset now, int dateFirst = 7)
@@ -322,7 +322,7 @@ public sealed class SchedulerIntegrationTests
 	private static async Task<T> QueryAsync<T>(Guid id, string column)
 	{
 		await using var connection = TestDatabase.OpenScheduler();
-		return await connection.QuerySingleAsync<T>($"SELECT {column} FROM {Schema}.WorkerSchedules WHERE Id = @id", new { id });
+		return await connection.QuerySingleAsync<T>($"SELECT {column} FROM {Schema}.Schedules WHERE Id = @id", new { id });
 	}
 
 	private static async Task<int> CountAsync(string sqlWithSchemaPlaceholder)
@@ -335,7 +335,7 @@ public sealed class SchedulerIntegrationTests
 	private static async Task<List<string>> QueryLogStatusesAsync()
 	{
 		await using var connection = TestDatabase.OpenScheduler();
-		return (await connection.QueryAsync<string>($"SELECT Status FROM {Schema}.ScheduleExecutionLogs ORDER BY Status")).AsList();
+		return (await connection.QueryAsync<string>($"SELECT Status FROM {Schema}.ScheduleExecutions ORDER BY Status")).AsList();
 	}
 
 	private static async Task<string> QueryWorkItemStatusAsync(Guid workItemId)

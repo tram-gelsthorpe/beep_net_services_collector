@@ -8,7 +8,7 @@ namespace Beep.Scheduler;
 /// </summary>
 public sealed class SchedulerWorkerOptions : WorkerOptions
 {
-	/// <summary>ServiceBus DomainType of schedule work items (DomainId = WorkerSchedules.Id).</summary>
+	/// <summary>ServiceBus DomainType of schedule work items (DomainId = Schedules.Id).</summary>
 	public const string ScheduleDomainType = "WorkerSchedule";
 
 	public SchedulerWorkerOptions()
