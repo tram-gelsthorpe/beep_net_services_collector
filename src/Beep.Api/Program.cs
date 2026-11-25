@@ -1,8 +1,13 @@
+using Beep.Api.Backfill;
 using Beep.Configuration;
 using Beep.Api.Infrastructure.Audit;
 using Beep.Api.Infrastructure.Authentication;
 using Beep.Api.Repositories.Collector;
 using Beep.Api.Repositories.Currency;
+
+// "backfill vietcombank ..." fills past rates and exits instead of starting the web server.
+if (BackfillCommand.IsBackfill(args))
+	return await BackfillCommand.RunAsync(args);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,4 +68,5 @@ app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
-app.Run();
+app.Run();
+return 0;

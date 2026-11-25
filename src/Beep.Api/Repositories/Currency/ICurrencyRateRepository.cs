@@ -15,6 +15,10 @@ namespace Beep.Api.Repositories.Currency;
 /// </remarks>
 public interface ICurrencyRateRepository
 {
+	/// <summary>Days from <paramref name="from"/> to <paramref name="to"/> that have at least one rate of the bank.</summary>
+	Task<IReadOnlySet<DateOnly>> GetRecordedDatesAsync(
+		string bankBic, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
 	/// <summary>Record the rates of the bank with BIC <paramref name="bankBic"/> (<c>dbo.Bank.Bic</c>).</summary>
 	/// <exception cref="InvalidOperationException">No bank, or more than one, has that BIC.</exception>
 	Task<CurrencyRateSaveResult> SaveBankRatesAsync(
@@ -61,6 +65,27 @@ public sealed class CurrencyRateRepository : ICurrencyRateRepository
 
 		_connectionString = connectionString;
 		_createdBy = createdBy;
+	}
+
+	public async Task<IReadOnlySet<DateOnly>> GetRecordedDatesAsync(
+		string bankBic, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(bankBic);
+
+		var parameters = new DynamicParameters();
+		parameters.Add("bic", new DbString { Value = bankBic, IsAnsi = true, Length = 20 });
+		parameters.Add("from", from.ToDateTime(TimeOnly.MinValue), DbType.Date);
+		parameters.Add("to", to.ToDateTime(TimeOnly.MinValue), DbType.Date);
+
+		await using var connection = new SqlConnection(_connectionString);
+		var dates = await connection.QueryAsync<DateTime>(new CommandDefinition("""
+			SELECT DISTINCT r.[Date]
+			FROM dbo.Currency_Rate_Bank r
+			JOIN dbo.Bank b ON b.Id = r.Bank_Id
+			WHERE b.Bic = @bic AND r.[Date] BETWEEN @from AND @to
+			""", parameters, cancellationToken: cancellationToken));
+
+		return dates.Select(DateOnly.FromDateTime).ToHashSet();
 	}
 
 	public async Task<CurrencyRateSaveResult> SaveBankRatesAsync(

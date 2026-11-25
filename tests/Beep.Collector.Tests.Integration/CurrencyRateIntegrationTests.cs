@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text.Json;
+using Beep.Api.Backfill;
 using Beep.Api.Controllers.Currency;
 using Beep.Api.Domain.Currency;
 using Beep.Api.Repositories.Collector;
@@ -249,6 +251,72 @@ public sealed class CurrencyRateIntegrationTests
 			await controller.RecordVietcombankCurrencyRate(Request(Guid.Empty), CancellationToken.None));
 	}
 
+	// ---------------------------------------------------------------- backfill from Vietcombank's API
+
+	[TestMethod]
+	public void ParseRateList_ReadsTheApiResponse_AndAnEmptyDay()
+	{
+		const string json = """
+			{"Count":1,"Date":"2025-01-02T00:00:00","UpdatedDate":"2025-01-02T23:00:00+07:00",
+			 "Data":[{"currencyName":"US DOLLAR","currencyCode":"USD","cash":"25229.00","transfer":"25259.00","sell":"25559.00","icon":"/x.svg"}]}
+			""";
+
+		var rates = VietcombankRateParser.ParseRateList(json);
+
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2025, 1, 2),
+			new DateTimeOffset(2025, 1, 2, 23, 0, 0, TimeSpan.FromHours(7)), 25229m, 25259m, 25559m), rates.Single());
+		Assert.IsEmpty(VietcombankRateParser.ParseRateList(
+			"""{"Count":0,"Date":"0001-01-01T00:00:00","UpdatedDate":"0001-01-01T00:00:00","Data":[]}"""));
+		Assert.ThrowsExactly<FormatException>(() => VietcombankRateParser.ParseRateList("""{"ContentSelector":{}}"""));
+	}
+
+	[TestMethod]
+	public async Task Backfill_FetchesOnlyMissingDays_AndRecordsThem()
+	{
+		// 01..05/03/2025: the 2nd is already recorded, the 3rd has no rates, the 4th always fails.
+		var day = new DateOnly(2025, 3, 1);
+		await _repository.SaveBankRatesAsync(Bic, [EndOfDay("USD", day.AddDays(1), 2m)], CancellationToken.None);
+
+		var api = new StubVietcombankApi(date => date.Day switch
+		{
+			3 => (HttpStatusCode.OK, """{"Count":0,"Date":"0001-01-01T00:00:00","UpdatedDate":"0001-01-01T00:00:00","Data":[]}"""),
+			4 => (HttpStatusCode.InternalServerError, ""),
+			_ => (HttpStatusCode.OK, RateListJson(date, ("USD", date.Day), ("EUR", date.Day + 0.5m))),
+		});
+		var backfill = new VietcombankBackfill(new HttpClient(api), _repository,
+			NullLogger<VietcombankBackfill>.Instance, retryDelays: [TimeSpan.Zero]);
+
+		var result = await backfill.RunAsync(day, day.AddDays(4), TimeSpan.Zero, CancellationToken.None);
+
+		Assert.AreEqual(4, result.DaysMissing, "the 2nd is skipped");
+		Assert.AreEqual(2, result.DaysRecorded, "the 1st and 5th");
+		Assert.AreEqual(4, result.RatesInserted);
+		Assert.AreEqual(1, result.DaysWithoutRates);
+		CollectionAssert.AreEqual(new[] { day.AddDays(3) }, result.FailedDays);
+		CollectionAssert.AreEqual(
+			new[] { "2025-03-01", "2025-03-03", "2025-03-04", "2025-03-04", "2025-03-05" }, api.RequestedDates,
+			"the failed day is tried twice (one retry); the recorded day is not fetched");
+
+		var usd = await QueryRatesAsync("USD");
+		CollectionAssert.AreEquivalent(new[] { 1m, 2m, 5m }, usd.Select(r => r.SellingRate!.Value).ToArray());
+		Assert.AreEqual(new DateTimeOffset(2025, 3, 5, 23, 0, 0, TimeSpan.FromHours(7)), usd.Single(r => r.SellingRate == 5m).RateTime);
+
+		// Running again fetches only what is still missing: the empty day and the failed day.
+		api.RequestedDates.Clear();
+		await backfill.RunAsync(day, day.AddDays(4), TimeSpan.Zero, CancellationToken.None);
+		CollectionAssert.AreEqual(new[] { "2025-03-03", "2025-03-04", "2025-03-04" }, api.RequestedDates);
+	}
+
+	[TestMethod]
+	public void Backfill_LastCompleteDay_IsYesterdayInVietnam()
+	{
+		// 26/11 00:30 in Vietnam is still 25/11 in UTC.
+		Assert.AreEqual(new DateOnly(2026, 11, 25),
+			VietcombankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 17, 30, 0, TimeSpan.Zero)));
+		Assert.AreEqual(new DateOnly(2026, 11, 24),
+			VietcombankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 16, 30, 0, TimeSpan.Zero)));
+	}
+
 	// ---------------------------------------------------------------- helpers
 
 	private static DateTimeOffset At(int hour, int day = 26) => new(2026, 11, day, hour, 0, 0, TimeSpan.FromHours(7));
@@ -258,6 +326,24 @@ public sealed class CurrencyRateIntegrationTests
 
 	private Task<CurrencyRateSaveResult> SaveAsync(DateTimeOffset at, params (string Code, decimal Sell)[] rates) =>
 		_repository.SaveBankRatesAsync(Bic, [.. rates.Select(r => Rate(r.Code, at, r.Sell))], CancellationToken.None);
+
+	private static CurrencyRateBank EndOfDay(string code, DateOnly day, decimal sell) =>
+		new(code, day, new DateTimeOffset(day.ToDateTime(new TimeOnly(23, 0)), TimeSpan.FromHours(7)), sell, sell, sell);
+
+	private static string RateListJson(DateOnly day, params (string Code, decimal Sell)[] rates) =>
+		JsonSerializer.Serialize(new
+		{
+			Count = rates.Length,
+			Date = $"{day:yyyy-MM-dd}T00:00:00",
+			UpdatedDate = $"{day:yyyy-MM-dd}T23:00:00+07:00",
+			Data = rates.Select(r => new
+			{
+				currencyCode = r.Code,
+				cash = r.Sell.ToString(System.Globalization.CultureInfo.InvariantCulture),
+				transfer = r.Sell.ToString(System.Globalization.CultureInfo.InvariantCulture),
+				sell = r.Sell.ToString(System.Globalization.CultureInfo.InvariantCulture),
+			}),
+		});
 
 	private static string VietcombankJson(DateTimeOffset at, params (string Code, decimal Sell)[] rates) =>
 		JsonSerializer.Serialize(new
@@ -314,6 +400,23 @@ public sealed class CurrencyRateIntegrationTests
 	private sealed record RateRow(
 		Guid Id, DateTime Date, DateTimeOffset? RateTime, decimal? SellingRate, int Version,
 		DateTimeOffset? Modified, Guid CreatedBy);
+
+	// Vietcombank's exchangerates API: answers per ?date=, and records which dates were asked for.
+	private sealed class StubVietcombankApi(Func<DateOnly, (HttpStatusCode Status, string Body)> respond) : HttpMessageHandler
+	{
+		public List<string> RequestedDates { get; } = [];
+
+		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			var url = request.RequestUri!.ToString();
+			Assert.StartsWith(VietcombankRateParser.RatesUrl, url);
+			var date = url[VietcombankRateParser.RatesUrl.Length..];
+			RequestedDates.Add(date);
+
+			var (status, body) = respond(DateOnly.ParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+			return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
+		}
+	}
 
 	private sealed class StubCollectedData : Dictionary<Guid, string>, ICollectedDataRepository
 	{

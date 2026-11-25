@@ -16,35 +16,58 @@ public static class VietcombankRateParser
 	/// <summary>Vietcombank's BIC, as in <c>dbo.Bank.Bic</c>.</summary>
 	public const string BankBic = "BFTVVNVX";
 
+	/// <summary>Vietcombank's rates for one day: <c>RatesUrl + "2025-01-02"</c> (available from 2020-02-01).</summary>
+	public const string RatesUrl = "https://www.vietcombank.com.vn/api/exchangerates?date=";
+
+	/// <summary>Read a collection result: <c>{"ContentSelector": { rate list }}</c>.</summary>
 	/// <exception cref="FormatException">The JSON is not in the expected shape.</exception>
-	public static IReadOnlyList<CurrencyRateBank> Parse(string extractedJson)
+	public static IReadOnlyList<CurrencyRateBank> Parse(string extractedJson) =>
+		ParseJson(extractedJson, wrappedInContentSelector: true);
+
+	/// <summary>
+	/// Read a response of <see cref="RatesUrl"/>: the rate list itself. A day without rates
+	/// (<c>"Count":0,"Data":[]</c>) gives an empty list.
+	/// </summary>
+	/// <exception cref="FormatException">The JSON is not in the expected shape.</exception>
+	public static IReadOnlyList<CurrencyRateBank> ParseRateList(string json) =>
+		ParseJson(json, wrappedInContentSelector: false);
+
+	private static IReadOnlyList<CurrencyRateBank> ParseJson(string json, bool wrappedInContentSelector)
 	{
-		if (string.IsNullOrWhiteSpace(extractedJson))
-			throw new FormatException("The extracted data is empty");
+		if (string.IsNullOrWhiteSpace(json))
+			throw new FormatException("The data is empty");
 
 		JsonDocument document;
 		try
 		{
-			document = JsonDocument.Parse(extractedJson);
+			document = JsonDocument.Parse(json);
 		}
 		catch (JsonException ex)
 		{
-			throw new FormatException($"The extracted data is not valid JSON: {ex.Message}", ex);
+			throw new FormatException($"The data is not valid JSON: {ex.Message}", ex);
 		}
 
 		using (document)
 		{
-			if (document.RootElement.ValueKind != JsonValueKind.Object
-				|| !document.RootElement.TryGetProperty("ContentSelector", out var content)
-				|| content.ValueKind != JsonValueKind.Object)
+			var content = document.RootElement;
+			if (wrappedInContentSelector
+				&& (content.ValueKind != JsonValueKind.Object
+					|| !content.TryGetProperty("ContentSelector", out content)))
 				throw new FormatException("Expected an object with a ContentSelector object");
 
+			if (content.ValueKind != JsonValueKind.Object)
+				throw new FormatException("Expected the rate list to be an object");
+
+			if (!content.TryGetProperty("Data", out var data) || data.ValueKind != JsonValueKind.Array)
+				throw new FormatException("Expected a Data array");
+
 			// "Date" is the day the rates apply to; "UpdatedDate" is when the bank published them.
+			// Both are present even on a day without rates (0001-01-01).
 			var date = DateOnly.FromDateTime(ParseDateTimeOffset(content, "Date").DateTime);
 			var rateTime = ParseDateTimeOffset(content, "UpdatedDate");
 
-			if (!content.TryGetProperty("Data", out var data) || data.ValueKind != JsonValueKind.Array)
-				throw new FormatException("Expected a ContentSelector.Data array");
+			if (data.GetArrayLength() == 0)
+				return [];
 
 			var rates = new List<CurrencyRateBank>();
 			var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -70,8 +93,9 @@ public static class VietcombankRateParser
 	private static DateTimeOffset ParseDateTimeOffset(JsonElement content, string name)
 	{
 		var value = GetString(content, name);
-		if (!DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var result))
-			throw new FormatException($"ContentSelector.{name} is missing or not a date: '{value}'");
+		// A value without an offset (Date, "0001-01-01T00:00:00") is read as UTC so it keeps its clock date
+		if (!DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var result))
+			throw new FormatException($"{name} is missing or not a date: '{value}'");
 		return result;
 	}
 

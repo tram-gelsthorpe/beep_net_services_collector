@@ -36,6 +36,28 @@ to A_1_Beep_Global_Currency: it adds `RateTime` and an index on `(Bank_Id, Curre
 
 Swagger UI is available at `/swagger` in the Development environment.
 
+## Backfill past Vietcombank rates
+
+Vietcombank publishes each day's end-of-day rates (from 2020-02-01) at
+`https://www.vietcombank.com.vn/api/exchangerates?date=yyyy-MM-dd`. The backfill command records the days that
+have no Vietcombank rate in `dbo.Currency_Rate_Bank` yet, with the same rules as deliveries:
+
+```bash
+dotnet run --project src/Beep.Api -- backfill vietcombank [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--delay-ms 1000]
+```
+
+| Option | Default |
+| --- | --- |
+| `--from` | 2020-02-01 (the earliest available) |
+| `--to` | yesterday in Vietnam (today's rates are not final) |
+| `--delay-ms` | 1000: pause between requests to Vietcombank |
+
+It uses the Api's settings (`ConnectionStrings:Currency`, `Audit:CreatedBy`) and does not start the web server.
+A failed request is retried twice; a day that still fails is listed at the end. Ctrl+C stops after the current
+day. Running it again only fetches days that are still missing, so it can be stopped and resumed. Exit code: 0
+when every missing day was filled, 1 when some failed, 2 for a usage error. The full history (about 2,500 days)
+takes about 45 minutes.
+
 ## Authentication
 
 Every endpoint except `/swagger`, `/api-docs` and `/health` requires an `X-API-Key` header matching one of
