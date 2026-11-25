@@ -15,12 +15,12 @@ public interface ILeaseManager<T>
 	/// <summary>
 	/// Claims one or more available work items with a lease.
 	/// </summary>
-	/// <param name="workerIdent">Unique identifier for the claiming worker</param>
+	/// <param name="workerId">Unique identifier for the claiming worker</param>
 	/// <param name="maxItems">Maximum number of items to claim</param>
 	/// <param name="leaseSeconds">Duration in seconds for the lease</param>
 	/// <param name="ct">Cancellation token</param>
 	/// <returns>List of claimed items with lease tokens</returns>
-	Task<IReadOnlyList<IClaimedItem<T>>> ClaimAsync(Guid workerIdent, int maxItems, int leaseSeconds, CancellationToken ct);
+	Task<IReadOnlyList<IClaimedItem<T>>> ClaimAsync(Guid workerId, int maxItems, int leaseSeconds, CancellationToken ct);
 
 	/// <summary>
 	/// Renews an existing lease for a work item.

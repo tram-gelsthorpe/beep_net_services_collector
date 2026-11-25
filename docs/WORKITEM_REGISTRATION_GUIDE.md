@@ -37,7 +37,7 @@ STEP 2: REGISTER WORK ITEM (ServiceBus DB)
 │ AttemptCount:    0                                     │
 │ MaxAttempts:     3 or 5                                │
 │ NextRunAt:       GETUTCDATE()                          │
-│ LeaseOwner:      NULL (until claimed)                  │
+│ WorkerId:        NULL (until claimed)                  │
 │ LeaseToken:      NULL (until claimed)                  │
 └────────────────────────────────────────────────────────┘
 		 │
@@ -60,11 +60,11 @@ claimWorkItems stored procedure
 		 ├─ SELECT TOP @BatchSize items WHERE:
 		 │  ├─ WorkerType = 'WebsiteCollector' ← MUST MATCH
 		 │  ├─ StatusId = PENDING or FAILED
-		 │  ├─ LeaseOwner IS NULL OR LeaseUntil < now
+		 ├─ WorkerId IS NULL OR LeaseUntil < now
 		 │  └─ NextRunAt <= now
 		 │
 		 ├─ UPDATE these items:
-		 │  ├─ LeaseOwner = @WorkerId
+		 ├─ WorkerId = @WorkerId
 		 │  ├─ LeaseToken = NEWID()
 		 │  ├─ LeaseUntil = now + @LeaseSeconds (300s)
 		 │  ├─ StatusId = CLAIMED
@@ -238,7 +238,7 @@ After registration, verify:
 - [ ] WorkItem's DomainId matches a WebsiteSelector.Id
 - [ ] WorkItem's StatusId matches 'PENDING' status
 - [ ] NextRunAt is <= GETUTCDATE()
-- [ ] LeaseOwner IS NULL
+- [ ] WorkerId IS NULL
 - [ ] LeaseToken IS NULL
 - [ ] Worker starts claiming items (check logs)
 - [ ] Logs show: "WorkItemRepository returned X items" where X > 0

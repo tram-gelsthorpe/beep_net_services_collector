@@ -8,11 +8,11 @@ namespace Beep.ServiceBus;
 /// </summary>
 public record WorkItemDetail(
 	Guid Id,
-	string WorkerType,
 	Guid DomainId,
 	string DomainType,
 	string Status,
-	Guid? LeaseOwner,
+	string WorkerType,
+	Guid? WorkerId,
 	int AttemptCount,
 	int MaxAttempts,
 	DateTimeOffset NextRunAt,

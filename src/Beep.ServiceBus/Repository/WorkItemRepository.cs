@@ -315,7 +315,7 @@ public sealed class WorkItemRepository : IWorkItemRepository
 				DomainId: reader.GetGuid(2),
 				DomainType: reader.GetString(3),
 				Status: reader.GetString(4),
-				LeaseOwner: reader.IsDBNull(5) ? null : reader.GetGuid(5),
+				WorkerId: reader.IsDBNull(5) ? null : reader.GetGuid(5),
 				AttemptCount: reader.GetInt32(6),
 				MaxAttempts: reader.GetInt32(7),
 				NextRunAt: reader.GetDateTimeOffset(8),

@@ -6,6 +6,10 @@ namespace Beep.ServiceBus;
 /// </summary>
 public interface IWorkerOption
 {
+	/// <summary>
+	/// Gets the lease type / category of work.
+	/// This categorizes the type of work being performed (e.g., 'SelectorCollector', 'WebhookDelivery').
+	/// </summary>
 	string WorkerType { get; }
 
 	/// <summary>

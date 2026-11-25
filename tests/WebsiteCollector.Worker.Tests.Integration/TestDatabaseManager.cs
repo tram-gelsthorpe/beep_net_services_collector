@@ -37,6 +37,9 @@ internal sealed class TestDatabaseManager
 		await CreateWorkItemsTableAsync(connection, ct);
 		await CreateWebsiteSelectorsTableAsync(connection, ct);
 		await CreateWebhookDeliveriesTableAsync(connection, ct);
+
+		// Create stored procedures used by WorkItemRepository
+		await CreateStoredProceduresAsync(connection, ct);
 	}
 
 	/// <summary>
@@ -107,26 +110,29 @@ internal sealed class TestDatabaseManager
 	private async Task CreateWorkItemsTableAsync(SqlConnection connection, CancellationToken ct)
 	{
 		const string sql = @"
-			IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'WorkItems')
+			IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'WorkItems')
 			BEGIN
-				CREATE TABLE dbo.WorkItems (
-					Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-					WorkerType NVARCHAR(100) NOT NULL,
-					DomainId UNIQUEIDENTIFIER NOT NULL,
-					Status NVARCHAR(50) NOT NULL DEFAULT 'PENDING',
-					AttemptNumber INT NOT NULL DEFAULT 0,
-					MaxAttempts INT NOT NULL DEFAULT 3,
-					LeaseOwner UNIQUEIDENTIFIER,
-					LeaseToken UNIQUEIDENTIFIER,
-					LeaseUntil DATETIMEOFFSET,
-					CreatedAt DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
-					UpdatedAt DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
-					CONSTRAINT idx_WorkerType_DomainId UNIQUE (WorkerType, DomainId)
-				)
-				CREATE INDEX idx_WorkItems_Status_LeaseUntil ON dbo.WorkItems(Status, LeaseUntil)
-				CREATE INDEX idx_WorkItems_LeaseOwner ON dbo.WorkItems(LeaseOwner)
+				DROP TABLE dbo.WorkItems
 			END
-		";
+
+			CREATE TABLE dbo.WorkItems (
+				Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+				WorkerType NVARCHAR(100) NOT NULL,
+				DomainId UNIQUEIDENTIFIER NOT NULL,
+				DomainType NVARCHAR(100) NOT NULL,
+				Status NVARCHAR(50) NOT NULL DEFAULT 'PENDING',
+				AttemptNumber INT NOT NULL DEFAULT 0,
+				MaxAttempts INT NOT NULL DEFAULT 3,
+				WorkerId UNIQUEIDENTIFIER,
+				LeaseToken UNIQUEIDENTIFIER,
+				LeaseUntil DATETIMEOFFSET,
+				CreatedAt DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
+				UpdatedAt DATETIMEOFFSET NOT NULL DEFAULT SYSUTCDATETIME(),
+				CONSTRAINT idx_WorkerType_DomainId UNIQUE (WorkerType, DomainId)
+			)
+			CREATE INDEX idx_WorkItems_Status_LeaseUntil ON dbo.WorkItems(Status, LeaseUntil)
+			CREATE INDEX idx_WorkItems_WorkerId ON dbo.WorkItems(WorkerId)
+			";
 
 		await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
 	}
@@ -186,4 +192,138 @@ internal sealed class TestDatabaseManager
 	/// Get a database connection for test operations.
 	/// </summary>
 	public SqlConnection OpenConnection() => new(_connectionString);
+
+	/// <summary>
+	/// Create minimal stored procedures needed by WorkItemRepository for tests.
+	/// </summary>
+	private async Task CreateStoredProceduresAsync(SqlConnection connection, CancellationToken ct)
+	{
+		const string sql = @"
+			-- ClaimWorkItems: Claim available work items
+			IF OBJECT_ID('dbo.ClaimWorkItems', 'P') IS NOT NULL DROP PROCEDURE dbo.ClaimWorkItems;
+			EXEC(N'CREATE PROCEDURE dbo.ClaimWorkItems
+				@WorkerType nvarchar(100),
+				@WorkerId uniqueidentifier,
+				@BatchSize int,
+				@LeaseSeconds int
+			AS
+			BEGIN
+				SET NOCOUNT ON;
+				DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
+				DECLARE @leaseUntil datetimeoffset(7) = DATEADD(second, @LeaseSeconds, @now);
+
+				UPDATE TOP(@BatchSize) dbo.WorkItems
+				SET WorkerId = @WorkerId,
+					LeaseToken = NEWID(),
+					LeaseUntil = @leaseUntil,
+					Status = ''RUNNING''
+				OUTPUT inserted.Id as WorkItemId,
+					   inserted.DomainId,
+					   inserted.DomainType,
+					   inserted.LeaseToken,
+					   inserted.AttemptNumber,
+					   inserted.MaxAttempts
+				WHERE Status = ''PENDING''
+					AND WorkerType = @WorkerType
+					AND (WorkerId IS NULL OR LeaseUntil <= @now);
+			END;');
+
+			-- RenewWorkItemLease: Extend lease duration
+			IF OBJECT_ID('dbo.RenewWorkItemLease', 'P') IS NOT NULL DROP PROCEDURE dbo.RenewWorkItemLease;
+			EXEC(N'CREATE PROCEDURE dbo.RenewWorkItemLease
+				@WorkItemId uniqueidentifier,
+				@LeaseToken uniqueidentifier,
+				@LeaseSeconds int
+			AS
+			BEGIN
+				SET NOCOUNT ON;
+				DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
+				DECLARE @newLeaseUntil datetimeoffset(7) = DATEADD(second, @LeaseSeconds, @now);
+
+				UPDATE dbo.WorkItems
+				SET LeaseUntil = @newLeaseUntil
+				WHERE Id = @WorkItemId AND LeaseToken = @LeaseToken;
+
+				SELECT CAST(@@ROWCOUNT as bit) as Success;
+			END;');
+
+			-- CompleteWorkItem: Mark work item as completed
+			IF OBJECT_ID('dbo.CompleteWorkItem', 'P') IS NOT NULL DROP PROCEDURE dbo.CompleteWorkItem;
+			EXEC(N'CREATE PROCEDURE dbo.CompleteWorkItem
+				@WorkItemId uniqueidentifier,
+				@LeaseToken uniqueidentifier,
+				@Succeeded bit,
+				@Error nvarchar(2000) = NULL,
+				@ResultData nvarchar(max) = NULL,
+				@BackoffStrategyName nvarchar(50) = ''exponential''
+			AS
+			BEGIN
+				SET NOCOUNT ON;
+				DECLARE @now datetimeoffset(7) = SYSUTCDATETIME();
+
+				UPDATE dbo.WorkItems
+				SET Status = CASE WHEN @Succeeded = 1 THEN ''SUCCEEDED'' ELSE ''FAILED'' END,
+					WorkerId = NULL,
+					LeaseToken = NULL,
+					LeaseUntil = NULL
+				WHERE Id = @WorkItemId AND LeaseToken = @LeaseToken;
+
+				SELECT CAST(@@ROWCOUNT as bit) as Success;
+			END;');
+
+			-- RecordWorkItemAttempt: Record attempt details
+			IF OBJECT_ID('dbo.RecordWorkItemAttempt', 'P') IS NOT NULL DROP PROCEDURE dbo.RecordWorkItemAttempt;
+			EXEC(N'CREATE PROCEDURE dbo.RecordWorkItemAttempt
+				@WorkItemId uniqueidentifier,
+				@AttemptNumber int,
+				@StatusSnapshot nvarchar(50),
+				@ErrorMessage nvarchar(2000) = NULL,
+				@ResultData nvarchar(max) = NULL
+			AS
+			BEGIN
+				SET NOCOUNT ON;
+				-- Minimal implementation for testing
+			END;');
+
+			-- ReleaseWorkItemLease: Release lease without changing status
+			IF OBJECT_ID('dbo.ReleaseWorkItemLease', 'P') IS NOT NULL DROP PROCEDURE dbo.ReleaseWorkItemLease;
+			EXEC(N'CREATE PROCEDURE dbo.ReleaseWorkItemLease
+				@WorkItemId uniqueidentifier,
+				@LeaseToken uniqueidentifier
+			AS
+			BEGIN
+				SET NOCOUNT ON;
+				UPDATE dbo.WorkItems
+				SET WorkerId = NULL,
+					LeaseToken = NULL,
+					LeaseUntil = NULL
+				WHERE Id = @WorkItemId AND LeaseToken = @LeaseToken;
+
+				SELECT CAST(@@ROWCOUNT as bit) as Success;
+			END;');
+
+			-- GetWorkItem: Get work item details
+			IF OBJECT_ID('dbo.GetWorkItem', 'P') IS NOT NULL DROP PROCEDURE dbo.GetWorkItem;
+			EXEC(N'CREATE PROCEDURE dbo.GetWorkItem
+				@WorkItemId uniqueidentifier
+			AS
+			BEGIN
+				SET NOCOUNT ON;
+				SELECT 
+					Id,
+					WorkerType,
+					DomainId,
+					DomainType,
+					Status,
+					WorkerId,
+					AttemptNumber,
+					MaxAttempts,
+					LeaseUntil
+				FROM dbo.WorkItems
+				WHERE Id = @WorkItemId;
+			END;');
+		";
+
+		await connection.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
+	}
 }

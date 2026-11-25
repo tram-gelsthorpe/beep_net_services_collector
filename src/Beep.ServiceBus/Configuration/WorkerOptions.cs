@@ -9,7 +9,8 @@ namespace Beep.ServiceBus;
 public class WorkerOptions : IWorkerOption
 {
 	/// <summary>
-	/// Gets or sets the type of the worker.
+	/// Gets or sets the lease type / category of work.
+	/// This categorizes the type of work being performed (e.g., 'SelectorCollector', 'WebhookDelivery').
 	/// </summary>
 	public string WorkerType { get; set; } = string.Empty;
 

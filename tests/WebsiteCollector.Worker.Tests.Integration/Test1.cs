@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Beep.EventBus;
+using Beep.ServiceBus;
 
 namespace WebsiteCollector.Worker.Tests.Integration;
 
@@ -49,9 +51,16 @@ public sealed class WebsiteCollectorIntegrationTests
 		// Setup service and repository
 		_eventAggregator = new EventAggregator();
 		var loggerFactory = LoggerFactory.Create(b => { });
-		//_database = new SelectorManagementRepository(_configuration, loggerFactory.CreateLogger<SelectorManagementRepository>(), loggerFactory);
-		//_repository = new WebsiteSelectorsRepository(_database);
-		//_collectionService = new WebsiteSelectorsService(_repository, _eventAggregator);
+		var connectionString = _configuration.GetConnectionString("Default") 
+			?? "Server=(localdb)\\mssqllocaldb;Database=WebsiteCollectorTests;Integrated Security=true;Encrypt=true;TrustServerCertificate=false;";
+
+		_database = new SelectorManagementRepository(connectionString, loggerFactory.CreateLogger<SelectorManagementRepository>());
+
+		// Setup WorkItemRepository for the service
+		var workItemRepository = new WorkItemRepository(connectionString, "dbo", loggerFactory.CreateLogger<WorkItemRepository>());
+		var options = new OptionsWrapper<WebsiteCollectorOptions>(new WebsiteCollectorOptions());
+		_repository = new WebsiteSelectorsRepository(workItemRepository, _database, options, loggerFactory);
+		_collectionService = new WebsiteSelectorsService(_repository, _eventAggregator);
 	}
 
 	[TestCleanup]
@@ -111,14 +120,14 @@ public sealed class WebsiteCollectorIntegrationTests
 
 		// Seed a work item with an active lease
 		var leaseToken = Guid.NewGuid();
-		var leaseOwner = Guid.NewGuid();
+		var otherWorkerId = Guid.NewGuid();
 		var futureLeaseUntil = DateTimeOffset.UtcNow.AddMinutes(5);
 
 		await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
 			attemptNumber: 1,
-			leaseOwner: leaseOwner,
+			workerId: otherWorkerId,
 			leaseToken: leaseToken,
 			leaseUntil: futureLeaseUntil
 		);
@@ -169,7 +178,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
-			leaseOwner: workerId,
+			workerId: workerId,
 			leaseToken: leaseToken,
 			leaseUntil: DateTimeOffset.UtcNow.AddSeconds(10)
 		);
@@ -200,7 +209,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
-			leaseOwner: workerId,
+			workerId: workerId,
 			leaseToken: leaseToken,
 			attemptNumber: 1
 		);
@@ -242,7 +251,7 @@ public sealed class WebsiteCollectorIntegrationTests
 		var workItemId = await _dataFixture.SeedWorkItemAsync(
 			domainId: websiteSelectorId,
 			status: "RUNNING",
-			leaseOwner: workerId,
+			workerId: workerId,
 			leaseToken: leaseToken,
 			attemptNumber: 1,
 			maxAttempts: 3

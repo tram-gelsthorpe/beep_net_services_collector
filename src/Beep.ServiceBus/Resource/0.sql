@@ -43,11 +43,11 @@ INSERT INTO dbo.WorkItemStatuses (Id, Name, Description) VALUES
 -- Generic WorkItems table - tracks any work item across all workers
 CREATE TABLE dbo.WorkItems (
 	Id uniqueidentifier PRIMARY KEY DEFAULT NEWID(),
-	WorkerType nvarchar(100) NOT NULL,  -- 'SelectorCollector', 'WebhookDelivery', etc.
 	DomainId uniqueidentifier NOT NULL,  -- Foreign key to domain-specific table (WebsiteSelectorsId, DeliveryId, etc.)
 	DomainType nvarchar(100) NOT NULL,  -- 'WebsiteSelector', 'WebhookDelivery', etc.
 	StatusId uniqueidentifier NOT NULL,  -- PENDING (will be set by trigger or default constraint)
-	LeaseOwner uniqueidentifier NULL,  -- Worker ID that owns the current lease
+	WorkerType nvarchar(100) NOT NULL,  -- 'SelectorCollector', 'WebhookDelivery', etc. - Category of work/lease	
+	WorkerId uniqueidentifier NULL,  -- Worker ID that owns the current lease
 	LeaseToken uniqueidentifier NULL,  -- Token proving ownership (used without worker ID for security)
 	LeaseUntil datetimeoffset(7) NULL,  -- When this lease expires
 	AttemptCount int NOT NULL DEFAULT 0,
@@ -60,7 +60,7 @@ CREATE TABLE dbo.WorkItems (
 
 	FOREIGN KEY (StatusId) REFERENCES dbo.WorkItemStatuses(Id),
 	INDEX IX_WorkItems_Status_NextRun (StatusId, NextRunAt),
-	INDEX IX_WorkItems_Lease (LeaseOwner, LeaseUntil),
+	INDEX IX_WorkItems_Lease (WorkerId, LeaseUntil),
 	INDEX IX_WorkItems_Domain (DomainType, DomainId, StatusId)
 );
 
@@ -115,7 +115,6 @@ SELECT
 -- =====================================================
 
 -- Claim a batch of work items atomically
-
 EXEC(N'CREATE OR ALTER PROCEDURE dbo.ClaimWorkItems
 	@WorkerType nvarchar(100),
 	@WorkerId uniqueidentifier,
@@ -138,12 +137,12 @@ BEGIN
 	-- Atomically claim up to @BatchSize items that are ready and not leased
 	;WITH due AS (
 		SELECT TOP (@BatchSize) 
-			Id, 
-			DomainId, 
+			Id,
+			DomainId,
 			DomainType,
 			AttemptCount,
 			MaxAttempts,
-			LeaseOwner,
+			WorkerId,
 			LeaseToken,
 			LeaseUntil,
 			StatusId,
@@ -151,12 +150,12 @@ BEGIN
 		FROM dbo.WorkItems
 		WHERE WorkerType = @WorkerType
 			AND StatusId IN (@pendingStatusId, @failedStatusId)  -- PENDING or FAILED (ready to retry)
-			AND (LeaseOwner IS NULL OR LeaseUntil <= @now)  -- Not leased or lease expired
+			AND (WorkerId IS NULL OR LeaseUntil <= @now)  -- Not leased or lease expired
 			AND NextRunAt <= @now  -- Due for processing
 		ORDER BY AttemptCount DESC, NextRunAt ASC, Id  -- Prioritize retries, then by due time
 	)
 	UPDATE due
-	SET LeaseOwner = @WorkerId,
+	SET WorkerId = @WorkerId,
 		LeaseToken = NEWID(),
 		LeaseUntil = DATEADD(second, @LeaseSeconds, @now),
 		StatusId = @claimedStatusId,  -- CLAIMED
@@ -252,7 +251,7 @@ BEGIN
 		-- SUCCESS: No more retries needed
 		UPDATE dbo.WorkItems
 		SET StatusId = @succeededStatusId,  -- SUCCEEDED
-			LeaseOwner = NULL,
+			WorkerId = NULL,
 			LeaseToken = NULL,
 			LeaseUntil = NULL,
 			CompletedAt = @now,
@@ -271,7 +270,7 @@ BEGIN
 			-- Max retries exceeded: ABANDON
 			UPDATE dbo.WorkItems
 			SET StatusId = @abandonedStatusId,  -- ABANDONED
-				LeaseOwner = NULL,
+					WorkerId = NULL,
 				LeaseToken = NULL,
 				LeaseUntil = NULL,
 				CompletedAt = @now,
@@ -315,7 +314,7 @@ BEGIN
 			-- Schedule retry: mark FAILED now, will return to PENDING for next claim
 			UPDATE dbo.WorkItems
 			SET StatusId = @failedStatusId,  -- FAILED (temporarily; will be PENDING on next claim)
-				LeaseOwner = NULL,
+					WorkerId = NULL,
 				LeaseToken = NULL,
 				LeaseUntil = NULL,
 				NextRunAt = @nextRunAt,
@@ -360,7 +359,7 @@ BEGIN
 	SET XACT_ABORT ON;
 
 	UPDATE dbo.WorkItems
-	SET LeaseOwner = NULL,
+	SET WorkerId = NULL,
 		LeaseToken = NULL,
 		LeaseUntil = NULL
 	WHERE Id = @WorkItemId AND LeaseToken = @LeaseToken;
@@ -383,7 +382,7 @@ BEGIN
 		w.DomainId,
 		w.DomainType,
 		s.Name as Status,
-		w.LeaseOwner,
+		w.WorkerId,
 		w.AttemptCount,
 		w.MaxAttempts,
 		w.NextRunAt,

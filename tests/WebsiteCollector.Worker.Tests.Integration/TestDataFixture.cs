@@ -65,10 +65,11 @@ internal sealed class TestDataFixture
 		Guid? id = null,
 		string workerType = "SelectorCollector",
 		Guid? domainId = null,
+		string domainType = "WebsiteSelector",
 		string status = "PENDING",
 		int attemptNumber = 0,
 		int maxAttempts = 3,
-		Guid? leaseOwner = null,
+		Guid? workerId = null,
 		Guid? leaseToken = null,
 		DateTimeOffset? leaseUntil = null,
 		CancellationToken ct = default)
@@ -78,10 +79,10 @@ internal sealed class TestDataFixture
 
 		const string sql = @"
 			INSERT INTO dbo.WorkItems 
-			(Id, WorkerType, DomainId, Status, AttemptNumber, MaxAttempts, LeaseOwner, LeaseToken, LeaseUntil)
+			(Id, WorkerType, DomainId, DomainType, Status, AttemptNumber, MaxAttempts, WorkerId, LeaseToken, LeaseUntil)
 			VALUES 
-			(@Id, @WorkerType, @DomainId, @Status, @AttemptNumber, @MaxAttempts, @LeaseOwner, @LeaseToken, @LeaseUntil)
-		";
+			(@Id, @WorkerType, @DomainId, @DomainType, @Status, @AttemptNumber, @MaxAttempts, @WorkerId, @LeaseToken, @LeaseUntil)
+			";
 
 		await _connection.ExecuteAsync(
 			new CommandDefinition(sql,
@@ -90,10 +91,11 @@ internal sealed class TestDataFixture
 					Id = id,
 					WorkerType = workerType,
 					DomainId = domainId,
+					DomainType = domainType,
 					Status = status,
 					AttemptNumber = attemptNumber,
 					MaxAttempts = maxAttempts,
-					LeaseOwner = leaseOwner,
+					WorkerId = workerId,
 					LeaseToken = leaseToken,
 					LeaseUntil = leaseUntil
 				},
@@ -123,7 +125,7 @@ internal sealed class TestDataFixture
 			SELECT * FROM dbo.WorkItems 
 			WHERE WorkerType = @WorkerType AND Status = 'PENDING'
 			ORDER BY CreatedAt
-		";
+			";
 
 		return await _connection.QueryAsync(
 			new CommandDefinition(sql, new { WorkerType = workerType }, cancellationToken: ct));

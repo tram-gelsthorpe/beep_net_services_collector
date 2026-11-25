@@ -16,8 +16,8 @@ public interface IWorkItemRepository
 	/// Atomically claim a batch of work items that are ready for processing.
 	/// Returns items sorted by attempt count (retries first) then by due time.
 	/// </summary>
-	/// <param name="workerType">Classification of the worker (e.g., 'SelectorCollector', 'WebhookDelivery')</param>
-	/// <param name="workerId">Unique ID of this worker instance</param>
+	/// <param name="workerType">Category of work/worker type (e.g., 'SelectorCollector', 'WebhookDelivery')</param>
+	/// <param name="workerId">ID of the worker process claiming the lease. This becomes the WorkerId in the database.</param>
 	/// <param name="batchSize">Maximum number of items to claim (1-500)</param>
 	/// <param name="leaseSeconds">Duration to hold the lease (60-3600)</param>
 	/// <param name="cancellationToken">Cancellation token</param>
@@ -100,7 +100,7 @@ public interface IWorkItemRepository
 	/// Create a new work item in PENDING status.
 	/// Used by event subscribers or API endpoints to enqueue work.
 	/// </summary>
-	/// <param name="workerType">Classification of work ('SelectorCollector', 'WebhookDelivery')</param>
+	/// <param name="workerType">Category of work/worker type ('SelectorCollector', 'WebhookDelivery')</param>
 	/// <param name="domainId">Domain entity ID (e.g., WebsiteSelectorsId, DeliveryId)</param>
 	/// <param name="domainType">Domain entity type (e.g., 'WebsiteSelector')</param>
 	/// <param name="maxAttempts">Maximum retries allowed</param>

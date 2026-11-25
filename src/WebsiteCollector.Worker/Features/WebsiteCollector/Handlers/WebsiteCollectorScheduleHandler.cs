@@ -76,7 +76,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 
 				try
 				{
-					// Create work item: workerType, workerId, domainId (selectorId), domainType, maxAttempts, scheduleForNow
+					// Create work item: workerType, workerId (domainId), domainId (selectorId), domainType, maxAttempts, scheduleForNow
 					var workItemId = await _workItemRepository.EnqueueAsync(
 						workerType: WorkerType,
 						domainId: selector.Id,

@@ -30,7 +30,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 	public async Task<IReadOnlyList<ClaimedWebsiteSelector>> ClaimAsync(Guid workerId, int count, int lease, CancellationToken ct)
 	{
 		_logger.LogInformation(
-			"ClaimAsync: Requesting {Count} work items for worker {Worker} with {LeaseSeconds}s lease",
+			"ClaimAsync: Requesting {Count} work items for worker {WorkerId} with {LeaseSeconds}s lease",
 			count, workerId, lease);
 
 		var items = await _workItemRepository.ClaimAsync(
@@ -48,7 +48,7 @@ public sealed class WebsiteSelectorsRepository : IWebsiteSelectorsRepository
 		{
 			_logger.LogWarning(
 				"ClaimAsync: No items claimed. Queue may be empty or all items already leased. " +
-				"Worker={Worker}, WorkerType={WorkerType}",
+				"WorkerId={WorkerId}, WorkerType={WorkerType}",
 				workerId, _websiteCollectorOptions.Value.WorkerType);
 			return new List<ClaimedWebsiteSelector>().AsReadOnly();
 		}

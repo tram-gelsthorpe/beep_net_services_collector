@@ -90,7 +90,7 @@ INSERT INTO dbo.WorkItems (
 	DomainId,
 	DomainType,
 	StatusId,
-	LeaseOwner,
+	WorkerId,
 	LeaseToken,
 	LeaseUntil,
 	AttemptCount,
@@ -103,7 +103,7 @@ INSERT INTO dbo.WorkItems (
 	@SelectorId,                       -- DomainId (links to WebsiteSelector)
 	'WebsiteSelector',                 -- DomainType (indicates what kind of domain)
 	@PendingStatusId,                  -- StatusId (starts as PENDING)
-	NULL,                              -- LeaseOwner (empty until claimed)
+	NULL,                              -- WorkerId (empty until claimed)
 	NULL,                              -- LeaseToken (generated when claimed)
 	NULL,                              -- LeaseUntil (set when claimed)
 	0,                                 -- AttemptCount (0 before first try)
@@ -231,7 +231,7 @@ BEGIN
 			DomainId,
 			DomainType,
 			StatusId,
-			LeaseOwner,
+			WorkerId,
 			LeaseToken,
 			LeaseUntil,
 			AttemptCount,
