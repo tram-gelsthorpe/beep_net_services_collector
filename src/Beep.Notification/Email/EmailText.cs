@@ -3,16 +3,16 @@ using System.Globalization;
 namespace Beep.Notification.Email;
 
 /// <summary>
-/// Texts of emails in the languages of the websites: en, vi, th, zh, ja, ko, fr. Each entry is keyed by its
+/// Texts of emails in the languages of the websites: en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl. Each entry is keyed by its
 /// English text; a missing language falls back to English.
 /// </summary>
 public sealed class EmailText
 {
-	public static readonly IReadOnlyList<string> Languages = ["en", "vi", "th", "zh", "ja", "ko", "fr"];
+	public static readonly IReadOnlyList<string> Languages = ["en", "vi", "th", "zh", "ja", "ko", "fr", "de", "es", "id", "ms", "nl"];
 
 	private readonly Dictionary<string, string[]> _texts;
 
-	/// <param name="entries">Each: the English text, then vi, th, zh, ja, ko, fr</param>
+	/// <param name="entries">Each: the English text, then vi, th, zh, ja, ko, fr, de, es, id, ms, nl</param>
 	public EmailText(IEnumerable<string[]> entries)
 	{
 		_texts = new Dictionary<string, string[]>(StringComparer.Ordinal);

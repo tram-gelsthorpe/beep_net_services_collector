@@ -477,7 +477,7 @@ select.cur-pill {
 
 /* Language menu: as wide as its button on desktop, names only. */
 @media (min-width: 641px) {
-	.lang-btn { min-width: 150px; justify-content: space-between; }
+	.lang-btn { min-width: 196px; justify-content: space-between; } /* the menu fits "Bahasa Indonesia" on one line */
 	.lang-menu { left: 0; right: 0; width: auto; }
 	.lang-menu .code { display: none; }
 }

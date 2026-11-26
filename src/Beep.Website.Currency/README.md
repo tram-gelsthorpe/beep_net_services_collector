@@ -42,10 +42,11 @@ and the alerts (see [Beep.Notification](../Beep.Notification/README.md)).
 
 ## Languages
 
-The language menu (top right) offers English, Tiếng Việt, ไทย, 中文, 日本語, 한국어 and Français. The choice is
+The language menu (top right) offers English, Tiếng Việt, ไทย, 中文, 日本語, 한국어, Français, Deutsch, Español,
+Bahasa Indonesia, Bahasa Melayu and Nederlands. The choice is
 kept for a year in the `.AspNetCore.Culture` cookie (`/language/{code}?returnUrl=...` sets it); without it, the
 browser's language is used, else English. The site's texts and their translations are in
-[`Localization/UiText.cs`](Localization/UiText.cs): each text takes all seven languages, so a missing
+[`Localization/UiText.cs`](Localization/UiText.cs): each text takes all twelve languages, so a missing
 translation does not build. Numbers and dates keep one format in every language, and bank and currency names
 are shown as Beep.Api returns them.
 

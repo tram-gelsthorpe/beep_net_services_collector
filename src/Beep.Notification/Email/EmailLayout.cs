@@ -16,8 +16,13 @@ public static class EmailLayout
 			"您收到此邮件，是因为您订阅了 {0} 的提醒。",
 			"{0} のアラートに登録しているため、このメールが届いています。",
 			"{0} 알림을 구독하셨기 때문에 이 이메일을 받으셨습니다.",
-			"Vous recevez cet e-mail car vous êtes abonné aux alertes {0}."],
-		["Unsubscribe", "Hủy đăng ký", "ยกเลิกการสมัคร", "退订", "配信停止", "구독 취소", "Se désabonner"],
+			"Vous recevez cet e-mail car vous êtes abonné aux alertes {0}.",
+			"Sie erhalten diese E-Mail, weil Sie {0}-Alarme abonniert haben.",
+			"Recibe este correo porque se suscribió a las alertas de {0}.",
+			"Anda menerima email ini karena berlangganan peringatan {0}.",
+			"Anda menerima e-mel ini kerana melanggan makluman {0}.",
+			"U ontvangt deze e-mail omdat u zich hebt geabonneerd op meldingen van {0}."],
+		["Unsubscribe", "Hủy đăng ký", "ยกเลิกการสมัคร", "退订", "配信停止", "구독 취소", "Se désabonner", "Abbestellen", "Cancelar suscripción", "Berhenti berlangganan", "Berhenti melanggan", "Afmelden"],
 	]);
 
 	public static string Encode(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);

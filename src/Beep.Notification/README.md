@@ -55,8 +55,8 @@ waits for SMTP. A failure is logged, and the next email is still sent.
 
 Beep.Api's `Notifications/BankRatesNotification.cs` is the example: Beep Currency's bank rate alerts.
 
-Email texts are in the websites' seven languages (en, vi, th, zh, ja, ko, fr) through `EmailText`, in each
-subscriber's language.
+Email texts are in the websites' twelve languages (en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl) through
+`EmailText`, in each subscriber's language.
 
 ## Configuration
 

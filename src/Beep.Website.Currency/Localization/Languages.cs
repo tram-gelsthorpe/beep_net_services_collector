@@ -18,6 +18,11 @@ public static class Languages
 		new("ja", "日本語"),
 		new("ko", "한국어"),
 		new("fr", "Français"),
+		new("de", "Deutsch"),
+		new("es", "Español"),
+		new("id", "Bahasa Indonesia"),
+		new("ms", "Bahasa Melayu"),
+		new("nl", "Nederlands"),
 	];
 
 	public static Language? Find(string? code) =>
