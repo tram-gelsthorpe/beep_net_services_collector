@@ -26,7 +26,7 @@ public class ScheduleManagementService : IScheduleService
 		string handlerType,
 		string description,
 		string frequency,
-		TimeOnly startTime,
+		IReadOnlyCollection<TimeOnly> startTimes,
 		bool isActive = true,
 		string? timeZone = null,
 		int? dayOfWeek = null,
@@ -40,6 +40,8 @@ public class ScheduleManagementService : IScheduleService
 		if (string.IsNullOrWhiteSpace(frequency))
 			throw new ArgumentException("Frequency cannot be empty", nameof(frequency));
 
+		ArgumentNullException.ThrowIfNull(startTimes);
+
 		// A schedule for a handler that is not registered would be skipped at every run.
 		if (!_handlerNames.Contains(handlerType, StringComparer.Ordinal))
 			throw new InvalidOperationException(
@@ -51,14 +53,14 @@ public class ScheduleManagementService : IScheduleService
 			var timeZoneId = ScheduleTimeZone.Resolve(timeZone);
 
 			_logger.LogInformation(
-				"Creating or updating schedule for handler type {HandlerType} with frequency {Frequency} at {StartTime} ({TimeZone})",
-				handlerType, frequency, startTime, timeZoneId);
+				"Creating or updating schedule for handler type {HandlerType} with frequency {Frequency} at {StartTimes} ({TimeZone})",
+				handlerType, frequency, string.Join(", ", startTimes.Order().Select(t => t.ToString("HH:mm"))), timeZoneId);
 
 			await _database.CreateOrUpdateScheduleAsync(
 				handlerType,
 				description,
 				frequency,
-				startTime,
+				startTimes,
 				isActive,
 				cancellationToken,
 				timeZoneId,
@@ -124,7 +126,7 @@ public class ScheduleManagementService : IScheduleService
 				HandlerType = schedule.HandlerType,
 				Description = schedule.Description ?? string.Empty,
 				Frequency = schedule.Frequency,
-				StartTime = TimeOnly.FromTimeSpan(schedule.StartTime),
+				StartTimes = schedule.StartTimes,
 				TimeZone = schedule.TimeZone,
 				IsActive = schedule.IsActive,
 				CreatedAt = schedule.CreatedAt,

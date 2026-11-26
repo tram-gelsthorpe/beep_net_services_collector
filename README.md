@@ -24,7 +24,7 @@ The ServiceBus is the only place that coordinates workers: every job (a collecti
 `MaxAttempts`, and reclaimed if its worker dies. Any number of worker instances can run.
 
 1. **Schedule** – `SchedulerService` queues each due schedule as a ServiceBus work item, which `SchedulerWorker` runs (once;
-   `StartTime` is in the schedule's `TimeZone`, by default the machine's). When the `WebsiteCollector` schedule is due, `WebsiteCollectorScheduleHandler` pages through
+   at each of its `StartTimes`, in the schedule's `TimeZone`, by default the machine's). When the `WebsiteCollector` schedule is due, `WebsiteCollectorScheduleHandler` pages through
    the enabled `WebsiteSelectors` rows (5,000 at a time). For each page it registers the selectors' `DispatchUrl`s as
    EventBus endpoints, then enqueues a collection work item per selector, skipping selectors that still have an
    unfinished work item.

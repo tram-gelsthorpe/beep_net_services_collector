@@ -67,14 +67,13 @@ public sealed class SchedulerRepository
 					Id = reader.GetGuid(0),
 					HandlerType = reader.GetString(1),
 					Frequency = reader.GetString(2),
-					StartTime = reader.GetTimeSpan(3),
-					DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-					DayOfMonth = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-					DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-					MaxConcurrentRegistrations = reader.GetInt32(7),
-					LastRunAt = reader.IsDBNull(8) ? null : reader.GetDateTimeOffset(8),
-					TimeZone = reader.GetString(10)
-				}, reader.GetDateTimeOffset(9)));
+					DayOfWeek = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+					DayOfMonth = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+					DayOfYear = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+					MaxConcurrentRegistrations = reader.GetInt32(6),
+					LastRunAt = reader.IsDBNull(7) ? null : reader.GetDateTimeOffset(7),
+					TimeZone = reader.GetString(9)
+				}, reader.GetDateTimeOffset(8)));
 			}
 		}
 		catch (Exception ex) when (ex is not OperationCanceledException)
@@ -108,9 +107,11 @@ public sealed class SchedulerRepository
 		await connection.OpenAsync(cancellationToken);
 
 		using var command = new SqlCommand(
-			$"SELECT Id, HandlerType, Frequency, StartTime, DayOfWeek, DayOfMonth, " +
+			$"SELECT Id, HandlerType, Frequency, DayOfWeek, DayOfMonth, " +
 			$"DayOfYear, IsActive, MaxConcurrentRegistrations, CreatedAt, UpdatedAt, LastRunAt, Description, TimeZone " +
-			$"FROM {_schema}.Schedules WHERE {whereClause}",
+			$"FROM {_schema}.Schedules WHERE {whereClause}; " +
+			$"SELECT t.StartTime FROM {_schema}.ScheduleStartTimes t " +
+			$"JOIN {_schema}.Schedules s ON s.Id = t.ScheduleId WHERE s.{whereClause} ORDER BY t.StartTime",
 			connection)
 		{
 			CommandTimeout = 30
@@ -122,23 +123,30 @@ public sealed class SchedulerRepository
 		if (!await reader.ReadAsync(cancellationToken))
 			return null;
 
-		return new WorkerSchedule
+		var schedule = new WorkerSchedule
 		{
 			Id = reader.GetGuid(0),
 			HandlerType = reader.GetString(1),
 			Frequency = reader.GetString(2),
-			StartTime = reader.GetTimeSpan(3),
-			DayOfWeek = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-			DayOfMonth = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-			DayOfYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-			IsActive = reader.GetBoolean(7),
-			MaxConcurrentRegistrations = reader.GetInt32(8),
-			CreatedAt = reader.GetDateTimeOffset(9),
-			UpdatedAt = reader.GetDateTimeOffset(10),
-			LastRunAt = reader.IsDBNull(11) ? null : reader.GetDateTimeOffset(11),
-			Description = reader.IsDBNull(12) ? null : reader.GetString(12),
-			TimeZone = reader.GetString(13)
+			DayOfWeek = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+			DayOfMonth = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+			DayOfYear = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+			IsActive = reader.GetBoolean(6),
+			MaxConcurrentRegistrations = reader.GetInt32(7),
+			CreatedAt = reader.GetDateTimeOffset(8),
+			UpdatedAt = reader.GetDateTimeOffset(9),
+			LastRunAt = reader.IsDBNull(10) ? null : reader.GetDateTimeOffset(10),
+			Description = reader.IsDBNull(11) ? null : reader.GetString(11),
+			TimeZone = reader.GetString(12)
 		};
+
+		var startTimes = new List<TimeOnly>();
+		await reader.NextResultAsync(cancellationToken);
+		while (await reader.ReadAsync(cancellationToken))
+			startTimes.Add(TimeOnly.FromTimeSpan(reader.GetTimeSpan(0)));
+		schedule.StartTimes = startTimes;
+
+		return schedule;
 	}
 
 	/// <summary>
@@ -207,14 +215,18 @@ public sealed class SchedulerRepository
 	/// Create or update a schedule for a handler type
 	/// </summary>
 	/// <param name="timeZone">
-	/// Time zone of <paramref name="startTime"/> and the day fields: an IANA or Windows id; null means
+	/// Time zone of <paramref name="startTimes"/> and the day fields: an IANA or Windows id; null means
 	/// this machine's local time zone (see <see cref="ScheduleTimeZone.Resolve"/>).
+	/// </param>
+	/// <param name="startTimes">
+	/// The local times of day to run at, in <paramref name="timeZone"/> (repeats are ignored): at least one for
+	/// Daily, Weekly, Monthly and Yearly; none for Hourly. They replace the schedule's previous times.
 	/// </param>
 	public async Task CreateOrUpdateScheduleAsync(
 		string handlerType,
 		string description,
 		string frequency,
-		TimeOnly startTime,
+		IReadOnlyCollection<TimeOnly> startTimes,
 		bool isActive,
 		CancellationToken cancellationToken,
 		string? timeZone = null,
@@ -222,7 +234,18 @@ public sealed class SchedulerRepository
 		int? dayOfMonth = null,
 		int? dayOfYear = null)
 	{
+		ArgumentNullException.ThrowIfNull(startTimes);
+		var hourly = string.Equals(frequency, nameof(ScheduleFrequency.Hourly), StringComparison.OrdinalIgnoreCase);
+		if (hourly && startTimes.Count > 0)
+			throw new ArgumentException("Hourly schedules run every hour: they take no start times.", nameof(startTimes));
+		if (!hourly && startTimes.Count == 0)
+			throw new ArgumentException($"A {frequency} schedule needs at least one start time.", nameof(startTimes));
+
 		var timeZoneId = ScheduleTimeZone.Resolve(timeZone);
+		var times = startTimes.Distinct().Order().ToList();
+		var insertTimes = times.Count == 0 ? "" :
+			$"INSERT INTO {_schema}.ScheduleStartTimes (ScheduleId, StartTime) VALUES " +
+			string.Join(", ", times.Select((_, i) => $"(@Id, @StartTime{i})")) + ";";
 
 		try
 		{
@@ -240,17 +263,26 @@ public sealed class SchedulerRepository
 
 				BEGIN TRANSACTION;
 
+				DECLARE @Id uniqueidentifier;
+
 				UPDATE {_schema}.Schedules WITH (UPDLOCK, SERIALIZABLE)
-				SET Description = @Description, Frequency = @Frequency, StartTime = @StartTime,
+				SET @Id = Id, Description = @Description, Frequency = @Frequency,
 					TimeZone = @TimeZone, DayOfWeek = @DayOfWeek, DayOfMonth = @DayOfMonth, DayOfYear = @DayOfYear,
 					IsActive = @IsActive, UpdatedAt = SYSUTCDATETIME()
 				WHERE HandlerType = @HandlerType;
 
 				IF @@ROWCOUNT = 0
+				BEGIN
+					SET @Id = NEWID();
 					INSERT INTO {_schema}.Schedules
-						(HandlerType, Description, Frequency, StartTime, TimeZone, DayOfWeek, DayOfMonth, DayOfYear, IsActive)
+						(Id, HandlerType, Description, Frequency, TimeZone, DayOfWeek, DayOfMonth, DayOfYear, IsActive)
 					VALUES
-						(@HandlerType, @Description, @Frequency, @StartTime, @TimeZone, @DayOfWeek, @DayOfMonth, @DayOfYear, @IsActive);
+						(@Id, @HandlerType, @Description, @Frequency, @TimeZone, @DayOfWeek, @DayOfMonth, @DayOfYear, @IsActive);
+				END;
+
+				-- The times of day replace the previous ones
+				DELETE FROM {_schema}.ScheduleStartTimes WHERE ScheduleId = @Id;
+				{insertTimes}
 
 				COMMIT TRANSACTION;
 				""",
@@ -262,7 +294,8 @@ public sealed class SchedulerRepository
 			command.Parameters.AddWithValue("@HandlerType", handlerType);
 			command.Parameters.AddWithValue("@Description", description ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("@Frequency", frequency);
-			command.Parameters.AddWithValue("@StartTime", startTime.ToTimeSpan());
+			for (var i = 0; i < times.Count; i++)
+				command.Parameters.Add($"@StartTime{i}", SqlDbType.Time).Value = times[i].ToTimeSpan();
 			command.Parameters.AddWithValue("@IsActive", isActive);
 			command.Parameters.AddWithValue("@TimeZone", timeZoneId);
 			command.Parameters.AddWithValue("@DayOfWeek", (object?)dayOfWeek ?? DBNull.Value);

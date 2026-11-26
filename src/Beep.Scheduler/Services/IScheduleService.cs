@@ -13,7 +13,10 @@ public interface IScheduleService
 	/// </param>
 	/// <param name="description">Human-readable description of the schedule</param>
 	/// <param name="frequency">Schedule frequency (Daily, Weekly, Monthly, Hourly, Yearly)</param>
-	/// <param name="startTime">Local time of day to run the schedule, in <paramref name="timeZone"/></param>
+	/// <param name="startTimes">
+	/// Local times of day to run at, in <paramref name="timeZone"/> (e.g. 08:30, 12:00 and 16:00): once at each, on a
+	/// matching day. At least one for Daily, Weekly, Monthly and Yearly; none for Hourly.
+	/// </param>
 	/// <param name="isActive">Whether the schedule should be active</param>
 	/// <param name="timeZone">
 	/// IANA ("Asia/Bangkok") or Windows ("SE Asia Standard Time") time zone id; null or empty means
@@ -28,7 +31,7 @@ public interface IScheduleService
 		string handlerType,
 		string description,
 		string frequency,
-		TimeOnly startTime,
+		IReadOnlyCollection<TimeOnly> startTimes,
 		bool isActive = true,
 		string? timeZone = null,
 		int? dayOfWeek = null,
@@ -77,8 +80,9 @@ public class ScheduleInfo
 	public string HandlerType { get; set; } = string.Empty;
 	public string Description { get; set; } = string.Empty;
 	public string Frequency { get; set; } = string.Empty;
-	public TimeOnly StartTime { get; set; }
-	/// <summary>Windows time zone id that <see cref="StartTime"/> is in</summary>
+	/// <summary>The local times of day the schedule runs at, earliest first (none for Hourly)</summary>
+	public IReadOnlyList<TimeOnly> StartTimes { get; set; } = [];
+	/// <summary>Windows time zone id that <see cref="StartTimes"/> are in</summary>
 	public string TimeZone { get; set; } = "UTC";
 	public bool IsActive { get; set; }
 	public DateTimeOffset CreatedAt { get; set; }

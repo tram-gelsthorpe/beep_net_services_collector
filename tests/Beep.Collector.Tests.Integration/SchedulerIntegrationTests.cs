@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
-/// When a schedule is due (StartTime, once per period, weekday, hourly), one row per worker type,
+/// When a schedule is due (its start times, once per period, weekday, hourly), one row per worker type,
 /// and running schedules through the ServiceBus: one run across instances, retries, and the
 /// last failed attempt finishing the run.
 /// Due-time tests call GetDueSchedules with a fixed @Now so they do not depend on the time of day.
@@ -41,7 +41,7 @@ public sealed class SchedulerIntegrationTests
 	public async Task CreateOrUpdateSchedule_CalledConcurrently_KeepsOneRowPerHandler()
 	{
 		await Task.WhenAll(Enumerable.Range(0, 20).Select(i => _repository.CreateOrUpdateScheduleAsync(
-			"Collector", $"run {i}", "Daily", new TimeOnly(2, 0), isActive: true, CancellationToken.None)));
+			"Collector", $"run {i}", "Daily", [new TimeOnly(2, 0)], isActive: true, CancellationToken.None)));
 
 		Assert.AreEqual(1, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules WHERE HandlerType = 'Collector'"));
 	}
@@ -51,16 +51,16 @@ public sealed class SchedulerIntegrationTests
 	{
 		var id = await InsertScheduleAsync("Daily", new TimeSpan(2, 0, 0));
 
-		Assert.AreEqual(0, (await DueAsync(Day.AddHours(1).AddMinutes(59))).Count, "before StartTime");
-		CollectionAssert.AreEqual(new[] { id }, (await DueAsync(Day.AddHours(2))).ToArray(), "at StartTime");
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(1).AddMinutes(59))).Count, "before the start time");
+		CollectionAssert.AreEqual(new[] { id }, (await DueAsync(Day.AddHours(2))).ToArray(), "at the start time");
 		Assert.AreEqual(1, (await DueAsync(Day.AddHours(2).AddMinutes(1))).Count, "still due: reading does not claim");
 
 		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(2), CancellationToken.None);
 
 		Assert.AreEqual(Day.AddHours(2), await QueryAsync<DateTimeOffset>(id, "LastRunAt"), "LastRunAt is the run start");
 		Assert.AreEqual(0, (await DueAsync(Day.AddHours(23))).Count, "already ran today");
-		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(1))).Count, "next day, before StartTime");
-		Assert.AreEqual(1, (await DueAsync(Day.AddDays(1).AddHours(2))).Count, "next day, at StartTime");
+		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(1))).Count, "next day, before the start time");
+		Assert.AreEqual(1, (await DueAsync(Day.AddDays(1).AddHours(2))).Count, "next day, at the start time");
 	}
 
 	[TestMethod]
@@ -102,6 +102,117 @@ public sealed class SchedulerIntegrationTests
 
 		Assert.AreEqual(0, (await DueAsync(Day.AddHours(11))).Count, "one minute later is not an hour");
 		Assert.AreEqual(1, (await DueAsync(Day.AddHours(11).AddMinutes(59))).Count);
+	}
+
+	// ---------------------------------------------------------------- several times of day
+
+	[TestMethod]
+	public async Task Daily_WithSeveralStartTimes_IsDueOnceAtEachTime()
+	{
+		var id = await CreateScheduleAsync("Daily", [new TimeOnly(8, 30), new TimeOnly(16, 0), new TimeOnly(12, 0)]);
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(8).AddMinutes(29))).Count, "before the first time");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(8).AddMinutes(30))).Count, "08:30");
+		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(8).AddMinutes(30), CancellationToken.None);
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(11).AddMinutes(59))).Count, "ran at 08:30, next time is 12:00");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(12))).Count, "12:00");
+		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(12).AddMinutes(1), CancellationToken.None);
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(15))).Count, "ran at 12:01");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(16))).Count, "16:00");
+		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(16), CancellationToken.None);
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(23).AddMinutes(59))).Count, "all of today's times ran");
+		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(8))).Count, "next day, before 08:30");
+		Assert.AreEqual(1, (await DueAsync(Day.AddDays(1).AddHours(8).AddMinutes(30))).Count, "next day, 08:30");
+	}
+
+	[TestMethod]
+	public async Task Daily_WithSeveralStartTimes_WhenWorkerWasDownOverSeveral_CatchesUpOnce()
+	{
+		var id = await CreateScheduleAsync("Daily", [new TimeOnly(8, 30), new TimeOnly(12, 0), new TimeOnly(16, 0)]);
+		await SetLastRunAsync(id, Day.AddHours(-8)); // 16:00 the day before
+
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(13))).Count, "missed 08:30 and 12:00");
+		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(13), CancellationToken.None);
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(15).AddMinutes(59))).Count, "one catch-up run, not two");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(16))).Count, "16:00");
+	}
+
+	[TestMethod]
+	public async Task Weekly_WithSeveralStartTimes_RunsAtEachTimeOnlyOnItsDay()
+	{
+		var id = await CreateScheduleAsync("Weekly", [new TimeOnly(9, 0), new TimeOnly(15, 0)], dayOfWeek: (int)Day.DayOfWeek);
+
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(9))).Count, "09:00 on its day");
+		await _repository.LogExecutionAsync(id, "Success", 0, null, "Test", Day.AddHours(9), CancellationToken.None);
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(15))).Count, "15:00 on its day");
+		Assert.AreEqual(0, (await DueAsync(Day.AddDays(1).AddHours(15))).Count, "15:00 the next day");
+	}
+
+	[TestMethod]
+	public async Task Daily_WithSeveralStartTimes_InATimeZone_UsesLocalTimes()
+	{
+		// 08:00 and 20:00 in UTC+7 are 01:00 and 13:00 UTC.
+		var id = await CreateScheduleAsync("Daily", [new TimeOnly(8, 0), new TimeOnly(20, 0)], timeZone: Bangkok);
+		await SetLastRunAsync(id, Day.AddHours(1)); // 08:00 local
+
+		Assert.AreEqual(0, (await DueAsync(Day.AddHours(12).AddMinutes(59))).Count, "19:59 local");
+		Assert.AreEqual(1, (await DueAsync(Day.AddHours(13))).Count, "20:00 local");
+	}
+
+	[TestMethod]
+	public async Task CreateOrUpdateSchedule_StoresAllStartTimes_AndReplacesThemOnUpdate()
+	{
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "three times", "Daily",
+			[new TimeOnly(16, 0), new TimeOnly(8, 30), new TimeOnly(12, 0), new TimeOnly(8, 30)], isActive: true,
+			CancellationToken.None, timeZone: "UTC");
+
+		var schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
+		CollectionAssert.AreEqual(new[] { new TimeOnly(8, 30), new TimeOnly(12, 0), new TimeOnly(16, 0) },
+			schedule!.StartTimes.ToArray(), "all times, without repeats, earliest first");
+
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "once", "Daily", [new TimeOnly(1, 0)], isActive: true,
+			CancellationToken.None, timeZone: "UTC");
+
+		schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
+		CollectionAssert.AreEqual(new[] { new TimeOnly(1, 0) }, schedule!.StartTimes.ToArray(), "old times removed");
+
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "hourly", "Hourly", [], isActive: true,
+			CancellationToken.None, timeZone: "UTC");
+
+		schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
+		Assert.AreEqual(0, schedule!.StartTimes.Count, "hourly: no times");
+	}
+
+	[TestMethod]
+	public async Task CreateOrUpdateSchedule_HourlyWithTimes_OrDailyWithout_IsRefused()
+	{
+		var service = new ScheduleManagementService(_repository, [new TestHandler()], NullLogger<ScheduleManagementService>.Instance);
+
+		await Assert.ThrowsExactlyAsync<ArgumentException>(() => service.CreateOrUpdateScheduleAsync(
+			TestHandlerType, "hourly", "Hourly", [new TimeOnly(12, 0)], timeZone: "UTC"));
+		await Assert.ThrowsExactlyAsync<ArgumentException>(() => service.CreateOrUpdateScheduleAsync(
+			TestHandlerType, "daily", "Daily", [], timeZone: "UTC"));
+		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules"));
+	}
+
+	[TestMethod]
+	public void SchedulerOption_StartTimes_RequiredExceptForHourly()
+	{
+		var option = new SchedulerOption { HandlerType = "WebsiteCollector", Frequency = "Daily", TimeZone = "UTC" };
+		StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(option.Validate).Message, "StartTimes is required");
+
+		option.StartTimes = [new TimeOnly(8, 30), new TimeOnly(12, 0)];
+		option.Validate();
+
+		option.Frequency = "Hourly";
+		StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(option.Validate).Message, "Hourly");
+
+		option.StartTimes = null;
+		option.Validate();
 	}
 
 	// ---------------------------------------------------------------- time zones
@@ -155,7 +266,7 @@ public sealed class SchedulerIntegrationTests
 	[TestMethod]
 	public async Task CreateOrUpdateSchedule_StoresTimeZoneAndDays()
 	{
-		await _repository.CreateOrUpdateScheduleAsync("Collector", "weekly", "Weekly", new TimeOnly(1, 0), isActive: true,
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "weekly", "Weekly", [new TimeOnly(1, 0)], isActive: true,
 			CancellationToken.None, timeZone: "Asia/Bangkok", dayOfWeek: 3);
 
 		var schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
@@ -163,7 +274,7 @@ public sealed class SchedulerIntegrationTests
 		Assert.AreEqual(Bangkok, schedule.TimeZone, "IANA id stored as its Windows id");
 		Assert.AreEqual(3, schedule.DayOfWeek);
 
-		await _repository.CreateOrUpdateScheduleAsync("Collector", "daily", "Daily", new TimeOnly(1, 0), isActive: true,
+		await _repository.CreateOrUpdateScheduleAsync("Collector", "daily", "Daily", [new TimeOnly(1, 0)], isActive: true,
 			CancellationToken.None);
 
 		schedule = await _repository.GetScheduleByHandlerTypeAsync("Collector", CancellationToken.None);
@@ -175,7 +286,7 @@ public sealed class SchedulerIntegrationTests
 	public async Task CreateOrUpdateSchedule_WithUnknownTimeZone_Throws()
 	{
 		await Assert.ThrowsAsync<ArgumentException>(() => _repository.CreateOrUpdateScheduleAsync(
-			"Collector", "bad", "Daily", new TimeOnly(1, 0), isActive: true, CancellationToken.None, timeZone: "Mars/Olympus"));
+			"Collector", "bad", "Daily", [new TimeOnly(1, 0)], isActive: true, CancellationToken.None, timeZone: "Mars/Olympus"));
 
 		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules"));
 	}
@@ -189,19 +300,19 @@ public sealed class SchedulerIntegrationTests
 
 		// "Scheduler" is the ServiceBus worker type of schedule runs, not a handler name.
 		var error = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
-			service.CreateOrUpdateScheduleAsync("Scheduler", "wrong", "Daily", new TimeOnly(1, 0), timeZone: "UTC"));
+			service.CreateOrUpdateScheduleAsync("Scheduler", "wrong", "Daily", [new TimeOnly(1, 0)], timeZone: "UTC"));
 		StringAssert.Contains(error.Message, "'Scheduler'");
 		StringAssert.Contains(error.Message, $"Registered: '{TestHandlerType}'");
 		Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM {0}.Schedules"));
 
-		await service.CreateOrUpdateScheduleAsync(TestHandlerType, "right", "Daily", new TimeOnly(1, 0), timeZone: "UTC");
+		await service.CreateOrUpdateScheduleAsync(TestHandlerType, "right", "Daily", [new TimeOnly(1, 0)], timeZone: "UTC");
 		Assert.AreEqual(1, await CountAsync($"SELECT COUNT(*) FROM {{0}}.Schedules WHERE HandlerType = '{TestHandlerType}'"));
 	}
 
 	[TestMethod]
 	public void SchedulerOption_RequiresHandler_AndDefaultsWorkerTypeToScheduler()
 	{
-		var option = new SchedulerOption { Frequency = "Daily", StartTime = new TimeOnly(1, 0), TimeZone = "UTC" };
+		var option = new SchedulerOption { Frequency = "Daily", StartTimes = [new TimeOnly(1, 0)], TimeZone = "UTC" };
 
 		Assert.AreEqual("Scheduler", option.WorkerType, "same default as SchedulerWorkerOptions");
 		var error = Assert.ThrowsExactly<InvalidOperationException>(option.Validate);
@@ -326,14 +437,28 @@ public sealed class SchedulerIntegrationTests
 		return claimed.Item.WorkItemId;
 	}
 
+	/// <summary>A schedule with one start time (none for Hourly), inserted directly.</summary>
 	private static async Task<Guid> InsertScheduleAsync(string frequency, TimeSpan startTime, int? dayOfWeek = null, string timeZone = "UTC")
 	{
 		await using var connection = TestDatabase.OpenScheduler();
-		return await connection.QuerySingleAsync<Guid>($"""
-			INSERT INTO {Schema}.Schedules (HandlerType, Frequency, StartTime, DayOfWeek, TimeZone)
+		var id = await connection.QuerySingleAsync<Guid>($"""
+			INSERT INTO {Schema}.Schedules (HandlerType, Frequency, DayOfWeek, TimeZone)
 			OUTPUT inserted.Id
-			VALUES (@worker, @frequency, @startTime, @dayOfWeek, @timeZone)
-			""", new { worker = TestHandlerType, frequency, startTime, dayOfWeek, timeZone });
+			VALUES (@worker, @frequency, @dayOfWeek, @timeZone)
+			""", new { worker = TestHandlerType, frequency, dayOfWeek, timeZone });
+		if (frequency != "Hourly")
+			await connection.ExecuteAsync($"INSERT INTO {Schema}.ScheduleStartTimes (ScheduleId, StartTime) VALUES (@id, @startTime)",
+				new { id, startTime });
+		return id;
+	}
+
+	/// <summary>A schedule for <see cref="TestHandlerType"/> stored through the repository, with its start times.</summary>
+	private async Task<Guid> CreateScheduleAsync(string frequency, TimeOnly[] startTimes,
+		int? dayOfWeek = null, string timeZone = "UTC")
+	{
+		await _repository.CreateOrUpdateScheduleAsync(TestHandlerType, frequency, frequency, startTimes, isActive: true,
+			CancellationToken.None, timeZone: timeZone, dayOfWeek: dayOfWeek);
+		return (await _repository.GetScheduleByHandlerTypeAsync(TestHandlerType, CancellationToken.None))!.Id;
 	}
 
 	private static async Task SetLastRunAsync(Guid id, DateTimeOffset at)

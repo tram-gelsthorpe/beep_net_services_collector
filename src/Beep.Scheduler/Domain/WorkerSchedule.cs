@@ -23,12 +23,14 @@ public class WorkerSchedule
 	public string Frequency { get; set; } = "Daily";
 
 	/// <summary>
-	/// Local time of day to run, in <see cref="TimeZone"/> (for daily/weekly/monthly/yearly)
+	/// The local times of day the schedule runs at, in <see cref="TimeZone"/>, earliest first
+	/// (e.g. 08:30, 12:00, 16:00): once at each, on a matching day (daily/weekly/monthly/yearly).
+	/// Empty for hourly schedules.
 	/// </summary>
-	public TimeSpan StartTime { get; set; }
+	public IReadOnlyList<TimeOnly> StartTimes { get; set; } = [];
 
 	/// <summary>
-	/// Windows time zone id that <see cref="StartTime"/> and the day fields are read in
+	/// Windows time zone id that <see cref="StartTimes"/> and the day fields are read in
 	/// (see <see cref="ScheduleTimeZone"/>)
 	/// </summary>
 	public string TimeZone { get; set; } = "UTC";

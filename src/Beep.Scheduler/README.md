@@ -111,51 +111,63 @@ services.RegisterScheduleHandler<WebsiteCollectorScheduleHandler>();
 
 ## Database Configuration
 
-On startup, create schedules:
+On startup, `ScheduleInitializationService` creates or updates the schedule from the `Scheduler` settings
+(`IScheduleService.CreateOrUpdateScheduleAsync`). A schedule's times of day are rows of `ScheduleStartTimes`;
+by hand:
 
 ```sql
--- Daily schedule
-INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, IsActive)
-VALUES ('WebsiteCollector', 'Daily', '01:00:00', 1);
+-- Daily at 08:30, 12:00 and 16:00
+DECLARE @id uniqueidentifier = NEWID();
+INSERT INTO Scheduler.Schedules (Id, HandlerType, Frequency, IsActive)
+VALUES (@id, 'WebsiteCollector', 'Daily', 1);
+INSERT INTO Scheduler.ScheduleStartTimes (ScheduleId, StartTime)
+VALUES (@id, '08:30:00'), (@id, '12:00:00'), (@id, '16:00:00');
 
 -- Weekly schedule (Sundays at midnight)
-INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, DayOfWeek, IsActive)
-VALUES ('BigDataProcess', 'Weekly', '00:00:00', 0, 1);
+SET @id = NEWID();
+INSERT INTO Scheduler.Schedules (Id, HandlerType, Frequency, DayOfWeek, IsActive)
+VALUES (@id, 'BigDataProcess', 'Weekly', 0, 1);
+INSERT INTO Scheduler.ScheduleStartTimes (ScheduleId, StartTime) VALUES (@id, '00:00:00');
 
--- Monthly schedule (15th of each month)
-INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, DayOfMonth, IsActive)
-VALUES ('ReportProcess', 'Monthly', '09:00:00', 15, 1);
+-- Monthly schedule (15th of each month at 09:00)
+SET @id = NEWID();
+INSERT INTO Scheduler.Schedules (Id, HandlerType, Frequency, DayOfMonth, IsActive)
+VALUES (@id, 'ReportProcess', 'Monthly', 15, 1);
+INSERT INTO Scheduler.ScheduleStartTimes (ScheduleId, StartTime) VALUES (@id, '09:00:00');
 
 -- Yearly schedule (January 1st at midnight)
 -- DayOfYear = 1 for Jan 1, = 32 for Feb 1, = 60 for Mar 1, etc.
-INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, DayOfYear, IsActive)
-VALUES ('AnnualReport', 'Yearly', '00:00:00', 1, 1);
+SET @id = NEWID();
+INSERT INTO Scheduler.Schedules (Id, HandlerType, Frequency, DayOfYear, IsActive)
+VALUES (@id, 'AnnualReport', 'Yearly', 1, 1);
+INSERT INTO Scheduler.ScheduleStartTimes (ScheduleId, StartTime) VALUES (@id, '00:00:00');
 
--- Hourly schedule
-INSERT INTO Scheduler.Schedules (HandlerType, Frequency, StartTime, IsActive)
-VALUES ('FrequentProcess', 'Hourly', '00:00:00', 1);
+-- Hourly schedule (no start times)
+INSERT INTO Scheduler.Schedules (HandlerType, Frequency, IsActive)
+VALUES ('FrequentProcess', 'Hourly', 1);
 ```
 
 ## Schedule Configuration Reference
 
 | Frequency | Required Fields | Optional Fields | Example |
 |-----------|-----------------|-----------------|---------|
-| **Daily** | StartTime | - | Every day at 1:00 AM |
-| **Hourly** | - (StartTime is ignored) | - | An hour after the previous run started |
-| **Weekly** | StartTime, DayOfWeek | - | Every Sunday (DayOfWeek=0) at midnight |
-| **Monthly** | StartTime, DayOfMonth | - | 15th of each month at 9:00 AM |
-| **Yearly** | StartTime, DayOfYear | - | January 1st (DayOfYear=1) at midnight |
+| **Daily** | StartTimes | - | Every day at 01:00; or at 08:30, 12:00 and 16:00 |
+| **Hourly** | - (no StartTimes) | - | An hour after the previous run started |
+| **Weekly** | StartTimes, DayOfWeek | - | Every Sunday (DayOfWeek=0) at midnight |
+| **Monthly** | StartTimes, DayOfMonth | - | 15th of each month at 9:00 AM |
+| **Yearly** | StartTimes, DayOfYear | - | January 1st (DayOfYear=1) at midnight |
 | **Never** | - | - | Schedule disabled |
 
-`StartTime` and the day settings are read in the schedule's **time zone** (`TimeZone`: an IANA id
+`StartTimes` and the day settings are read in the schedule's **time zone** (`TimeZone`: an IANA id
 such as `Asia/Bangkok` or a Windows id such as `SE Asia Standard Time`; empty means the machine's
 local time zone). Daylight saving is followed, and "once a day" means once per local day. The zone is
 stored as its Windows id, which is what SQL Server's `AT TIME ZONE` takes; an id the server does
 not know (`sys.time_zone_info`) is rejected when the schedule is saved. "Now" is the database clock.
 
-A schedule runs at the first poll at or after its `StartTime` on a matching day, at most once that
-day (a worker that was down at `StartTime` catches up when it starts). Each handler has one
-schedule (`UQ_Schedules_HandlerType`).
+A schedule runs once at or after each of its `StartTimes` (e.g. `["08:30", "12:00", "16:00"]`) on a matching
+day: at the first poll after the time, and a run counts for the latest time that had passed when it started.
+A worker that was down over one or more times catches up with one run when it starts, then waits for the next
+time. Each handler has one schedule (`UQ_Schedules_HandlerType`).
 
 `WorkerType` means the same as in every other section: the ServiceBus worker type
 (`WorkItems.WorkerType`) of the work items, here the schedule runs. `HandlerType` is which
@@ -167,8 +179,19 @@ type (`WebsiteCollector`). The worker does not start if no registered handler ha
   "WorkerType": "Scheduler",
   "HandlerType": "WebsiteCollector",
   "Frequency": "Weekly",
-  "StartTime": "01:00",
+  "StartTimes": [ "01:00" ],
   "DayOfWeek": 1,
+  "TimeZone": "Asia/Bangkok"
+}
+```
+
+Several times a day:
+
+```json
+"Scheduler": {
+  "HandlerType": "WebsiteCollector",
+  "Frequency": "Daily",
+  "StartTimes": [ "08:30", "12:00", "16:00" ],
   "TimeZone": "Asia/Bangkok"
 }
 ```

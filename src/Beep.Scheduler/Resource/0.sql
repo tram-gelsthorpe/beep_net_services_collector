@@ -19,13 +19,13 @@ SELECT
 	''Hourly'' AS Name,
 	''Run every hour'' AS Description
 UNION ALL
-SELECT 2, ''Daily'', ''Run once per day at specified time''
+SELECT 2, ''Daily'', ''Run every day at each of its times''
 UNION ALL
-SELECT 3, ''Weekly'', ''Run once per week on specified day at time''
+SELECT 3, ''Weekly'', ''Run on the specified day of the week at each of its times''
 UNION ALL
-SELECT 4, ''Monthly'', ''Run once per month on specified day at time''
+SELECT 4, ''Monthly'', ''Run on the specified day of the month at each of its times''
 UNION ALL
-SELECT 5, ''Yearly'', ''Run once per year on specified month/day at time''
+SELECT 5, ''Yearly'', ''Run on the specified day of the year at each of its times''
 UNION ALL
 SELECT 6, ''Never'', ''Disabled - will not run''
 ');
@@ -59,8 +59,8 @@ CREATE TABLE dbo.Schedules (
 
 	-- Frequency configuration
 	Frequency NVARCHAR(50) NOT NULL,    -- 'Daily', 'Weekly', 'Monthly', 'Yearly', 'Hourly'
-	StartTime TIME NOT NULL,            -- Local time of day to start, in TimeZone (daily/weekly/monthly/yearly)
-	-- Windows time zone id (sys.time_zone_info, e.g. 'SE Asia Standard Time'). StartTime and the
+	-- The times of day to run at are in ScheduleStartTimes (daily/weekly/monthly/yearly).
+	-- Windows time zone id (sys.time_zone_info, e.g. 'SE Asia Standard Time'). The start times and the
 	-- day of week/month/year are read on this zone's calendar, daylight saving included.
 	TimeZone NVARCHAR(100) NOT NULL DEFAULT 'UTC',
 	DayOfWeek INT NULL,                 -- 0-6 for weekly (0=Sunday)
@@ -81,6 +81,18 @@ CREATE TABLE dbo.Schedules (
 	-- One schedule per handler (CreateOrUpdateSchedule upserts on it)
 	CONSTRAINT UQ_Schedules_HandlerType UNIQUE (HandlerType),
 	INDEX IX_Schedules_Active (IsActive, Frequency)
+);
+
+-- =====================================================
+-- ScheduleStartTimes Table
+-- =====================================================
+-- The local times of day (in Schedules.TimeZone) a Daily, Weekly, Monthly or Yearly schedule runs at,
+-- e.g. 08:30, 12:00 and 16:00: once at each, on a matching day. Hourly schedules have none.
+
+CREATE TABLE dbo.ScheduleStartTimes (
+	ScheduleId UNIQUEIDENTIFIER NOT NULL REFERENCES dbo.Schedules(Id) ON DELETE CASCADE,
+	StartTime TIME NOT NULL,
+	PRIMARY KEY (ScheduleId, StartTime)
 );
 
 -- =====================================================
@@ -129,14 +141,13 @@ BEGIN
 	SET NOCOUNT ON;
 
 	-- @Now and LastRunAt are instants; each schedule reads them on its own TimeZone''s calendar:
-	-- StartTime is a local time of day, and "today" and the day of week/month/year are local.
+	-- the start times are local times of day, and "today" and the day of week/month/year are local.
 	SET @Now = COALESCE(@Now, SYSUTCDATETIME());
 
 	SELECT
 		s.Id,
 		s.HandlerType,
 		s.Frequency,
-		s.StartTime,
 		s.DayOfWeek,
 		s.DayOfMonth,
 		s.DayOfYear,
@@ -149,12 +160,20 @@ BEGIN
 	CROSS APPLY (SELECT
 		Today = CAST(n.LocalNow AS DATE),
 		TimeOfDay = CAST(n.LocalNow AS TIME),
-		LastRunDate = CAST(s.LastRunAt AT TIME ZONE s.TimeZone AS DATE)) l
+		LastRunLocal = CAST(s.LastRunAt AT TIME ZONE s.TimeZone AS DATETIME2(7))) l
 	-- 0 = Sunday ... 6 = Saturday regardless of @@DATEFIRST (1900-01-07 was a Sunday)
 	CROSS APPLY (SELECT
 		DayOfWeek = DATEDIFF(DAY, ''19000107'', l.Today) % 7,
 		DayOfMonth = DAY(l.Today),
 		DayOfYear = DATEPART(DAYOFYEAR, l.Today)) d
+	-- The latest of the schedule''s start times that has passed today (NULL before the first one, and for Hourly)
+	CROSS APPLY (SELECT Slot = MAX(st.StartTime)
+		FROM dbo.ScheduleStartTimes st
+		WHERE st.ScheduleId = s.Id AND st.StartTime <= l.TimeOfDay) slot
+	CROSS APPLY (SELECT SlotStart = DATETIME2FROMPARTS(
+		YEAR(l.Today), MONTH(l.Today), DAY(l.Today),
+		DATEPART(HOUR, slot.Slot), DATEPART(MINUTE, slot.Slot), DATEPART(SECOND, slot.Slot),
+		DATEPART(NANOSECOND, slot.Slot) / 100, 7)) ss
 	WHERE s.IsActive = 1
 		AND (@ScheduleId IS NULL OR s.Id = @ScheduleId)
 		AND (
@@ -162,11 +181,12 @@ BEGIN
 			(s.Frequency = ''Hourly''
 				AND (s.LastRunAt IS NULL OR s.LastRunAt <= DATEADD(HOUR, -1, @Now)))
 
-			-- Daily / Weekly / Monthly / Yearly: on a matching day, at or after StartTime,
-			-- and not already run today
+			-- Daily / Weekly / Monthly / Yearly: on a matching day, at or after one of its start times,
+			-- and not already run since that time. A worker that was down over several times catches up
+			-- with one run.
 			OR (s.Frequency IN (''Daily'', ''Weekly'', ''Monthly'', ''Yearly'')
-				AND l.TimeOfDay >= s.StartTime
-				AND (s.LastRunAt IS NULL OR l.LastRunDate < l.Today)
+				AND slot.Slot IS NOT NULL
+				AND (s.LastRunAt IS NULL OR l.LastRunLocal < ss.SlotStart)
 				AND (s.Frequency = ''Daily''
 					OR (s.Frequency = ''Weekly'' AND s.DayOfWeek = d.DayOfWeek)
 					OR (s.Frequency = ''Monthly'' AND s.DayOfMonth = d.DayOfMonth)

@@ -6,7 +6,7 @@ public interface ISchedulerOption
 	public string HandlerType { get; }
 	public string Description { get; }
 	public string Frequency { get; }
-	public TimeOnly? StartTime { get; }
+	public TimeOnly[]? StartTimes { get; }
 	public int? DayOfWeek { get; }
 	public int? DayOfMonth { get; }
 	public int? DayOfYear { get; }
@@ -32,13 +32,20 @@ public class SchedulerOption : ISchedulerOption
 
 	public string Description { get; set; } = string.Empty;
 	public string Frequency { get; set; } = string.Empty;
-	public TimeOnly? StartTime { get; set; } = null;
+	/// <summary>
+	/// The local times of day to run at, in <see cref="TimeZone"/>, e.g. ["01:00"] or ["08:30", "12:00", "16:00"]:
+	/// once at each, on a matching day. Required for Daily, Weekly, Monthly and Yearly; not for Hourly.
+	/// </summary>
+	public TimeOnly[]? StartTimes { get; set; }
+
+	/// <summary>Most times of day a schedule can run at.</summary>
+	public const int MaxStartTimes = 96;
 	public int? DayOfWeek { get; set; }
 	public int? DayOfMonth { get; set; }
 	public int? DayOfYear { get; set; }
 
 	/// <summary>
-	/// Time zone that <see cref="StartTime"/> and the day settings are in: an IANA id ("Asia/Bangkok")
+	/// Time zone that <see cref="StartTimes"/> and the day settings are in: an IANA id ("Asia/Bangkok")
 	/// or a Windows id ("SE Asia Standard Time"). Empty means this machine's local time zone.
 	/// </summary>
 	public string? TimeZone { get; set; }
@@ -65,14 +72,19 @@ public class SchedulerOption : ISchedulerOption
 		if (string.IsNullOrWhiteSpace(Frequency))
 			throw new InvalidOperationException("Frequency is required.");
 
-		if (StartTime == null)
-			throw new InvalidOperationException("StartTime is required.");
+		var hasStartTimes = StartTimes is { Length: > 0 };
+		if (StartTimes is { Length: > MaxStartTimes })
+			throw new InvalidOperationException($"StartTimes can have at most {MaxStartTimes} times.");
 
 		if (Enum.TryParse<ScheduleFrequency>(Frequency, out ScheduleFrequency result))
 		{
 			switch (result)
 			{
 				case ScheduleFrequency.Hourly:
+					if (hasStartTimes)
+						throw new InvalidOperationException("Hourly schedules run every hour: leave StartTimes empty.");
+					break;
+
 				case ScheduleFrequency.Daily:
 					break;
 
@@ -99,5 +111,8 @@ public class SchedulerOption : ISchedulerOption
 		{
 			throw new InvalidDataException("Invalid frequency value.");
 		}
+
+		if (result != ScheduleFrequency.Hourly && !hasStartTimes)
+			throw new InvalidOperationException($"StartTimes is required for {result} frequency, e.g. [\"01:00\"].");
 	}
 }

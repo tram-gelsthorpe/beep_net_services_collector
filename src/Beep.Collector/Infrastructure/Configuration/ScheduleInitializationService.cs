@@ -34,12 +34,12 @@ public class ScheduleInitializationService
 		{
 			_logger.LogInformation("Initializing WebsiteCollector schedules");
 
-			// Create or update the daily WebsiteCollector schedule
+			// Create or update the WebsiteCollector schedule
 			await _scheduleService.CreateOrUpdateScheduleAsync(
 				handlerType: _scheduleOption.HandlerType,
 				description: _scheduleOption.Description,
 				frequency: _scheduleOption.Frequency,
-				startTime: _scheduleOption.StartTime!.Value,
+				startTimes: _scheduleOption.StartTimes ?? [],
 				isActive: true,
 				timeZone: _scheduleOption.TimeZone,
 				dayOfWeek: _scheduleOption.DayOfWeek,
