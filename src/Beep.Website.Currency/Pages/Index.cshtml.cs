@@ -1,4 +1,5 @@
 using System.Globalization;
+using Beep.Website.Currency.Localization;
 using Beep.Website.Currency.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -9,7 +10,7 @@ namespace Beep.Website.Currency.Pages;
 /// Pick a country, a date and/or a bank (name or BIC) and see each bank's latest rate per currency on or
 /// before that date. The filters are in the query string, so a search can be bookmarked or shared.
 /// </summary>
-public sealed class IndexModel(BeepApiClient api, ILogger<IndexModel> logger) : PageModel
+public sealed class IndexModel(BeepApiClient api, UiText text, ILogger<IndexModel> logger) : PageModel
 {
 	/// <summary>Currencies shown as highlight cards above a single bank's table, in this order.</summary>
 	public static readonly IReadOnlyList<string> FeaturedCurrencies = ["USD", "GBP", "EUR"];
@@ -65,10 +66,16 @@ public sealed class IndexModel(BeepApiClient api, ILogger<IndexModel> logger) : 
 		{
 			logger.LogError(ex, "Beep.Api could not be reached or refused the request");
 			Error = ex.StatusCode is { } status
-				? $"The rates service answered {(int)status} ({status})."
-				: "The rates service could not be reached.";
+				? text.Format("The rates service answered {0}.", $"{(int)status} ({status})")
+				: text["The rates service could not be reached."];
 		}
 	}
+
+	/// <summary>dd/MM/yyyy whatever the language.</summary>
+	public static string FormatDate(DateOnly date) => date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+
+	/// <summary>dd/MM HH:mm in the bank's own time.</summary>
+	public static string FormatPublished(DateTimeOffset at) => at.ToString("dd/MM HH:mm", CultureInfo.InvariantCulture);
 
 	public static string Format(decimal? rate) =>
 		rate is { } value ? value.ToString("#,##0.00", CultureInfo.InvariantCulture) : "—";

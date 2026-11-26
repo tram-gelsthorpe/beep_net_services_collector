@@ -33,6 +33,25 @@ a { color: var(--accent); }
 .nav a:hover { background: rgba(255, 255, 255, .18); }
 .nav a[aria-current="page"] { background: var(--field); color: var(--ink); }
 
+/* Language menu */
+.lang { position: relative; }
+.lang-btn {
+	display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 0; border-radius: 999px;
+	background: var(--field); color: var(--ink); font: 500 14px var(--font-body); cursor: pointer;
+}
+.lang-menu {
+	position: absolute; right: 0; top: 44px; z-index: 20; display: none; width: 240px; margin: 0; padding: 6px; list-style: none;
+	background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, .16), 0 0 0 1px #ECEEF3;
+}
+.lang.open .lang-menu { display: block; }
+.lang-menu a {
+	display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border-radius: 10px;
+	font: 500 14px var(--font-body); color: var(--ink); text-decoration: none;
+}
+.lang-menu a:hover, .lang-menu a:focus-visible { background: var(--field); outline: none; }
+.lang-menu a[aria-current="true"] { background: #EEF2FF; }
+.lang-menu .code { width: 30px; font: 500 12px var(--font-num); color: var(--muted); }
+
 /* ===== Filter bar ===== */
 .filters {
 	margin-top: 18px; background: #fff; border-radius: var(--radius-card); padding: 8px;

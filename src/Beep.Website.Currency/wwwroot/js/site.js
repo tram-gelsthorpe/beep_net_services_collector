@@ -16,3 +16,25 @@ document.querySelectorAll('[data-rates]').forEach(section => {
 		if (noMatch) noMatch.hidden = shown > 0;
 	});
 });
+
+// Language menu: the button opens and closes it; a click outside or Escape closes it.
+document.querySelectorAll('[data-lang]').forEach(lang => {
+	const button = lang.querySelector('.lang-btn');
+	const setOpen = open => {
+		lang.classList.toggle('open', open);
+		button.setAttribute('aria-expanded', String(open));
+	};
+
+	button.addEventListener('click', () => {
+		const open = !lang.classList.contains('open');
+		setOpen(open);
+		if (open) lang.querySelector('.lang-menu a[aria-current="true"], .lang-menu a')?.focus();
+	});
+	document.addEventListener('click', e => { if (!lang.contains(e.target)) setOpen(false); });
+	lang.addEventListener('keydown', e => {
+		if (e.key === 'Escape' && lang.classList.contains('open')) {
+			setOpen(false);
+			button.focus();
+		}
+	});
+});

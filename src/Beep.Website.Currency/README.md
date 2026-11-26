@@ -16,6 +16,15 @@ so a search can be bookmarked or shared.
 The site reads everything from Beep.Api's `GET /api/currencyrate/countries`, `/banks` and `/latest`. The calls
 are made from the server, so the API key never reaches the browser.
 
+## Languages
+
+The language menu (top right) offers English, Tiếng Việt, ไทย, 中文, 日本語, 한국어 and Français. The choice is
+kept for a year in the `.AspNetCore.Culture` cookie (`/language/{code}?returnUrl=...` sets it); without it, the
+browser's language is used, else English. The site's texts and their translations are in
+[`Localization/UiText.cs`](Localization/UiText.cs): each text takes all seven languages, so a missing
+translation does not build. Numbers and dates keep one format in every language, and bank and currency names
+are shown as Beep.Api returns them.
+
 ## Configuration
 
 | Key | Purpose |

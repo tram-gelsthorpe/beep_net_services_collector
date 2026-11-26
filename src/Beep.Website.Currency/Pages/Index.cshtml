@@ -1,15 +1,15 @@
 @page
 @model IndexModel
 @{
-	ViewData["Title"] = "Latest bank rates";
+	ViewData["Title"] = T["Latest bank rates"];
 }
 
 <div class="container">
 	<form method="get" class="filters">
 		<label class="field f-country">
-			<span>Country</span>
+			<span>@T["Country"]</span>
 			<select name="country" onchange="this.form.submit()">
-				<option value="">All countries</option>
+				<option value="">@T["All countries"]</option>
 				@foreach (var c in Model.Countries)
 				{
 					<option value="@c.Code" selected="@(string.Equals(c.Code, Model.Country, StringComparison.OrdinalIgnoreCase))">@c.Name</option>
@@ -17,12 +17,12 @@
 			</select>
 		</label>
 		<label class="field f-date">
-			<span>Date</span>
-			<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd")" />
+			<span>@T["Date"]</span>
+			<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
 		</label>
 		<label class="field f-bank">
-			<span>Bank name or BIC</span>
-			<input type="search" name="bank" value="@Model.Bank" list="banks" placeholder="e.g. Vietcombank or BFTVVNVX" autocomplete="off" />
+			<span>@T["Bank name or BIC"]</span>
+			<input type="search" name="bank" value="@Model.Bank" list="banks" placeholder="@T["e.g. Vietcombank or BFTVVNVX"]" autocomplete="off" />
 			<datalist id="banks">
 				@foreach (var b in Model.Banks)
 				{
@@ -31,8 +31,8 @@
 			</datalist>
 		</label>
 		<div class="actions">
-			<a asp-page="/Index" class="btn btn-secondary">Reset</a>
-			<button type="submit" class="btn btn-primary">Show rates</button>
+			<a asp-page="/Index" class="btn btn-secondary">@T["Reset"]</a>
+			<button type="submit" class="btn btn-primary">@T["Show rates"]</button>
 		</div>
 	</form>
 </div>
@@ -45,17 +45,19 @@
 	else if (Model.Results is null)
 	{
 		<p class="notice">
-			Choose a country, a date or a bank to see the latest rates.
+			@T["Choose a country, a date or a bank to see the latest rates."]
 			@if (Model.Banks.Count > 0)
 			{
-				<span>@Model.Banks.Count bank(s) have rates.</span>
+				<span>@T.Format("{0} bank(s) have rates.", Model.Banks.Count)</span>
 			}
 		</p>
 	}
 	else if (Model.Results.Count == 0)
 	{
 		<p class="notice">
-			No rates match this search@(Model.Date is { } d ? " on or before " + d.ToString("dd/MM/yyyy") : "").
+			@(Model.Date is { } d
+				? T.Format("No rates match this search on or before {0}.", IndexModel.FormatDate(d))
+				: T["No rates match this search."])
 		</p>
 	}
 	else
@@ -76,11 +78,11 @@
 									<span class="fcard-name">@f.CurrencyName</span>
 								</span>
 							</span>
-							<span class="badge">Spread @IndexModel.FormatSpread(spread)</span>
+							<span class="badge">@T.Format("Spread {0}", IndexModel.FormatSpread(spread))</span>
 						</div>
 						<div class="fcard-rates">
-							<div><small>We buy</small><span class="num">@IndexModel.Format(f.BuyingRateTransfer)</span></div>
-							<div><small>We sell</small><span class="num sell">@IndexModel.Format(f.SellingRate)</span></div>
+							<div><small>@T["We buy"]</small><span class="num">@IndexModel.Format(f.BuyingRateTransfer)</span></div>
+							<div><small>@T["We sell"]</small><span class="num sell">@IndexModel.Format(f.SellingRate)</span></div>
 						</div>
 					</div>
 				}
@@ -108,40 +110,40 @@
 						<span class="chip blue num">@bank.Bic</span>
 						@if (bank.SameDate)
 						{
-							<span class="chip orange">Rates of @bank.LastDate.ToString("dd/MM/yyyy")</span>
+							<span class="chip orange">@T.Format("Rates of {0}", IndexModel.FormatDate(bank.LastDate))</span>
 						}
 						else
 						{
-							<span class="chip orange">Rates of @bank.FirstDate.ToString("dd/MM/yyyy") to @bank.LastDate.ToString("dd/MM/yyyy")</span>
+							<span class="chip orange">@T.Format("Rates of {0} to {1}", IndexModel.FormatDate(bank.FirstDate), IndexModel.FormatDate(bank.LastDate))</span>
 						}
 						@if (bank.PublishedAt is { } published)
 						{
-							<span class="chip">Published @published.ToString("dd/MM HH:mm") (@IndexModel.FormatOffset(published.Offset))</span>
+							<span class="chip">@T.Format("Published {0} ({1})", IndexModel.FormatPublished(published), IndexModel.FormatOffset(published.Offset))</span>
 						}
 					</div>
 				</div>
 				<div class="toolbar">
 					<label class="search">
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-						<input type="search" aria-label="Filter currencies" placeholder="Filter currencies" data-filter />
+						<input type="search" aria-label="@T["Filter currencies"]" placeholder="@T["Filter currencies"]" data-filter />
 					</label>
 					<span class="hint">
 						@if (bank.QuoteCurrency is not null)
 						{
-							<text>All rates in @bank.QuoteCurrency · </text>
+							<text>@T.Format("All rates in {0}", bank.QuoteCurrency) · </text>
 						}
-						“—” means the bank doesn’t quote this rate
+						@T["“—” means the bank doesn’t quote this rate"]
 					</span>
 				</div>
 				<div class="table-wrap">
 					<table>
 						<thead>
 							<tr>
-								<th>Currency</th>
-								<th>Buy · cash</th>
-								<th>Buy · transfer</th>
-								<th>Sell</th>
-								<th>Spread</th>
+								<th>@T["Currency"]</th>
+								<th>@T["Buy · cash"]</th>
+								<th>@T["Buy · transfer"]</th>
+								<th>@T["Sell"]</th>
+								<th>@T["Spread"]</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -156,7 +158,7 @@
 											<span class="cur-name">@r.CurrencyName</span>
 											@if (!bank.SameDate)
 											{
-												<span class="cur-date">@r.Date.ToString("dd/MM/yyyy")</span>
+												<span class="cur-date">@IndexModel.FormatDate(r.Date)</span>
 											}
 										</span>
 									</td>
@@ -171,13 +173,13 @@
 									</td>
 								</tr>
 							}
-							<tr class="no-match" hidden><td colspan="5">No currency matches this filter.</td></tr>
+							<tr class="no-match" hidden><td colspan="5">@T["No currency matches this filter."]</td></tr>
 						</tbody>
 					</table>
 				</div>
 			</section>
 		}
 
-		<p class="footnote">Rates are indicative and taken from the bank’s published table. Spread = (sell − buy transfer) ÷ buy transfer.</p>
+		<p class="footnote">@T["Rates are indicative and taken from the bank’s published table. Spread = (sell − buy transfer) ÷ buy transfer."]</p>
 	}
 </main>
