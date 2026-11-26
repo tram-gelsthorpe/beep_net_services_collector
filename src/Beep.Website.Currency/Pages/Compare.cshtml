@@ -113,7 +113,7 @@
 					<strong>@c.Bank.ShortName</strong>
 					<p>
 						@T["Sells at"] <b class="num" style="color:#C2410C">@RateFormat.Format(c.Rate.SellingRate)</b>
-						· @T["you pay"] <b class="num">@RateFormat.FormatAmount(c.Rate.SellingRate * Model.Amount) @quote</b>
+						· @T["you pay"] <b class="num nowrap">@RateFormat.FormatAmount(c.Rate.SellingRate * Model.Amount) @quote</b>
 					</p>
 				}
 				else
@@ -128,7 +128,7 @@
 					<strong>@b.Bank.ShortName</strong>
 					<p>
 						@T["Buys at"] <b class="num" style="color:#0369A1">@RateFormat.Format(b.Rate.BuyingRateTransfer)</b>
-						· @T["you get"] <b class="num">@RateFormat.FormatAmount(b.Rate.BuyingRateTransfer * Model.Amount) @quote</b>
+						· @T["you get"] <b class="num nowrap">@RateFormat.FormatAmount(b.Rate.BuyingRateTransfer * Model.Amount) @quote</b>
 					</p>
 				}
 				else

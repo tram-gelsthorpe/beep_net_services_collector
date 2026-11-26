@@ -275,6 +275,7 @@ select.cur-pill {
 .conv-side > .card:last-child { flex: 1; }
 .conv-bank-form .field { padding: 6px 12px; }
 .conv-bank-name { font: 600 17px var(--font-display); }
+.nowrap { white-space: nowrap; } /* an amount and its unit ("25,640,000 VND") stay together */
 .conv-bank-meta { display: block; }
 .conv-bank-meta > span { display: block; }
 .conv-bank-meta > span::first-letter { text-transform: uppercase; } /* "published …" starts its own line */
