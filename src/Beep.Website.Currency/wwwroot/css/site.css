@@ -598,6 +598,39 @@ select.cur-pill {
 }
 .date-foot button:hover, .date-foot button:focus-visible { background: var(--field); outline: none; }
 
+/* ===== Tablet (641–1100px): a compact header on one line =====
+   The Subscribe button shows only its bell and the language button only the code (EN), as on phones; the language
+   menu then lists codes and names at its own width, under the button. */
+@media (min-width: 641px) and (max-width: 1100px) {
+	.site-header { gap: 16px; }
+	.header-left { gap: 20px; }
+	.nav { gap: 2px; }
+	.nav a { padding: 0 12px; }
+	.subscribe-btn { width: 36px; padding: 0; justify-content: center; }
+	.subscribe-btn span { display: none; }
+	.header-right { gap: 6px; flex: none; }
+	.lang-btn { min-width: 0; }
+	.lang-name { display: none; }
+	.lang-code { display: inline; font-family: var(--font-num); font-size: 13px; }
+	.lang-menu { left: auto; right: auto; inset-inline-end: 0; width: 250px; }
+	.lang-menu .code { display: inline; }
+}
+
+/* Narrower tablets (641–860px): the page links don't fit beside the logo in every language (French needs about
+   830px), so they move into the menu button, as on phones; the menu opens under it at the header's end. */
+@media (min-width: 641px) and (max-width: 860px) {
+	.site-header { position: relative; }
+	.nav { display: none; }
+	.menu-btn { display: flex; width: 36px; height: 36px; }
+	.nav.open {
+		display: flex; flex-direction: column; gap: 2px; position: absolute; inset-inline-end: var(--gutter); top: calc(100% + 2px);
+		width: 260px; z-index: 20; padding: 6px; background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, .28);
+	}
+	.nav.open a { height: 44px; color: var(--ink); border-radius: 10px; }
+	.nav.open a:hover { background: var(--field); }
+	.nav.open a[aria-current="page"] { background: #EEF2FF; }
+}
+
 /* ===== Right to left (Arabic: <html dir="rtl">) =====
    Spacing and alignment above use start/end properties, so they follow the direction. What remains: the select
    chevrons (background images) move to the left, arrows that point back/forward flip, Arabic letters get an
