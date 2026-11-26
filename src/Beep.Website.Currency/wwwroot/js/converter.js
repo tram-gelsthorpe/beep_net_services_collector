@@ -68,7 +68,7 @@
 		$('[data-r-sell]').textContent = r.sell == null ? '—' : fmt(r.sell, 2);
 
 		const link = $('[data-compare-link]');
-		link.textContent = format(data.text.compare, state.currency);
+		link.textContent = format(data.text.compare, state.currency).replace(/ ([→←])/, ' $1'); // the arrow never alone on a line
 		link.href = data.compareUrl.replace('__CUR__', encodeURIComponent(state.currency));
 
 		document.querySelectorAll('[data-tile]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tile === state.currency)));
