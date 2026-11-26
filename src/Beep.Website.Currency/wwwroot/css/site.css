@@ -729,6 +729,15 @@ select.cur-pill {
 	.menu-btn { width: 36px; height: 36px; }
 }
 
+/* Phones: Subscribe, language and menu are three round 36px icon buttons; the language button shows only its globe
+   (its name is in the menu that opens, and its title says "Choose language"). */
+@media (max-width: 640px) {
+	.subscribe-btn, .lang-btn, .menu-btn { width: 36px; height: 36px; padding: 0; justify-content: center; flex: none; }
+	.lang-btn { border-radius: 50%; }
+	.lang-btn > svg:first-child { display: block; }
+	.lang-btn .lang-code, .lang-btn > svg:last-child { display: none; }
+}
+
 /* ===== Right to left (Arabic: <html dir="rtl">) =====
    Spacing and alignment above use start/end properties, so they follow the direction. What remains: the select
    chevrons (background images) move to the left, arrows that point back/forward flip, Arabic letters get an
