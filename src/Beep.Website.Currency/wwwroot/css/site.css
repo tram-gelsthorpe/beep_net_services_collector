@@ -130,7 +130,7 @@ p, .hint, .conv-help span, .notice, .tiles-head span, .btn-link, .summary small,
 th { word-break: keep-all; }
 /* Korean puts spaces between words, so lines break only there, never inside a word ("고시" / "하지", "사용합니" / "다");
    a word too long for its box still breaks. */
-:lang(ko) { word-break: keep-all; overflow-wrap: anywhere; } :lang(ko) th { overflow-wrap: normal; }
+:lang(ko) { word-break: keep-all; overflow-wrap: break-word; } /* break-word, not anywhere: table columns keep the width of their numbers */
 
 /* Rates table */
 .table-wrap { overflow-x: auto; }
@@ -692,6 +692,8 @@ select.cur-pill {
 	/* Filters two a row: a third of the width (167px at 641px) is too narrow for "Vendre des USD" in the toggle. */
 	.cmp-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	.cmp-filters .actions.span-2 { grid-column: auto; }
+	/* Three summary cards across: the bank name ("Vietcombank", 139px) fits with 16px sides, not 22px. */
+	.summary .card { padding-inline: 16px; }
 }
 /* Narrower tablets (641–860px): the page links don't fit beside the logo in every language (French needs about
    830px), so they move into the menu button, as on phones; the menu opens under it at the header's end. */
