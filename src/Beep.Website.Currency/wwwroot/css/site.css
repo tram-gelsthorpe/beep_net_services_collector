@@ -236,7 +236,7 @@ tr.no-match td { text-align: start; color: var(--muted); }
 
 /* ===== Converter ===== */
 .conv-layout { display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; }
-.conv { flex: 999 1 560px; min-width: 0; padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+.conv { flex: 999 1 560px; min-width: 0; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
 .conv-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .conv-title { margin: 0; font: 600 24px var(--font-display); }
 .conv-boxes { position: relative; display: flex; flex-direction: column; gap: 8px; }
@@ -268,7 +268,9 @@ select.cur-pill {
 .chips-row button { height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--field); font: 500 13px var(--font-num); color: var(--ink); cursor: pointer; }
 .chips-row button:hover { background: var(--accent-tint); }
 .conv-side { flex: 1 1 320px; display: flex; flex-direction: column; gap: 16px; }
-.conv-side .card { padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+.conv-side .card { padding: 24px; display: flex; flex-direction: column; gap: 12px; } /* the converter card's padding too */
+/* The last card fills the column, so both columns end at the same line. */
+.conv-side > .card:last-child { flex: 1; }
 .conv-bank-form .field { padding: 6px 12px; }
 .conv-bank-name { font: 600 17px var(--font-display); }
 .conv-bank-meta { display: block; }
