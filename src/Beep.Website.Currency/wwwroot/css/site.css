@@ -735,3 +735,5 @@ html:lang(ar) {
 [dir="rtl"] select.cur-pill, [dir="rtl"] .sub-select { background-position: left 14px center; }
 [dir="rtl"] .pill-select { background-position: left 12px center; }
 [dir="rtl"] .date-nav svg { transform: scaleX(-1); }
+/* An email address is typed left to right (its dots and @ stay in place), still aligned at the right. */
+[dir="rtl"] input[type="email"] { direction: ltr; text-align: right; }
