@@ -94,13 +94,13 @@ main > * { min-width: 0; }
 	background: #fff; border-radius: var(--radius-card); padding: 16px 22px 20px; /* + the 4px top line = 20px, as at the bottom */ display: flex; flex-direction: column; gap: 16px;
 	box-shadow: 0 6px 20px rgba(15, 23, 42, .08); border-top: 4px solid var(--c);
 }
-.fcard-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fcard-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; } /* the spread badge goes under the name when there is no room */
 .fcard-id { display: flex; align-items: center; gap: 12px; }
 .sym { width: 40px; height: 40px; border-radius: 50%; background: var(--t); color: var(--c); display: flex; align-items: center; justify-content: center; font: 700 19px var(--font-display); }
 .fcard-code { display: block; font: 600 17px var(--font-display); }
 .fcard-name { display: block; font-size: 13px; color: var(--muted); }
 .badge { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px; background: var(--t); color: var(--c); white-space: nowrap; }
-.fcard-rates { display: flex; gap: 28px; }
+.fcard-rates { display: flex; flex-wrap: wrap; gap: 8px 28px; } /* "We sell" goes under "We buy" when a card is too narrow (tablets) */
 .fcard-rates small { display: block; font-size: 12px; color: var(--muted); }
 .fcard-rates .num { font-size: 22px; font-weight: 500; }
 .fcard-rates .sell { color: var(--c); }
@@ -161,7 +161,9 @@ tr.no-match td { text-align: start; color: var(--muted); }
 	.logo-text { font-size: 17px; }
 	.filters { display: grid; grid-template-columns: 1fr 1fr; }
 	.f-bank, .actions { grid-column: 1 / -1; }
-	.actions .btn { flex: 1; }
+	/* Side by side when both fit, else one full-width row each: a label never breaks ("Afficher les taux" at 320px). */
+	.actions { flex-wrap: wrap; }
+	.actions .btn { flex: 1 1 0; min-width: max-content; padding: 0 16px; white-space: nowrap; }
 	.featured { grid-template-columns: 1fr; gap: 0; background: #fff; border-radius: var(--radius-card); overflow: hidden; }
 	.fcard { border-radius: 0; border-top: 0; border-bottom: 1px solid var(--line); box-shadow: none; padding: 14px 16px; flex-direction: row; justify-content: space-between; align-items: center; }
 	.fcard:last-child { border-bottom: 0; }
@@ -327,6 +329,12 @@ select.cur-pill {
 	.rates-table th:nth-child(2), .rates-table td:nth-child(2), .rates-table th:nth-child(5), .rates-table td:nth-child(5) { display: none; }
 	.rates-table th:nth-child(4), .rates-table td:nth-child(4) { padding-inline-end: 16px; }
 	.cur-name { font-size: 13px; }
+	/* The three columns fit the card (the Sell column was off its edge): headings may wrap, cells have less padding. */
+	.rates-table th { white-space: normal; font-size: 11px; letter-spacing: .03em; padding: 10px 8px; vertical-align: bottom; }
+	.rates-table td { padding: 12px 8px; }
+	.rates-table th:first-child, .rates-table td:first-child { padding-inline-start: 16px; }
+	.rates-table .cur { gap: 8px; }
+	.rates-table .pill { min-width: 44px; }
 
 	/* Compare: one card per bank. */
 	.summary { grid-template-columns: 1fr; gap: 0; background: #fff; border-radius: var(--radius-card); overflow: hidden; }
@@ -398,7 +406,7 @@ select.cur-pill {
 
 	/* Small fixes from the design */
 	.table-wrap table { width: 100%; }
-	td.sell, .rates-table th:nth-child(4) { padding-inline-end: 20px !important; }
+	td.sell, .rates-table th:nth-child(4) { padding-inline-end: 16px !important; }
 	select.cur-pill { max-width: none; }
 }
 
@@ -653,6 +661,14 @@ select.cur-pill {
 	.header-left { min-width: 0; }
 	.lang-btn { padding: 0 10px; gap: 6px; }
 	.lang-btn > svg:first-child { display: none; }
+	/* Bank rates: Country and Date a row each ("Tất cả quốc gia", "Plus récent" don't fit half the width). */
+	.filters { grid-template-columns: minmax(0, 1fr); }
+	/* Rates table: the currency's name under its code, so the two rate columns keep their room. */
+	.rates-table .cur { flex-direction: column; align-items: flex-start; gap: 4px; }
+	.rates-table .cur-name { font-size: 12px; }
+	/* "TRANSFERENCIA" (Spanish) fits at 320px */
+	.rates-table th { letter-spacing: 0; padding-inline: 6px; }
+	td.sell, .rates-table th:nth-child(4) { padding-inline-end: 12px !important; }
 }
 /* Phones under 360px (320px): a smaller logo and menu button, so the header still fits one row. */
 @media (max-width: 359px) {

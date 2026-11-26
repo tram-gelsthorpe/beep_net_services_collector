@@ -9,6 +9,7 @@
 		<label class="field f-country">
 			<span>@T["Country"]</span>
 			<select name="country" onchange="this.form.submit()">
+				<button><selectedcontent></selectedcontent></button>
 				<option value="">@T["All countries"]</option>
 				@foreach (var c in Model.Countries)
 				{
