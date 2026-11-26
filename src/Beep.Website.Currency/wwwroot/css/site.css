@@ -491,3 +491,50 @@ select.cur-pill {
 	.cmp-filters .ms, .cmp-filters .f-amount { grid-column: 1 / -1; }
 	.alert-result { padding: 32px 20px; }
 }
+
+/* ===== Dropdown lists: exactly as wide as the control that opens them, with padding =====
+   Selects use the customizable select (appearance: base-select, Chrome and Edge 135+), so their open list
+   can be styled; other browsers keep their native lists. In the filter bars the control is the whole field
+   box (label and value), so the list is anchored to the box rather than to the select inside it. */
+@supports (appearance: base-select) {
+	/* :root raises it above the selects' own "appearance: none" (.field select, select.cur-pill, …). */
+	:root select, ::picker(select) { appearance: base-select; }
+
+	/* Each select keeps its own chevron (a background image). */
+	select::picker-icon { display: none; }
+	:root select { field-sizing: fixed; align-items: center; }
+
+	.field:has(> select) { anchor-name: --dropdown; anchor-scope: --dropdown; }
+	/* Same height as the inputs beside it (the customizable select has a 24px minimum). */
+	:root .field > select { min-block-size: 0; line-height: normal; }
+	.field > select::picker(select) { position-anchor: --dropdown; }
+
+	::picker(select) {
+		box-sizing: border-box; width: anchor-size(width); min-width: 0; max-height: min(336px, 60vh); overflow-y: auto;
+		margin: 6px 0; padding: 6px; border: 0; border-radius: 12px; background: #fff; color: var(--ink);
+		box-shadow: 0 16px 40px rgba(15, 23, 42, .22), 0 0 0 1px #E4E7EC;
+		position-area: block-end span-inline-end; position-try-fallbacks: flip-block;
+	}
+
+	select option {
+		display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 10px 12px; border-radius: 8px;
+		font: 500 14px/1.3 var(--font-body); color: var(--ink); white-space: normal; cursor: pointer;
+	}
+	select option:hover, select option:focus-visible { background: var(--field); outline: none; }
+	select option:checked { background: #EEF2FF; font-weight: 600; }
+	select option::checkmark { order: 1; margin-left: auto; color: var(--accent); }
+	select option:disabled { color: var(--muted-2); cursor: default; }
+
+	select:open { box-shadow: 0 0 0 2px var(--accent); }
+	.field:has(> select:open) { box-shadow: 0 0 0 2px var(--accent); }
+	.field > select:open { box-shadow: none; }
+
+	/* The converter's currency pill: wide enough for "SGD · Singapore Dollar" on one line. */
+	select.cur-pill { width: 260px; max-width: 100%; }
+}
+
+@media (max-width: 640px) {
+	@supports (appearance: base-select) {
+		select.cur-pill { width: 110px; }
+	}
+}
