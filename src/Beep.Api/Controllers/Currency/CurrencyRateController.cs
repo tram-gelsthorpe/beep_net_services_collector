@@ -107,12 +107,20 @@ public class CurrencyRateController : ControllerBase
 			return BadRequest(new { error = $"Unknown country '{country}'" });
 
 		var rates = await queries.GetLatestRatesAsync(onOrBefore, countryId, bank, cancellationToken);
+
+		// Rates are quoted in the currency of the bank's country.
+		var quoteCurrencies = await queries.GetCurrencyCodesAsync(
+			rates.Select(r => all.GetValueOrDefault(r.CountryId)?.CurrencyId).OfType<Guid>().Distinct().ToList(),
+			cancellationToken);
+
 		return rates.Select(r =>
 		{
 			var c = all.GetValueOrDefault(r.CountryId);
+			var quote = c?.CurrencyId is { } currencyId ? quoteCurrencies.GetValueOrDefault(currencyId) : null;
 			return new LatestRateResponse(
 				r.Bic, r.BankName, c?.Code, c?.Name, r.CurrencyCode, r.CurrencyName,
-				DateOnly.FromDateTime(r.Date), r.RateTime, r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate);
+				DateOnly.FromDateTime(r.Date), r.RateTime, r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate,
+				r.CurrencySymbol, quote);
 		}).ToList();
 	}
 
@@ -206,6 +214,8 @@ public class CurrencyRateController : ControllerBase
 	/// <param name="BuyingRateCash">Bank buys cash (null: not offered)</param>
 	/// <param name="BuyingRateTransfer">Bank buys by transfer</param>
 	/// <param name="SellingRate">Bank sells</param>
+	/// <param name="CurrencySymbol">Symbol of the currency ($, €), if known</param>
+	/// <param name="QuoteCurrencyCode">Currency the rates are in: the bank country's currency, if known</param>
 	public sealed record LatestRateResponse(
 		string Bic,
 		string BankName,
@@ -217,7 +227,9 @@ public class CurrencyRateController : ControllerBase
 		DateTimeOffset? RateTime,
 		decimal? BuyingRateCash,
 		decimal? BuyingRateTransfer,
-		decimal? SellingRate);
+		decimal? SellingRate,
+		string? CurrencySymbol,
+		string? QuoteCurrencyCode);
 
 	/// <summary>
 	/// Body POSTed by the Beep.Collector EventBus when a selector's collection is saved.

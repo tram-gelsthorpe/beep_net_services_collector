@@ -92,7 +92,7 @@ public sealed class CurrencyRateIntegrationTests
 			"INSERT INTO dbo.Bank (Country_Id, Bic, Name) OUTPUT INSERTED.Id VALUES (NEWID(), @Bic, N'Vietcombank')",
 			new { Bic });
 		await connection.ExecuteAsync("""
-			INSERT INTO dbo.Currency (CodeISO, Name) VALUES ('USD', N'US Dollar'), ('EUR', N'Euro'), ('SEK', N'Swedish Krona');
+			INSERT INTO dbo.Currency (CodeISO, Name, Symbol) VALUES ('USD', N'US Dollar', N'$'), ('EUR', N'Euro', NULL), ('SEK', N'Swedish Krona', N' ');
 			""");
 		// A bank of another country, for the read queries.
 		await connection.ExecuteAsync(
@@ -348,6 +348,14 @@ public sealed class CurrencyRateIntegrationTests
 		Assert.AreEqual(At(14), latest.RateTime);
 		Assert.AreEqual(new DateTime(2026, 11, 26), latest.Date);
 		Assert.AreEqual("US Dollar", latest.CurrencyName);
+		Assert.AreEqual("$", latest.CurrencySymbol);
+		Assert.IsNull((await queries.GetLatestRatesAsync(Day, null, Bic, CancellationToken.None)).Single(r => r.CurrencyCode == "EUR").CurrencySymbol);
+
+		await using var connection = new SqlConnection(_connectionString);
+		var usdId = await connection.ExecuteScalarAsync<Guid>("SELECT Id FROM dbo.Currency WHERE CodeISO = 'USD'");
+		var codes = await queries.GetCurrencyCodesAsync([usdId, Guid.NewGuid()], CancellationToken.None);
+		Assert.AreEqual("USD", codes.Single().Value);
+		Assert.IsEmpty(await queries.GetCurrencyCodesAsync([], CancellationToken.None));
 	}
 
 	[TestMethod]

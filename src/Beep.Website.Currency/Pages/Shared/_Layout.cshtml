@@ -2,17 +2,25 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>@ViewData["Title"] · Beep Currency</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 	<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-	<header class="site-header">
-		<a class="brand" asp-page="/Index">Beep Currency</a>
-		<span class="tagline">Bank exchange rates</span>
+	<header class="container site-header">
+		<div class="header-left">
+			<a class="logo" asp-page="/Index"><span class="logo-mark">B</span><span class="logo-text">Beep Currency</span></a>
+			<nav class="nav" aria-label="Main">
+				<a asp-page="/Index" aria-current="page">Bank rates</a>
+			</nav>
+		</div>
 	</header>
-	<main class="container">
-		@RenderBody()
-	</main>
+
+	@RenderBody()
+
+	<script src="~/js/site.js" asp-append-version="true"></script>
 </body>
 </html>

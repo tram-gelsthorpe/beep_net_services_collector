@@ -4,7 +4,8 @@ using Microsoft.Data.SqlClient;
 namespace Beep.Api.Repositories.Country;
 
 /// <summary>A country of <c>dbo.Country</c> (A_1_Beep_Global_Country).</summary>
-public sealed record CountryInfo(Guid Id, string Code, string Name);
+/// <param name="CurrencyId">The country's currency in A_1_Beep_Global_Currency's <c>dbo.Currency</c>, if known</param>
+public sealed record CountryInfo(Guid Id, string Code, string Name, Guid? CurrencyId);
 
 /// <summary>Reads countries from the Country database (<c>ConnectionStrings:Country</c>).</summary>
 public interface ICountryRepository
@@ -41,7 +42,7 @@ public sealed class CountryRepository : ICountryRepository
 
 			await using var connection = new SqlConnection(_connectionString);
 			var rows = await connection.QueryAsync<CountryInfo>(new CommandDefinition(
-				"SELECT Id, RTRIM(Code) AS Code, ISNULL(Name, RTRIM(Code)) AS Name FROM dbo.Country",
+				"SELECT Id, RTRIM(Code) AS Code, ISNULL(Name, RTRIM(Code)) AS Name, Currency_Id AS CurrencyId FROM dbo.Country",
 				cancellationToken: cancellationToken));
 
 			_countries = rows.ToDictionary(c => c.Id);

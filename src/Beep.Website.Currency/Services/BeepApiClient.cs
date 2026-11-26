@@ -18,7 +18,9 @@ public sealed record LatestRateItem(
 	DateTimeOffset? RateTime,
 	decimal? BuyingRateCash,
 	decimal? BuyingRateTransfer,
-	decimal? SellingRate);
+	decimal? SellingRate,
+	string? CurrencySymbol,
+	string? QuoteCurrencyCode);
 
 /// <summary>
 /// Reads currency rates from Beep.Api's CurrencyRate endpoints. Calls are made from the server, so the

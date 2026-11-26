@@ -14,6 +14,7 @@ public sealed record LatestBankRate(
 	string BankName,
 	string CurrencyCode,
 	string CurrencyName,
+	string? CurrencySymbol,
 	DateTime Date,
 	DateTimeOffset? RateTime,
 	decimal? BuyingRateCash,
@@ -34,6 +35,10 @@ public interface ICurrencyRateQueries
 	/// <param name="bank">A BIC, or part of a bank name</param>
 	Task<IReadOnlyList<LatestBankRate>> GetLatestRatesAsync(
 		DateOnly? date, Guid? countryId, string? bank, CancellationToken cancellationToken);
+
+	/// <summary>ISO codes of the given <c>dbo.Currency</c> ids (unknown ids are left out).</summary>
+	Task<IReadOnlyDictionary<Guid, string>> GetCurrencyCodesAsync(
+		IReadOnlyCollection<Guid> currencyIds, CancellationToken cancellationToken);
 }
 
 public sealed class CurrencyRateQueries : ICurrencyRateQueries
@@ -73,7 +78,7 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 		await using var connection = new SqlConnection(_connectionString);
 		var rows = await connection.QueryAsync<LatestBankRate>(new CommandDefinition($"""
 			SELECT b.Country_Id AS CountryId, b.Bic, b.Name AS BankName,
-			       RTRIM(c.CodeISO) AS CurrencyCode, c.Name AS CurrencyName,
+			       RTRIM(c.CodeISO) AS CurrencyCode, c.Name AS CurrencyName, NULLIF(LTRIM(RTRIM(c.Symbol)), N'') AS CurrencySymbol,
 			       r.[Date], r.RateTime, r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate
 			FROM dbo.Bank b
 			CROSS JOIN dbo.Currency c
@@ -87,6 +92,19 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 			ORDER BY b.Name, c.CodeISO
 			""", Parameters(date, countryId, bank), cancellationToken: cancellationToken));
 		return rows.ToList();
+	}
+
+	public async Task<IReadOnlyDictionary<Guid, string>> GetCurrencyCodesAsync(
+		IReadOnlyCollection<Guid> currencyIds, CancellationToken cancellationToken)
+	{
+		if (currencyIds.Count == 0)
+			return new Dictionary<Guid, string>();
+
+		await using var connection = new SqlConnection(_connectionString);
+		var rows = await connection.QueryAsync<(Guid Id, string Code)>(new CommandDefinition(
+			"SELECT Id, RTRIM(CodeISO) FROM dbo.Currency WHERE Id IN @ids",
+			new { ids = currencyIds.Distinct().ToArray() }, cancellationToken: cancellationToken));
+		return rows.ToDictionary(r => r.Id, r => r.Code);
 	}
 
 	private static DynamicParameters Parameters(DateOnly? date, Guid? countryId, string? bank)

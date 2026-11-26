@@ -23,7 +23,8 @@ All filters are optional and combine:
 
 For each bank and currency, `latest` returns the row with the highest `Date`, then the highest `RateTime`:
 `{ "bic", "bankName", "countryCode", "countryName", "currencyCode", "currencyName", "date", "rateTime",
-"buyingRateCash", "buyingRateTransfer", "sellingRate" }`. A currency a bank stopped publishing keeps its last
+"buyingRateCash", "buyingRateTransfer", "sellingRate", "currencySymbol", "quoteCurrencyCode" }`, where
+`quoteCurrencyCode` is the currency the rates are in (the bank country's `Currency_Id`, e.g. `VND`). A currency a bank stopped publishing keeps its last
 rate, so dates can differ within a bank. An unknown country or a malformed date gives `400`.
 
 ### Recording bank rates
