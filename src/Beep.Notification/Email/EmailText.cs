@@ -3,16 +3,16 @@ using System.Globalization;
 namespace Beep.Notification.Email;
 
 /// <summary>
-/// Texts of emails in the languages of the websites: en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl. Each entry is keyed by its
+/// Texts of emails in the languages of the websites: en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl, ar. Each entry is keyed by its
 /// English text; a missing language falls back to English.
 /// </summary>
 public sealed class EmailText
 {
-	public static readonly IReadOnlyList<string> Languages = ["en", "vi", "th", "zh", "ja", "ko", "fr", "de", "es", "id", "ms", "nl"];
+	public static readonly IReadOnlyList<string> Languages = ["en", "vi", "th", "zh", "ja", "ko", "fr", "de", "es", "id", "ms", "nl", "ar"];
 
 	private readonly Dictionary<string, string[]> _texts;
 
-	/// <param name="entries">Each: the English text, then vi, th, zh, ja, ko, fr, de, es, id, ms, nl</param>
+	/// <param name="entries">Each: the English text, then vi, th, zh, ja, ko, fr, de, es, id, ms, nl, ar</param>
 	public EmailText(IEnumerable<string[]> entries)
 	{
 		_texts = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -30,6 +30,9 @@ public sealed class EmailText
 		var code = culture?.Trim().Split('-', '_')[0].ToLowerInvariant();
 		return code is not null && Languages.Contains(code) ? code : "en";
 	}
+
+	/// <summary>Whether a language is written right to left (Arabic): its emails get <c>dir="rtl"</c>.</summary>
+	public static bool IsRightToLeft(string? language) => Language(language) == "ar";
 
 	public string Get(string english, string language)
 	{

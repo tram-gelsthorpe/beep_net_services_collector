@@ -43,12 +43,17 @@ and the alerts (see [Beep.Notification](../Beep.Notification/README.md)).
 ## Languages
 
 The language menu (top right) offers English, Tiếng Việt, ไทย, 中文, 日本語, 한국어, Français, Deutsch, Español,
-Bahasa Indonesia, Bahasa Melayu and Nederlands. The choice is
+Bahasa Indonesia, Bahasa Melayu, Nederlands and العربية. The choice is
 kept for a year in the `.AspNetCore.Culture` cookie (`/language/{code}?returnUrl=...` sets it); without it, the
 browser's language is used, else English. The site's texts and their translations are in
-[`Localization/UiText.cs`](Localization/UiText.cs): each text takes all twelve languages, so a missing
+[`Localization/UiText.cs`](Localization/UiText.cs): each text takes all thirteen languages, so a missing
 translation does not build. Numbers and dates keep one format in every language, and bank and currency names
 are shown as Beep.Api returns them.
+
+Arabic is written right to left: the page gets `dir="rtl"` (from the language's culture) and the
+layout mirrors. The CSS uses start/end properties (`padding-inline-start`, `text-align: end`, …) rather
+than left/right, so keep to those; the few rules that can't (select chevrons, arrows) are in the
+"Right to left" block at the end of `site.css`.
 
 ## Configuration
 

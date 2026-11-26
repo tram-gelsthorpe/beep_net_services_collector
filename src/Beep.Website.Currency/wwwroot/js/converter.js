@@ -50,7 +50,7 @@
 		const which = f2v ? (state.mode === 'cash' ? data.text.buysCash : data.text.buysTransfer) : data.text.sells;
 		$('[data-rate-line]').innerHTML = used == null
 			? `— · ${which}`
-			: format(data.text.rateUsed, `<b>1 ${state.currency} = ${fmt(used, 2)} ${quote}</b>`) + ` · ${which}`;
+			: format(data.text.rateUsed, `<b dir="ltr">1 ${state.currency} = ${fmt(used, 2)} ${quote}</b>`) + ` · ${which}`;
 
 		modeSeg.hidden = !f2v;
 		modeSeg.querySelectorAll('button').forEach(b => {

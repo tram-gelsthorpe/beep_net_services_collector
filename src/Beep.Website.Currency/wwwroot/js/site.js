@@ -260,7 +260,9 @@ document.querySelectorAll('input[data-datepicker]').forEach(input => {
 		const day = e.target.closest('.date-day');
 		if (!day) return;
 		const date = parse(day.dataset.date);
-		const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+		// Right to left (Arabic), the left arrow goes forward in time, as the calendar is mirrored.
+		const back = getComputedStyle(pop).direction === 'rtl' ? 1 : -1;
+		const steps = { ArrowLeft: back, ArrowRight: -back, ArrowUp: -7, ArrowDown: 7 };
 		let to;
 		if (e.key in steps) to = addDays(date, steps[e.key]);
 		else if (e.key === 'Home') to = addDays(date, -((date.getDay() - firstDay + 7) % 7));

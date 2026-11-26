@@ -21,8 +21,9 @@ public static class EmailLayout
 			"Recibe este correo porque se suscribió a las alertas de {0}.",
 			"Anda menerima email ini karena berlangganan peringatan {0}.",
 			"Anda menerima e-mel ini kerana melanggan makluman {0}.",
-			"U ontvangt deze e-mail omdat u zich hebt geabonneerd op meldingen van {0}."],
-		["Unsubscribe", "Hủy đăng ký", "ยกเลิกการสมัคร", "退订", "配信停止", "구독 취소", "Se désabonner", "Abbestellen", "Cancelar suscripción", "Berhenti berlangganan", "Berhenti melanggan", "Afmelden"],
+			"U ontvangt deze e-mail omdat u zich hebt geabonneerd op meldingen van {0}.",
+			"تصلك هذه الرسالة لأنك اشتركت في تنبيهات {0}."],
+		["Unsubscribe", "Hủy đăng ký", "ยกเลิกการสมัคร", "退订", "配信停止", "구독 취소", "Se désabonner", "Abbestellen", "Cancelar suscripción", "Berhenti berlangganan", "Berhenti melanggan", "Afmelden", "إلغاء الاشتراك"],
 	]);
 
 	public static string Encode(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
@@ -38,13 +39,14 @@ public static class EmailLayout
 		if (unsubscribeUrl is not null)
 			footer += $" <a href=\"{Encode(unsubscribeUrl)}\" style=\"color:#475467\">{Encode(Text.Get("Unsubscribe", language))}</a>";
 
+		var dir = EmailText.IsRightToLeft(language) ? "rtl" : "ltr";
 		return $"""
 			<!DOCTYPE html>
-			<html lang="{Encode(language)}">
+			<html lang="{Encode(language)}" dir="{dir}">
 			<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-			<body style="margin:0;padding:24px 12px;background:#EEF2FF;font-family:Segoe UI,Arial,sans-serif;color:#101828">
+			<body dir="{dir}" style="margin:0;padding:24px 12px;background:#EEF2FF;font-family:Segoe UI,Arial,sans-serif;color:#101828">
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
+			<table role="presentation" dir="{dir}" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;text-align:{(dir == "rtl" ? "right" : "left")}">
 			<tr><td style="padding:0 4px 16px;font-size:18px;font-weight:700;color:#1E2A78">{Encode(websiteName)}</td></tr>
 			<tr><td style="background:#ffffff;border-radius:16px;padding:28px">{contentHtml}</td></tr>
 			<tr><td style="padding:16px 4px;font-size:12px;line-height:1.5;color:#667085">{footer}</td></tr>

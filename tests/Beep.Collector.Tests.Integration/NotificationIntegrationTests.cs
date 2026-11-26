@@ -287,6 +287,27 @@ public sealed class NotificationIntegrationTests
 		Assert.AreEqual(1, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.User_Notification WHERE LastSentAt IS NOT NULL AND Filter LIKE '%BFTVVNVX%'"));
 	}
 
+	[TestMethod]
+	public async Task Emails_InArabic_AreRightToLeft()
+	{
+		await Service().SubscribeAsync(new SubscribeRequest("dana@example.com", "Currency", "BankRates",
+			Json("""{"country":"VN","banks":["BFTVVNVX"],"currencies":["USD"]}"""), "ar"), default);
+		await _queue.RunAsync();
+		var confirmation = _sender.Emails.Single();
+		Assert.Contains("<html lang=\"ar\" dir=\"rtl\">", confirmation.Body);
+		Assert.Contains("أكّد تنبيهات", confirmation.Subject);
+
+		await Service().ConfirmAsync(await TokenOfAsync("dana@example.com"), default);
+		var alerts = new BankRatesAlerts(_repository, new FakeRates(), new FakeCountries(), _sender, _options, NullLogger<BankRatesAlerts>.Instance);
+		await alerts.SendAsync(Bic, default);
+
+		var alert = _sender.Emails.Last();
+		Assert.AreEqual("Vietcombank: أسعار جديدة", alert.Subject);
+		Assert.Contains("dir=\"rtl\"", alert.Body);
+		Assert.MatchesRegex(@"text-align:right;[^>]*>USD<", alert.Body, "the currency column is on the right");
+		Assert.MatchesRegex(@"text-align:left;[^>]*>26,020.00<", alert.Body, "the rates are on the left");
+	}
+
 	// ---------------------------------------------------------------- helpers
 
 	private SubscriptionService Service() =>
