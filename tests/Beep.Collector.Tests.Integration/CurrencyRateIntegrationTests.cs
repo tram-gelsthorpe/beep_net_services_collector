@@ -237,14 +237,17 @@ public sealed class CurrencyRateIntegrationTests
 	{
 		var collectedDataId = Guid.NewGuid();
 		var collected = new StubCollectedData { [collectedDataId] = VietcombankJson(At(10), ("USD", 1m), ("EUR", 1.1m)) };
-		var controller = new CurrencyRateController(collected, _repository, NullLogger<CurrencyRateController>.Instance);
+		var alerts = new RecordingQueue();
+		var controller = new CurrencyRateController(collected, _repository, alerts, NullLogger<CurrencyRateController>.Instance);
 
 		var ok = await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None);
 		var result = (CurrencyRateSaveResult)((OkObjectResult)ok).Value!;
 		Assert.AreEqual(new CurrencyRateSaveResult(2, 0, []), result, CurrencyRateSaveResultComparer.Instance);
+		Assert.AreEqual("BFTVVNVX rate alerts", alerts.Descriptions.Single(), "new rates: subscribers are emailed");
 
 		var again = await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None);
 		Assert.AreEqual(2, ((CurrencyRateSaveResult)((OkObjectResult)again).Value!).Duplicates, "a redelivery is accepted");
+		Assert.HasCount(1, alerts.Descriptions, "a redelivery sends no alert");
 
 		Assert.IsInstanceOfType<NotFoundObjectResult>(
 			await controller.RecordVietcombankCurrencyRate(Request(Guid.NewGuid()), CancellationToken.None));
@@ -473,6 +476,13 @@ public sealed class CurrencyRateIntegrationTests
 		System.Text.RegularExpressions.Regex.Split(script, @"^\s*GO\s*$",
 				System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase)
 			.Where(b => !string.IsNullOrWhiteSpace(b));
+
+	private sealed class RecordingQueue : Beep.Notification.INotificationQueue
+	{
+		public List<string> Descriptions { get; } = [];
+
+		public void Enqueue(string description, Func<IServiceProvider, CancellationToken, Task> work) => Descriptions.Add(description);
+	}
 
 	private sealed record RateRow(
 		Guid Id, DateTime Date, DateTimeOffset? RateTime, decimal? SellingRate, int Version,

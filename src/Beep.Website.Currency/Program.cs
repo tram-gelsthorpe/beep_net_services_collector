@@ -15,6 +15,7 @@ if (!Uri.TryCreate(builder.Configuration["BeepApi:BaseUrl"], UriKind.Absolute, o
 	throw new InvalidOperationException("BeepApi:BaseUrl must be an absolute URL, e.g. https://localhost:55281/");
 
 builder.Services.AddRazorPages();
+builder.Services.AddAntiforgery(options => options.HeaderName = AlertEndpoints.AntiforgeryHeader);
 builder.Services.AddSingleton<UiText>();
 builder.Services.AddHttpClient<BeepApiClient>(client =>
 {
@@ -68,6 +69,9 @@ app.MapGet("/language/{code}", (string code, string? returnUrl, HttpContext cont
 	var isLocal = returnUrl is ['/', ..] && !returnUrl.StartsWith("//") && !returnUrl.StartsWith("/\\");
 	return Results.LocalRedirect(isLocal ? returnUrl! : "/");
 });
+
+// Rate alerts: the Subscribe dialog's choices and form (pages: Pages/Alerts).
+app.MapAlerts();
 
 app.MapRazorPages();
 

@@ -7,27 +7,32 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Beep.Website.Currency.Pages;
 
 /// <summary>
-/// Compare banks: one currency across banks, on or before a date, in one of two scopes.
+/// Compare banks: one currency across the banks of the chosen countries, on or before a date.
 /// <list type="bullet">
-/// <item><b>One country</b> (default): its banks quote in one currency (VND), so they are compared on price:
-/// cheapest bank to buy from (lowest sell rate), best bank to sell to (highest transfer buy rate), best vs.
-/// worst for the amount, and "you pay" = amount × sell rate.</item>
-/// <item><b>All countries</b> (<c>scope=all</c>): each bank quotes in its own currency, so banks are compared
-/// by spread: lowest spread anywhere, best country by average spread, and coverage.</item>
+/// <item><b>One country</b> (default: the first): its banks quote in one currency (VND), so they are compared
+/// on price: cheapest bank to buy from (lowest sell rate), best bank to sell to (highest transfer buy rate),
+/// best vs. worst for the amount, and "you pay" = amount × sell rate.</item>
+/// <item><b>Two or more countries</b>: each bank quotes in its own currency, so banks are compared by spread:
+/// lowest spread anywhere, best country by average spread, and coverage.</item>
 /// </list>
-/// Everything is in the query string: <c>/Compare?scope=one&amp;country=VN&amp;currency=EUR&amp;amount=1000
-/// &amp;date=2026-11-26&amp;side=buy&amp;sort=sell</c>; in all-countries mode <c>only</c> filters the table by
-/// country and <c>sort</c> is spread or country.
+/// Everything is in the query string: <c>/Compare?countries=VN&amp;currency=EUR&amp;amount=1000
+/// &amp;date=2026-11-26&amp;side=buy&amp;sort=sell</c>; with several <c>countries</c>, <c>only</c> filters the
+/// table by country and <c>sort</c> is spread or country. <c>scope=all</c> (older links) chooses every country.
 /// </summary>
 public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<CompareModel> logger) : PageModel
 {
 	public const decimal DefaultAmount = 1000m;
 	private static readonly string[] PreferredCurrencies = ["USD", "EUR"];
 
-	/// <summary>one (default) or all.</summary>
+	/// <summary>Older links: <c>all</c> chooses every country.</summary>
 	[BindProperty(SupportsGet = true)]
 	public string? Scope { get; set; }
 
+	/// <summary>The chosen country codes (<c>countries=VN&amp;countries=TH</c>); default: the first country.</summary>
+	[BindProperty(SupportsGet = true, Name = "countries")]
+	public List<string> ChosenCountries { get; set; } = [];
+
+	/// <summary>Older links and the one-country mode: a single country code.</summary>
 	[BindProperty(SupportsGet = true)]
 	public string? Country { get; set; }
 
@@ -58,7 +63,11 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	/// <summary>Currencies quoted by the compared banks: code and name.</summary>
 	public IReadOnlyList<(string Code, string Name)> Currencies { get; private set; } = [];
 
-	public bool AllCountries => string.Equals(Scope, "all", StringComparison.OrdinalIgnoreCase);
+	/// <summary>Two or more countries are chosen: banks are compared by spread.</summary>
+	public bool AllCountries => ChosenCountries.Count > 1;
+
+	/// <summary>Every country is chosen.</summary>
+	public bool EveryCountry => Countries.Count > 0 && ChosenCountries.Count == Countries.Count;
 	public decimal Amount { get; private set; } = DefaultAmount;
 	public bool Buying => !string.Equals(Side, "sell", StringComparison.OrdinalIgnoreCase);
 	public string SortBy { get; private set; } = "sell";
@@ -124,16 +133,23 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 		try
 		{
 			Countries = await api.GetCountriesAsync(cancellationToken);
-			var country = Countries.FirstOrDefault(c => string.Equals(c.Code, Country, StringComparison.OrdinalIgnoreCase))
-				?? Countries.FirstOrDefault();
-			if (country is null)
+			var asked = string.Equals(Scope, "all", StringComparison.OrdinalIgnoreCase)
+				? Countries.Select(c => c.Code).ToList()
+				: ChosenCountries.Append(Country ?? string.Empty).ToList();
+			ChosenCountries = Countries.Where(c => asked.Contains(c.Code, StringComparer.OrdinalIgnoreCase)).Select(c => c.Code).ToList();
+			if (ChosenCountries.Count == 0 && Countries.Count > 0)
+				ChosenCountries = [Countries[0].Code];
+			if (ChosenCountries.Count == 0)
 				return;
-			Country = country.Code;
+			var country = Countries.First(c => c.Code == ChosenCountries[0]);
+			Country = AllCountries ? null : country.Code;
 			CountryName = country.Name;
 
-			// One country: its banks share one currency (VND). All countries: every bank, compared by spread.
-			var banks = BankRates.FromRates(
-				await api.GetLatestRatesAsync(Date, AllCountries ? null : country.Code, null, cancellationToken));
+			// One country: its banks share one currency (VND). Several: their banks, compared by spread.
+			var rates = await api.GetLatestRatesAsync(Date, AllCountries ? null : country.Code, null, cancellationToken);
+			var banks = BankRates.FromRates(AllCountries
+				? rates.Where(r => ChosenCountries.Contains(r.CountryCode ?? string.Empty, StringComparer.OrdinalIgnoreCase))
+				: rates);
 
 			Currencies = banks.SelectMany(b => b.Rates)
 				.GroupBy(r => r.CurrencyCode, StringComparer.OrdinalIgnoreCase)
@@ -208,8 +224,7 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	public string PageUrl(string? sort = null, string? only = null, bool keepOnly = true) =>
 		Url.Page("/Compare", new
 		{
-			scope = AllCountries ? "all" : "one",
-			country = Country,
+			countries = ChosenCountries,
 			currency = Currency,
 			amount = AllCountries ? null : Amount.ToString("0.##", CultureInfo.InvariantCulture),
 			date = Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),

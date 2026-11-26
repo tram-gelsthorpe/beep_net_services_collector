@@ -1,0 +1,28 @@
+@page "/alerts/confirm"
+@model Beep.Website.Currency.Pages.Alerts.ConfirmModel
+@{
+	ViewData["Title"] = T["Rate alerts"];
+	ViewData["Nav"] = "";
+}
+
+<main class="container">
+	<section class="card alert-result">
+		@if (Model.Outcome == Beep.Website.Currency.Pages.Alerts.AlertOutcome.Done)
+		{
+			<span class="sub-done-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2547D0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg></span>
+			<h1>@T["Your alerts are on"]</h1>
+			<p>@T["We’ll email you when your banks publish new rates."]</p>
+		}
+		else if (Model.Outcome == Beep.Website.Currency.Pages.Alerts.AlertOutcome.UnknownLink)
+		{
+			<h1>@T["This link doesn’t work"]</h1>
+			<p>@T["It may be incomplete or out of date. Subscribe again to get a new link."]</p>
+		}
+		else
+		{
+			<h1>@T["Something went wrong"]</h1>
+			<p>@T["Please try again in a few minutes."]</p>
+		}
+		<a class="btn btn-primary" asp-page="/Index">@T["Go to bank rates"]</a>
+	</section>
+</main>

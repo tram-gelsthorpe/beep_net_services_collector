@@ -65,3 +65,51 @@ document.querySelectorAll('[data-rates]').forEach(section => {
 		if (nav?.classList.contains('open')) { setMenu(false); menuButton.focus(); }
 	});
 })();
+
+// Compare banks: Countries multi-select (a checklist dropdown as wide as its field). One country compares
+// prices in its currency; two or more compare by spread. Done (or Compare) submits the form.
+(() => {
+	const ms = document.querySelector('[data-ms]');
+	if (!ms) return;
+
+	const trigger = ms.querySelector('.ms-trigger');
+	const panel = ms.querySelector('.ms-panel');
+	const search = ms.querySelector('[data-ms-search]');
+	const all = ms.querySelector('[data-ms-all]');
+	const items = [...ms.querySelectorAll('[data-ms-item]')];
+	const boxes = items.map(i => i.querySelector('input'));
+	const format = (template, ...args) => template.replace(/\{(\d+)\}/g, (_, i) => args[+i] ?? '');
+	const t = ms.dataset;
+
+	function render() {
+		const chosen = items.filter((_, i) => boxes[i].checked).map(i => i.dataset.msItem);
+		all.checked = chosen.length === boxes.length;
+		all.indeterminate = chosen.length > 0 && chosen.length < boxes.length;
+		ms.querySelector('[data-ms-label]').textContent = !chosen.length ? t.textChoose
+			: chosen.length === boxes.length && chosen.length > 1 ? t.textAll
+			: chosen.length <= 2 ? chosen.join(', ') : format(t.textMore, chosen[0], chosen.length - 1);
+		ms.querySelector('[data-ms-count]').textContent = chosen.length;
+		ms.querySelector('[data-ms-hint]').textContent = !chosen.length ? t.textNone
+			: chosen.length === 1 ? format(t.textOne, chosen[0]) : format(t.textMany, chosen.length);
+		ms.querySelector('.btn-done').disabled = !chosen.length;
+	}
+
+	function setOpen(open) {
+		panel.hidden = !open;
+		trigger.setAttribute('aria-expanded', String(open));
+		if (open) search.focus();
+	}
+
+	trigger.addEventListener('click', () => setOpen(panel.hidden));
+	document.addEventListener('click', e => { if (!ms.contains(e.target)) setOpen(false); });
+	document.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) { setOpen(false); trigger.focus(); } });
+	search.addEventListener('input', () => {
+		const q = search.value.toLowerCase();
+		let shown = 0;
+		items.forEach(i => { i.hidden = !i.dataset.msItem.toLowerCase().includes(q); shown += i.hidden ? 0 : 1; });
+		ms.querySelector('[data-ms-empty]').hidden = shown > 0;
+	});
+	boxes.forEach(b => b.addEventListener('change', render));
+	all.addEventListener('change', () => { boxes.forEach(b => { b.checked = all.checked; }); render(); });
+	render();
+})();

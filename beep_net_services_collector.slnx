@@ -7,6 +7,7 @@
     <Project Path="src/Beep.Configuration/Beep.Configuration.csproj" />
     <Project Path="src/Beep.Database/Beep.Database.csproj" />
     <Project Path="src/Beep.EventBus/Beep.EventBus.csproj" />
+    <Project Path="src/Beep.Notification/Beep.Notification.csproj" />
     <Project Path="src/Beep.Scheduler/Beep.Scheduler.csproj" />
     <Project Path="src/Beep.ServiceBus/Beep.ServiceBus.csproj" />
     <Project Path="src/Beep.Api/Beep.Api.csproj" />

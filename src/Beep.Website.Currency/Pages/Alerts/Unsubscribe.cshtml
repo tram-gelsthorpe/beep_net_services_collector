@@ -1,0 +1,38 @@
+@page "/alerts/unsubscribe"
+@model Beep.Website.Currency.Pages.Alerts.UnsubscribeModel
+@using Beep.Website.Currency.Pages.Alerts
+@{
+	ViewData["Title"] = T["Rate alerts"];
+	ViewData["Nav"] = "";
+}
+
+<main class="container">
+	<section class="card alert-result">
+		@if (Model.Outcome is null)
+		{
+			<h1>@T["Stop rate alerts?"]</h1>
+			<p>@T["You won’t get any more emails about new rates."]</p>
+			<form method="post">
+				<input type="hidden" name="token" value="@Model.Token" />
+				<button type="submit" class="btn btn-primary">@T["Unsubscribe"]</button>
+			</form>
+		}
+		else if (Model.Outcome == AlertOutcome.Done)
+		{
+			<h1>@T["You’re unsubscribed"]</h1>
+			<p>@T["You won’t get any more emails about new rates. You can subscribe again at any time."]</p>
+			<a class="btn btn-secondary" asp-page="/Index">@T["Go to bank rates"]</a>
+		}
+		else if (Model.Outcome == AlertOutcome.UnknownLink)
+		{
+			<h1>@T["This link doesn’t work"]</h1>
+			<p>@T["It may be incomplete or out of date."]</p>
+			<a class="btn btn-secondary" asp-page="/Index">@T["Go to bank rates"]</a>
+		}
+		else
+		{
+			<h1>@T["Something went wrong"]</h1>
+			<p>@T["Please try again in a few minutes."]</p>
+		}
+	</section>
+</main>

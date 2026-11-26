@@ -12,17 +12,39 @@
 	<h1 class="page-title">@T["Compare banks"]</h1>
 
 	<form method="get" class="filters cmp-filters">
-		<div class="field f-toggle">
-			<span>@T["Compare in"]</span>
-			<div class="seg" role="radiogroup">
-				<label class="seg-option">
-					<input type="radio" name="scope" value="one" checked="@(!all)" onchange="this.form.submit()" />
-					<span>@(Model.CountryName ?? T["Country"])</span>
-				</label>
-				<label class="seg-option">
-					<input type="radio" name="scope" value="all" checked="@all" onchange="this.form.submit()" />
-					<span>@T["All countries"]</span>
-				</label>
+		@{
+			var chosen = Model.Countries.Where(c => Model.ChosenCountries.Contains(c.Code)).ToList();
+			var pickerLabel = chosen.Count == 0 ? T["Choose countries"]
+				: Model.EveryCountry && chosen.Count > 1 ? T["All countries"]
+				: chosen.Count <= 2 ? string.Join(", ", chosen.Select(c => c.Name))
+				: T.Format("{0} +{1} more", chosen[0].Name, chosen.Count - 1);
+		}
+		<div class="field ms" data-ms
+			 data-text-choose="@T["Choose countries"]" data-text-all="@T["All countries"]" data-text-more="@T["{0} +{1} more"]"
+			 data-text-one="@T["Comparing prices in {0}"]" data-text-many="@T["Comparing {0} countries by spread"]" data-text-none="@T["Pick at least one"]">
+			<button type="button" class="ms-trigger" aria-haspopup="true" aria-expanded="false">
+				<span>@T["Countries"]</span>
+				<span class="ms-value"><span class="ms-label" data-ms-label>@pickerLabel</span><span class="ms-count" data-ms-count>@chosen.Count</span></span>
+			</button>
+			<div class="ms-panel" hidden>
+				<div class="checklist">
+					<label class="cl-search">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+						<input type="text" data-ms-search placeholder="@T["Search countries"]" aria-label="@T["Search countries"]" />
+					</label>
+					<label class="cl-all"><input type="checkbox" data-ms-all /><span>@T["All countries"]</span></label>
+					<div class="cl-list">
+						@foreach (var c in Model.Countries)
+						{
+							<label class="cl-item" data-ms-item="@c.Name">
+								<input type="checkbox" name="countries" value="@c.Code" checked="@Model.ChosenCountries.Contains(c.Code)" />
+								<span style="flex:1">@c.Name</span>
+							</label>
+						}
+						<div class="cl-empty" data-ms-empty hidden>@T["No matches."]</div>
+					</div>
+				</div>
+				<div class="ms-foot"><span data-ms-hint></span><button type="submit" class="btn-done">@T["Done"]</button></div>
 			</div>
 		</div>
 		<label class="field">
@@ -38,22 +60,6 @@
 			<span>@T["Date"]</span>
 			<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
 		</label>
-		@if (!all && Model.Countries.Count > 1)
-		{
-			<label class="field">
-				<span>@T["Country"]</span>
-				<select name="country" onchange="this.form.submit()">
-					@foreach (var c in Model.Countries)
-					{
-						<option value="@c.Code" selected="@(c.Code == Model.Country)">@c.Name</option>
-					}
-				</select>
-			</label>
-		}
-		else
-		{
-			<input type="hidden" name="country" value="@Model.Country" />
-		}
 		<div class="field f-toggle">
 			<span>@T["I want to"]</span>
 			<div class="seg" role="radiogroup">
@@ -69,7 +75,7 @@
 		</div>
 		@if (!all)
 		{
-			<label class="field">
+			<label class="field f-amount">
 				<span>@T["Amount"]</span>
 				<input class="num" type="text" name="amount" inputmode="decimal" value="@Model.AmountDisplay" />
 			</label>
@@ -272,7 +278,7 @@
 		<section class="bank cmp-desktop">
 			<div class="cmp-head">
 				<div>
-					<h2>@T.Format("{0} at banks in all countries", code)</h2>
+					<h2>@(Model.EveryCountry ? T.Format("{0} at banks in all countries", code) : T.Format("{0} at banks in {1} countries", code, Model.ChosenCountries.Count))</h2>
 					<p>
 						@T.Format("Rates of {0}", RateFormat.FormatDate(Model.AllRows.Max(r => r.Rate.Date)))
 						· @(Model.SortBy == "country" ? T["sorted by country"] : T["sorted by lowest spread"])
@@ -281,7 +287,10 @@
 				</div>
 				<div class="cmp-tools">
 					<form method="get">
-						<input type="hidden" name="scope" value="all" />
+						@foreach (var c in Model.ChosenCountries)
+						{
+							<input type="hidden" name="countries" value="@c" />
+						}
 						<input type="hidden" name="currency" value="@Model.Currency" />
 						<input type="hidden" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
 						<input type="hidden" name="side" value="@(Model.Buying ? "buy" : "sell")" />

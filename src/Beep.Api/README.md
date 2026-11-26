@@ -12,6 +12,9 @@ EventBus and records bank currency rates, and serves the recorded rates (to Beep
 | `GET` | `/api/currencyrate/countries` | Countries that have a bank with rates: `[{ "code", "name" }]`. |
 | `GET` | `/api/currencyrate/banks?country=&bank=` | Banks with rates and their latest date. |
 | `GET` | `/api/currencyrate/latest?date=&country=&bank=` | The latest rate of each bank and currency. |
+| `POST` | `/api/notification/subscribe` | Subscribe an email address to a website's alerts (see [Rate alerts](#rate-alerts)). |
+| `POST` | `/api/notification/confirm` | `{ "token" }` from a confirmation link: `200`, or `404` for an unknown link. |
+| `POST` | `/api/notification/unsubscribe` | `{ "token" }` from an unsubscribe link: `200`, or `404` for an unknown link. |
 
 ### Reading the latest rates
 
@@ -52,6 +55,25 @@ Earlier rates of a day are kept; the current rate of a day is the one with the h
 Before the first run, apply [`Resource/Currency_Rate_Bank_RateTime.sql`](Resource/Currency_Rate_Bank_RateTime.sql)
 to A_1_Beep_Global_Currency: it adds `RateTime` and an index on `(Bank_Id, Currency_Id, Date, RateTime)`.
 
+## Rate alerts
+
+Beep.Api hosts [Beep.Notification](../Beep.Notification/README.md). `POST /api/notification/subscribe` takes:
+
+```json
+{ "email": "ana@example.com", "website": "Currency", "notificationType": "BankRates",
+  "filter": { "country": "VN", "banks": ["BFTVVNVX"], "currencies": ["USD", "EUR"] }, "culture": "vi" }
+```
+
+It answers `200 { "status": "confirmationSent" }` for a new or unconfirmed address, or `"updated"` for a
+confirmed one. Invalid input gives `400 { "errors": { field: message } }`.
+
+For Beep Currency (`Currency`, `BankRates`, in `Notifications/BankRatesNotification.cs`):
+- **Filter:** the banks must be banks of the country that have rates, and the currencies must be ones those
+  banks publish. Anything else is dropped.
+- **Alerts:** when a delivery records new rates of a bank (`inserted > 0`), every confirmed subscriber who
+  chose that bank gets one email after the response. It has the bank's latest rates of the currencies they
+  chose, in their language. Redeliveries and the backfill send nothing.
+
 Swagger UI is available at `/swagger` in the Development environment.
 
 ## Backfill past Vietcombank rates
@@ -88,6 +110,11 @@ Every endpoint except `/swagger`, `/api-docs` and `/health` requires an `X-API-K
 | `ConnectionStrings:Currency` | A_1_Beep_Global_Currency, where rates are recorded |
 | `ConnectionStrings:Collector` | Beep.Collector's database, where collection results are read |
 | `ConnectionStrings:Country` | A_1_Beep_Global_Country, for country codes and names (cached for an hour) |
+| `ConnectionStrings:Default` | A_1_Beep_Global_Default: alert subscribers (`dbo.User`) and subscriptions (`dbo.User_Notification`) |
+| `Notification:LicenceId` | `dbo.Licence.Id` that new subscribers are created under |
+| `Notification:Websites:Currency:Url` | Beep Currency's address; links in emails start with it (`appsettings.Development.json`: `https://localhost:55291`) |
+| `Notification:PickupDirectory` | Optional, local: without an SMTP host, emails are written here as .html files |
+| `Mail:Smtp` | Sender address and SMTP server (`From`, `Network:Host`, `Port`, `EnableSsl`, `Username`, `Password`) |
 | `Audit:CreatedBy` | GUID of the user recorded as `CreatedBy` on everything this API writes |
 | `Authentication:ApiKeys` | Accepted API keys |
 

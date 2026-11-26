@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Beep.Configuration\Beep.Configuration.csproj" />
+    <ProjectReference Include="..\Beep.Notification\Beep.Notification.csproj" />
   </ItemGroup>
 
   <ItemGroup>

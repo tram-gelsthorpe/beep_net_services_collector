@@ -45,6 +45,56 @@ public sealed class BeepApiClient(HttpClient http)
 				("bank", bank)),
 			cancellationToken) ?? [];
 
+	// ---------------------------------------------------------------- rate alerts (api/Notification)
+
+	/// <summary>
+	/// Subscribes <paramref name="email"/> to rate alerts of <paramref name="banks"/> for
+	/// <paramref name="currencies"/>. Null errors: saved ("confirmationSent" or "updated").
+	/// </summary>
+	public async Task<(string? Status, IReadOnlyDictionary<string, string>? Errors)> SubscribeAsync(
+		string? email, string? country, IReadOnlyList<string> banks, IReadOnlyList<string> currencies, string culture,
+		CancellationToken cancellationToken)
+	{
+		using var response = await http.PostAsJsonAsync("api/Notification/subscribe", new
+		{
+			email,
+			website = "Currency",
+			notificationType = "BankRates",
+			filter = new { country, banks, currencies },
+			culture,
+		}, cancellationToken);
+
+		if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+		{
+			var body = await response.Content.ReadFromJsonAsync<SubscribeErrors>(cancellationToken);
+			return (null, body?.Errors ?? new Dictionary<string, string>());
+		}
+		response.EnsureSuccessStatusCode();
+		var ok = await response.Content.ReadFromJsonAsync<SubscribeStatus>(cancellationToken);
+		return (ok?.Status, null);
+	}
+
+	/// <summary>Confirms the subscription of a confirmation link; false when the link is unknown.</summary>
+	public Task<bool> ConfirmSubscriptionAsync(string token, CancellationToken cancellationToken) =>
+		PostTokenAsync("api/Notification/confirm", token, cancellationToken);
+
+	/// <summary>Unsubscribes the subscription of an unsubscribe link; false when the link is unknown.</summary>
+	public Task<bool> UnsubscribeAsync(string token, CancellationToken cancellationToken) =>
+		PostTokenAsync("api/Notification/unsubscribe", token, cancellationToken);
+
+	private async Task<bool> PostTokenAsync(string path, string token, CancellationToken cancellationToken)
+	{
+		using var response = await http.PostAsJsonAsync(path, new { token }, cancellationToken);
+		if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+			return false;
+		response.EnsureSuccessStatusCode();
+		return true;
+	}
+
+	private sealed record SubscribeStatus(string? Status);
+
+	private sealed record SubscribeErrors(Dictionary<string, string>? Errors);
+
 	private static string Url(string path, params (string Name, string? Value)[] query)
 	{
 		var parts = query

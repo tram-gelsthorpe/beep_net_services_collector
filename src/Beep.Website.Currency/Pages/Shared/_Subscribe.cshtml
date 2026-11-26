@@ -1,0 +1,76 @@
+@* "Get rate alerts" dialog, opened by the header's Subscribe button (wwwroot/js/subscribe.js). Desktop: a centred
+   dialog; mobile: a sheet from the bottom. Open any page with #subscribe to open it at once. *@
+@using System.Text.Json
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+	var texts = new Dictionary<string, string>
+	{
+		["selected"] = T["· {0} of {1} selected"],
+		["noMatches"] = T["No matches."],
+		["email"] = T["Enter a valid email address."],
+		["banks"] = T["Choose at least one bank."],
+		["currencies"] = T["Choose at least one currency."],
+		["country"] = T["Choose a country."],
+		["server"] = T["Something went wrong. Please try again in a few minutes."],
+		["summary"] = T["We’ll email {0} when {1} in {2} publish new rates for {3}."],
+		["updated"] = T["Your alerts are updated: we’ll email {0} when {1} in {2} publish new rates for {3}."],
+		["allCurrencies"] = T["all currencies"],
+		["moreBanks"] = T["{0} and {1} more banks"],
+	};
+}
+<div class="sub-overlay" data-subscribe hidden
+	 data-options-url="@Url.Content("~/alerts/options")" data-subscribe-url="@Url.Content("~/alerts/subscribe")"
+	 data-token="@Antiforgery.GetAndStoreTokens(Context).RequestToken" data-text="@JsonSerializer.Serialize(texts)">
+	<section class="sub-dialog" role="dialog" aria-modal="true" aria-labelledby="subTitle">
+		<span class="sub-handle" aria-hidden="true"></span>
+		<form data-sub-form novalidate>
+			<div class="sub-head">
+				<span class="sub-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C2410C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg></span>
+				<div><h2 id="subTitle">@T["Get rate alerts"]</h2><p>@T["We’ll email you when your banks publish new rates."]</p></div>
+				<button type="button" class="sub-close" data-close-subscribe aria-label="@T["Close"]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+			</div>
+			<label class="sub-field">
+				<span class="sub-label">@T["Email address"]</span>
+				<input type="email" class="sub-input" data-sub-email placeholder="you@example.com" autocomplete="email" maxlength="150" />
+				<span class="sub-err" data-err="email" hidden></span>
+			</label>
+			<label class="sub-field">
+				<span class="sub-label">@T["Country"]</span>
+				<select class="sub-input sub-select" data-sub-country></select>
+				<span class="sub-err" data-err="country" hidden></span>
+			</label>
+			@foreach (var (id, label, placeholder, all) in new[]
+			{
+				("banks", T["Banks"], T["Search banks"], T["Select all banks"]),
+				("currencies", T["Currencies"], T["Search currencies"], T["All currencies"]),
+			})
+			{
+				<div class="sub-field">
+					<span class="sub-label">@label <span class="sub-count" data-count="@id"></span></span>
+					<div class="checklist" role="group" aria-label="@label">
+						<label class="cl-search">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+							<input type="text" data-search="@id" placeholder="@placeholder" aria-label="@placeholder" />
+						</label>
+						<label class="cl-all"><input type="checkbox" data-all="@id" /><span>@all</span></label>
+						<div class="cl-list" data-list="@id"></div>
+					</div>
+					<span class="sub-err" data-err="@id" hidden></span>
+				</div>
+			}
+			<span class="sub-err" data-err="server" hidden></span>
+			<button type="submit" class="btn btn-primary sub-submit">@T["Subscribe to alerts"]</button>
+			<p class="sub-note">@T["One email per rate update. Unsubscribe any time from any email."]</p>
+		</form>
+		<div class="sub-done" data-sub-done hidden>
+			<span class="sub-done-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2547D0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg></span>
+			<h2>@T["You’re subscribed"]</h2>
+			<p data-sub-summary></p>
+			<p class="sub-note" data-sub-confirm-note>@T["Check your inbox to confirm your email address."]</p>
+			<div class="sub-done-actions">
+				<button type="button" class="btn btn-secondary" data-sub-edit>@T["Edit alerts"]</button>
+				<button type="button" class="btn btn-primary" data-close-subscribe>@T["Done"]</button>
+			</div>
+		</div>
+	</section>
+</div>

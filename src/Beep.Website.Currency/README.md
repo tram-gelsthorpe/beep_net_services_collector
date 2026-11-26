@@ -21,10 +21,24 @@ are made from the server, so the API key never reaches the browser.
 | Page | Route | What it shows |
 | --- | --- | --- |
 | Bank rates | `/?country=&date=&bank=` | Each matching bank's latest rates; USD/GBP/EUR cards when one bank matches |
-| Compare banks | `/Compare?scope=one\|all&country=&currency=&amount=&date=&side=buy\|sell&sort=&only=` | One currency across banks. One country: cheapest to buy from (lowest sell), best to sell to (highest transfer buy), best vs. worst for the amount, "you pay" = amount × sell rate; sort by sell, buy or spread. All countries: each bank quotes in its own currency, so banks are compared by spread (lowest spread, best country by average spread, coverage); `only` filters by country, sort by spread or country |
+| Compare banks | `/Compare?countries=VN&countries=TH&currency=&amount=&date=&side=buy\|sell&sort=&only=` | One currency across the banks of the countries chosen in the Countries picker. One country: cheapest to buy from (lowest sell), best to sell to (highest transfer buy), best vs. worst for the amount, "you pay" = amount × sell rate; sort by sell, buy or spread. Two or more: each bank quotes in its own currency, so banks are compared by spread (lowest spread, best country by average spread, coverage); `only` filters by country, sort by spread or country. Older `scope=all` and `country=` links still work |
+| Rate alerts | `/alerts/confirm?token=`, `/alerts/unsubscribe?token=` | The links in alert emails: confirm a subscription; unsubscribe (asks first, then a button posts) |
 | Converter | `/Converter?country=&bank=&currency=` | Converts at the latest rates of the bank chosen with the Country and Bank pickers: foreign → local uses the buy rate (transfer or cash), local → foreign the sell rate. The page sends the rates once; `wwwroot/js/converter.js` converts in the browser |
 
 Spread = (sell − buy transfer) ÷ buy transfer. The design is in [`design/`](../../design/DESIGN_HANDOFF.md).
+
+## Rate alerts (Subscribe)
+
+The header's **Subscribe** button opens the "Get rate alerts" dialog (`Pages/Shared/_Subscribe.cshtml` and
+`wwwroot/js/subscribe.js`). It asks for an email address, a country, and banks and currencies, each in a
+checklist with a search field. Open any page with `#subscribe` to open the dialog straight away.
+
+- `GET /alerts/options?country=` gives the countries, and the banks and currencies of one country.
+- `POST /alerts/subscribe` (JSON, with the antiforgery token in a `RequestVerificationToken` header) sends
+  the choices to Beep.Api's `/api/notification/subscribe`, with the page's language.
+
+Both go through the server, so the API key never reaches the browser. Beep.Api sends the confirmation email
+and the alerts (see [Beep.Notification](../Beep.Notification/README.md)).
 
 ## Languages
 

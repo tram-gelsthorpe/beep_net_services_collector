@@ -27,6 +27,8 @@
     <None Include="..\..\src\Beep.Collector\appsettings.json" Link="WorkerSettings\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The Api's Currency_Rate_Bank script, so CurrencyRateIntegrationTests runs it as deployed -->
     <None Include="..\..\src\Beep.Api\Resource\*.sql" Link="ApiResource\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Beep.Notification's User_Notification script, so NotificationIntegrationTests runs it as deployed -->
+    <None Include="..\..\src\Beep.Notification\Resource\*.sql" Link="NotificationResource\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

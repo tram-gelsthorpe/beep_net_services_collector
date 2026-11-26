@@ -2,9 +2,12 @@ using Beep.Api.Backfill;
 using Beep.Configuration;
 using Beep.Api.Infrastructure.Audit;
 using Beep.Api.Infrastructure.Authentication;
+using Beep.Api.Notifications;
 using Beep.Api.Repositories.Collector;
 using Beep.Api.Repositories.Country;
 using Beep.Api.Repositories.Currency;
+using Beep.Notification;
+using Beep.Notification.Subscriptions;
 
 // "backfill vietcombank ..." fills past rates and exits instead of starting the web server.
 if (BackfillCommand.IsBackfill(args))
@@ -16,8 +19,9 @@ var builder = WebApplication.CreateBuilder(args);
 // variables, command line, and Azure Key Vault when KeyVault:Uri is set.
 builder.Configuration.AddKeyVaultIfConfigured();
 // Currency: A_1_Beep_Global_Currency (rates are written and read here). Collector: Beep.Collector's database
-// (collection results are read from here). Country: A_1_Beep_Global_Country (country names).
-builder.Configuration.RequireConnectionStrings("Currency", "Collector", "Country");
+// (collection results are read from here). Country: A_1_Beep_Global_Country (country names). Default:
+// A_1_Beep_Global_Default (alert subscribers and their subscriptions).
+builder.Configuration.RequireConnectionStrings("Currency", "Collector", "Country", "Default");
 builder.Configuration.Require("Audit:CreatedBy");
 
 // Audit values (CreatedBy) shared by everything this API records.
@@ -53,6 +57,12 @@ builder.Services.AddSingleton<ICountryRepository>(
 	new CountryRepository(builder.Configuration.GetConnectionString("Country")!));
 builder.Services.AddSingleton<ICurrencyRateRepository>(
 	new CurrencyRateRepository(builder.Configuration.GetConnectionString("Currency")!, audit.CreatedBy));
+
+// Alerts (Beep.Notification): subscriptions in A_1_Beep_Global_Default, emails with Beep.Email.Core (Mail
+// section), and each website's alert types.
+builder.Services.AddBeepNotification(builder.Configuration, builder.Configuration.GetConnectionString("Default")!, audit.CreatedBy);
+builder.Services.AddSingleton<INotificationType, BankRatesNotification>();
+builder.Services.AddSingleton<BankRatesAlerts>();
 
 
 var app = builder.Build();
