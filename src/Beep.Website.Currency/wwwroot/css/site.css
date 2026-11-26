@@ -125,7 +125,7 @@ main > * { min-width: 0; }
 .search input { border: 0; outline: none; font: 14px var(--font-body); width: 100%; background: transparent; }
 .toolbar .hint { font-size: 13px; color: var(--muted); }
 /* Text that wraps never ends with a lone word or character on its last line ("率" alone in Chinese at 320px). */
-p, .hint, .conv-help span, .notice, .tiles-head span, .btn-link { text-wrap: pretty; }
+p, .hint, .conv-help span, .notice, .tiles-head span, .btn-link, .summary small, th { text-wrap: pretty; }
 
 /* Rates table */
 .table-wrap { overflow-x: auto; }
