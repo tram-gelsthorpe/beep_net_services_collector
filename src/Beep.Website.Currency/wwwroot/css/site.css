@@ -60,6 +60,8 @@ a { color: var(--accent); }
 }
 .field { display: flex; flex-direction: column; gap: 2px; padding: 8px 14px; border-radius: var(--radius-field); background: var(--field); }
 .field span { font-size: 12px; font-weight: 500; color: var(--muted); line-height: 15px; } /* a fixed line, as in English: Japanese and Arabic fonts' default line is 20-25px */
+/* A search hint too long for its box ends in "…" ("z. B. Vietcombank oder BFTV…" at 320px), not cut through a letter. */
+.field input { text-overflow: ellipsis; }
 .field input, .field select { border: 0; background: transparent; font: 500 15px var(--font-body); color: var(--ink); padding: 0; margin: 0; outline: none; min-width: 0; }
 .field:focus-within { box-shadow: 0 0 0 2px var(--accent-tint); }
 .field select {
