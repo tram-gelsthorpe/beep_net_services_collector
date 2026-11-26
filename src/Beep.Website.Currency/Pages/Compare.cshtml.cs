@@ -7,15 +7,26 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Beep.Website.Currency.Pages;
 
 /// <summary>
-/// Compare banks: one currency across the banks of one country, on or before a date. Shows the cheapest bank
-/// to buy from (lowest sell rate), the best bank to sell to (highest transfer buy rate), the difference
-/// between the best and worst bank for the amount, and every bank's rates. Everything is in the query string:
-/// <c>/Compare?country=VN&amp;currency=EUR&amp;amount=1000&amp;date=2026-11-26&amp;side=buy&amp;sort=sell</c>.
+/// Compare banks: one currency across banks, on or before a date, in one of two scopes.
+/// <list type="bullet">
+/// <item><b>One country</b> (default): its banks quote in one currency (VND), so they are compared on price:
+/// cheapest bank to buy from (lowest sell rate), best bank to sell to (highest transfer buy rate), best vs.
+/// worst for the amount, and "you pay" = amount × sell rate.</item>
+/// <item><b>All countries</b> (<c>scope=all</c>): each bank quotes in its own currency, so banks are compared
+/// by spread: lowest spread anywhere, best country by average spread, and coverage.</item>
+/// </list>
+/// Everything is in the query string: <c>/Compare?scope=one&amp;country=VN&amp;currency=EUR&amp;amount=1000
+/// &amp;date=2026-11-26&amp;side=buy&amp;sort=sell</c>; in all-countries mode <c>only</c> filters the table by
+/// country and <c>sort</c> is spread or country.
 /// </summary>
 public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<CompareModel> logger) : PageModel
 {
 	public const decimal DefaultAmount = 1000m;
 	private static readonly string[] PreferredCurrencies = ["USD", "EUR"];
+
+	/// <summary>one (default) or all.</summary>
+	[BindProperty(SupportsGet = true)]
+	public string? Scope { get; set; }
 
 	[BindProperty(SupportsGet = true)]
 	public string? Country { get; set; }
@@ -34,15 +45,20 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	[BindProperty(SupportsGet = true)]
 	public string? Side { get; set; }
 
-	/// <summary>sell, buy or spread.</summary>
+	/// <summary>One country: sell, buy or spread. All countries: spread or country.</summary>
 	[BindProperty(SupportsGet = true)]
 	public string? Sort { get; set; }
 
+	/// <summary>All countries: show only this country's banks in the table (a country code).</summary>
+	[BindProperty(SupportsGet = true)]
+	public string? Only { get; set; }
+
 	public IReadOnlyList<CountryItem> Countries { get; private set; } = [];
 
-	/// <summary>Currencies quoted by the country's banks: code and name.</summary>
+	/// <summary>Currencies quoted by the compared banks: code and name.</summary>
 	public IReadOnlyList<(string Code, string Name)> Currencies { get; private set; } = [];
 
+	public bool AllCountries => string.Equals(Scope, "all", StringComparison.OrdinalIgnoreCase);
 	public decimal Amount { get; private set; } = DefaultAmount;
 	public bool Buying => !string.Equals(Side, "sell", StringComparison.OrdinalIgnoreCase);
 	public string SortBy { get; private set; } = "sell";
@@ -50,9 +66,17 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	/// <summary>Each bank and its rate for <see cref="Currency"/>, in <see cref="SortBy"/> order.</summary>
 	public IReadOnlyList<(BankRates Bank, LatestRateItem Rate)> Rows { get; private set; } = [];
 
+	/// <summary>All countries: every compared bank, before the <see cref="Only"/> filter.</summary>
+	public IReadOnlyList<(BankRates Bank, LatestRateItem Rate)> AllRows { get; private set; } = [];
+
+	/// <summary>Countries of <see cref="AllRows"/>, for the table's country filter: code and name.</summary>
+	public IReadOnlyList<(string Code, string Name)> RowCountries { get; private set; } = [];
+
 	public string? CountryName { get; private set; }
 	public string? QuoteCurrency { get; private set; }
 	public string? Error { get; private set; }
+
+	// ---------------------------------------------------------------- one country
 
 	public (BankRates Bank, LatestRateItem Rate)? CheapestToBuy =>
 		Rows.Where(r => r.Rate.SellingRate is not null).MinBy(r => r.Rate.SellingRate);
@@ -73,14 +97,33 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 		}
 	}
 
+	// ---------------------------------------------------------------- all countries
+
+	/// <summary>The bank with the lowest spread, of all countries.</summary>
+	public (BankRates Bank, LatestRateItem Rate, decimal Spread)? LowestSpread =>
+		AllRows.Select(r => (r.Bank, r.Rate, Spread: RateFormat.Spread(r.Rate)))
+			.Where(r => r.Spread is not null)
+			.Select(r => (r.Bank, r.Rate, Spread: r.Spread!.Value))
+			.MinBy(r => r.Spread) is { Bank: not null } best ? best : null;
+
+	/// <summary>The country whose banks have the lowest average spread.</summary>
+	public (string Country, decimal AverageSpread, int Banks)? BestCountry =>
+		AllRows.Select(r => (Country: r.Rate.CountryName ?? r.Rate.CountryCode ?? "—", Spread: RateFormat.Spread(r.Rate)))
+			.Where(r => r.Spread is not null)
+			.GroupBy(r => r.Country)
+			.Select(g => (Country: g.Key, AverageSpread: g.Average(r => r.Spread!.Value), Banks: g.Count()))
+			.OrderBy(c => c.AverageSpread)
+			.Select(c => ((string, decimal, int)?)c)
+			.FirstOrDefault();
+
+	public int CoverageCountries => AllRows.Select(r => r.Rate.CountryCode).Distinct().Count();
+
 	public async Task OnGetAsync(CancellationToken cancellationToken)
 	{
 		Amount = ParseAmount(AmountText) ?? DefaultAmount;
 		try
 		{
 			Countries = await api.GetCountriesAsync(cancellationToken);
-
-			// Banks are compared within one country, so the rates share one currency (VND).
 			var country = Countries.FirstOrDefault(c => string.Equals(c.Code, Country, StringComparison.OrdinalIgnoreCase))
 				?? Countries.FirstOrDefault();
 			if (country is null)
@@ -88,7 +131,10 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 			Country = country.Code;
 			CountryName = country.Name;
 
-			var banks = BankRates.FromRates(await api.GetLatestRatesAsync(Date, country.Code, null, cancellationToken));
+			// One country: its banks share one currency (VND). All countries: every bank, compared by spread.
+			var banks = BankRates.FromRates(
+				await api.GetLatestRatesAsync(Date, AllCountries ? null : country.Code, null, cancellationToken));
+
 			Currencies = banks.SelectMany(b => b.Rates)
 				.GroupBy(r => r.CurrencyCode, StringComparer.OrdinalIgnoreCase)
 				.Select(g => (g.Key, g.First().CurrencyName))
@@ -101,21 +147,16 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 			if (Currency is null)
 				return;
 
-			SortBy = Sort?.ToLowerInvariant() is "sell" or "buy" or "spread" ? Sort.ToLowerInvariant() : Buying ? "sell" : "buy";
 			var rows = banks
 				.Select(b => (Bank: b, Rate: b.Rate(Currency)))
 				.Where(r => r.Rate is not null)
 				.Select(r => (r.Bank, Rate: r.Rate!))
 				.ToList();
-			QuoteCurrency = banks.Select(b => b.QuoteCurrency).FirstOrDefault(q => q is not null);
 
-			// Missing rates go last whatever the order.
-			Rows = SortBy switch
-			{
-				"buy" => rows.OrderBy(r => r.Rate.BuyingRateTransfer is null).ThenByDescending(r => r.Rate.BuyingRateTransfer).ToList(),
-				"spread" => rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate)).ToList(),
-				_ => rows.OrderBy(r => r.Rate.SellingRate is null).ThenBy(r => r.Rate.SellingRate).ToList(),
-			};
+			if (AllCountries)
+				SortAllCountries(rows);
+			else
+				SortOneCountry(rows, banks);
 		}
 		catch (HttpRequestException ex)
 		{
@@ -124,16 +165,57 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 		}
 	}
 
-	/// <summary>The same page in another order.</summary>
-	public string SortUrl(string sort) =>
+	private void SortOneCountry(List<(BankRates Bank, LatestRateItem Rate)> rows, IReadOnlyList<BankRates> banks)
+	{
+		QuoteCurrency = banks.Select(b => b.QuoteCurrency).FirstOrDefault(q => q is not null);
+		SortBy = Sort?.ToLowerInvariant() is "sell" or "buy" or "spread" ? Sort.ToLowerInvariant() : Buying ? "sell" : "buy";
+
+		// Missing rates go last whatever the order.
+		Rows = SortBy switch
+		{
+			"buy" => rows.OrderBy(r => r.Rate.BuyingRateTransfer is null).ThenByDescending(r => r.Rate.BuyingRateTransfer).ToList(),
+			"spread" => rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate)).ToList(),
+			_ => rows.OrderBy(r => r.Rate.SellingRate is null).ThenBy(r => r.Rate.SellingRate).ToList(),
+		};
+	}
+
+	private void SortAllCountries(List<(BankRates Bank, LatestRateItem Rate)> rows)
+	{
+		SortBy = string.Equals(Sort, "country", StringComparison.OrdinalIgnoreCase) ? "country" : "spread";
+
+		var bySpread = rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate));
+		AllRows = (SortBy == "country"
+				? rows.OrderBy(r => r.Rate.CountryName, StringComparer.CurrentCultureIgnoreCase)
+					.ThenBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate))
+				: bySpread)
+			.ToList();
+
+		RowCountries = AllRows
+			.Where(r => r.Rate.CountryCode is not null)
+			.GroupBy(r => r.Rate.CountryCode!)
+			.Select(g => (g.Key, g.First().Rate.CountryName ?? g.Key))
+			.OrderBy(c => c.Item2, StringComparer.CurrentCultureIgnoreCase)
+			.ToList();
+
+		if (!RowCountries.Any(c => string.Equals(c.Code, Only, StringComparison.OrdinalIgnoreCase)))
+			Only = null;
+		Rows = Only is null
+			? AllRows
+			: AllRows.Where(r => string.Equals(r.Rate.CountryCode, Only, StringComparison.OrdinalIgnoreCase)).ToList();
+	}
+
+	/// <summary>This page with some of its query values changed.</summary>
+	public string PageUrl(string? sort = null, string? only = null, bool keepOnly = true) =>
 		Url.Page("/Compare", new
 		{
+			scope = AllCountries ? "all" : "one",
 			country = Country,
 			currency = Currency,
-			amount = Amount.ToString("0.##", CultureInfo.InvariantCulture),
+			amount = AllCountries ? null : Amount.ToString("0.##", CultureInfo.InvariantCulture),
 			date = Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
 			side = Buying ? "buy" : "sell",
-			sort,
+			sort = sort ?? SortBy,
+			only = only ?? (keepOnly ? Only : null),
 		})!;
 
 	public string AmountDisplay => Amount.ToString("#,##0.##", CultureInfo.InvariantCulture);

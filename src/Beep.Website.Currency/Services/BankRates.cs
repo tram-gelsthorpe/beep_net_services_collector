@@ -24,6 +24,9 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 	/// <summary>"Vietcombank" from "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank".</summary>
 	public string ShortName => SplitName().Short;
 
+	/// <summary>The short name of a bank name, as <see cref="ShortName"/>.</summary>
+	public static string ShortNameOf(string name) => SplitName(name).Short;
+
 	/// <summary>The legal name, when the bank's name has a short name after a dash; otherwise null.</summary>
 	public string? LegalName => SplitName().Legal;
 
@@ -62,7 +65,9 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 	public LatestRateItem? Rate(string currencyCode) =>
 		Rates.FirstOrDefault(r => string.Equals(r.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase));
 
-	private (string Short, string? Legal) SplitName()
+	private (string Short, string? Legal) SplitName() => SplitName(Name);
+
+	private static (string Short, string? Legal) SplitName(string Name)
 	{
 		foreach (var separator in NameSeparators)
 		{

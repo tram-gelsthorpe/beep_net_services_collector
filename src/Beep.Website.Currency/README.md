@@ -21,8 +21,8 @@ are made from the server, so the API key never reaches the browser.
 | Page | Route | What it shows |
 | --- | --- | --- |
 | Bank rates | `/?country=&date=&bank=` | Each matching bank's latest rates; USD/GBP/EUR cards when one bank matches |
-| Compare banks | `/Compare?country=&currency=&amount=&date=&side=buy\|sell&sort=sell\|buy\|spread` | One currency across a country's banks: cheapest to buy from (lowest sell), best to sell to (highest transfer buy), best vs. worst for the amount, and "you pay" = amount × sell rate |
-| Converter | `/Converter?bank=&currency=` | Converts at one bank's latest rates: foreign → local uses the buy rate (transfer or cash), local → foreign the sell rate. The page sends the rates once; `wwwroot/js/converter.js` converts in the browser |
+| Compare banks | `/Compare?scope=one\|all&country=&currency=&amount=&date=&side=buy\|sell&sort=&only=` | One currency across banks. One country: cheapest to buy from (lowest sell), best to sell to (highest transfer buy), best vs. worst for the amount, "you pay" = amount × sell rate; sort by sell, buy or spread. All countries: each bank quotes in its own currency, so banks are compared by spread (lowest spread, best country by average spread, coverage); `only` filters by country, sort by spread or country |
+| Converter | `/Converter?country=&bank=&currency=` | Converts at the latest rates of the bank chosen with the Country and Bank pickers: foreign → local uses the buy rate (transfer or cash), local → foreign the sell rate. The page sends the rates once; `wwwroot/js/converter.js` converts in the browser |
 
 Spread = (sell − buy transfer) ÷ buy transfer. The design is in [`design/`](../../design/DESIGN_HANDOFF.md).
 

@@ -3,7 +3,7 @@
 /* ===== Design tokens ===== */
 :root {
 	--ink: #0F172A; --ink-2: #344054; --muted: #475467; --muted-2: #98A2B3;
-	--line: #EEF0F3; --field: #F4F6FB; --card: #FFFFFF; --page-fallback: #2A3BB0;
+	--line: #EEF0F3; --field: #F4F6FB; --card: #FFFFFF; --page-fallback: #1E2A78;
 	--accent: #2547D0; --accent-tint: #E0E7FF; --cta: #F97316; --sell: #1E3A8A;
 	--radius-card: 16px; --radius-field: 10px;
 	--font-body: Inter, system-ui, sans-serif;
@@ -350,4 +350,41 @@ select.cur-pill {
 	select.cur-pill { max-width: 120px; }
 	.tiles-card { padding: 16px; }
 	.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+
+/* ===== v3: Compare filters, all-countries table, converter pickers ===== */
+
+/* Compare: two rows of three equal columns, spaced like the summary cards. */
+.cmp-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 20px 22px; }
+.cmp-filters .actions .btn { width: 100%; }
+.cmp-filters .actions.span-2 { grid-column: span 2; }
+.cmp-filters .f-toggle .seg-option { flex: 1; }
+.cmp-filters .f-toggle .seg-option span { flex: 1; }
+
+.cmp-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cmp-tools form { margin: 0; }
+.pill-select {
+	height: 38px; padding: 0 32px 0 14px; border: 1px solid #D0D5DD; border-radius: 999px; cursor: pointer;
+	font: 500 13px var(--font-body); color: var(--ink); appearance: none; -webkit-appearance: none;
+	background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475467' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right 12px center no-repeat;
+}
+.ccy { padding: 2px 8px; border-radius: 999px; background: #F2F4F7; color: var(--ink-2); font: 500 12px var(--font-num); }
+.cmp-all th.left, .cmp-all td.left { text-align: left; }
+.cmp-all td.spread-col, .cmp-all th:last-child { width: 180px; text-align: left; }
+.country-cell { display: inline-flex; gap: 8px; align-items: center; }
+.country-cell b { font-weight: 500; }
+.spread-big { font-size: 17px; font-weight: 500; color: #C2410C; }
+
+/* Converter: Country and Bank pickers. */
+.conv-where { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+
+@media (max-width: 640px) {
+	.cmp-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+	.cmp-filters .f-toggle, .cmp-filters .actions, .cmp-filters .actions.span-2 { grid-column: 1 / -1; }
+	.bank-card .grid-2 { grid-template-columns: 1fr 1fr; }
+
+	/* Small fixes from the design */
+	.table-wrap table { width: 100%; }
+	td.sell, .rates-table th:nth-child(4) { padding-right: 20px !important; }
+	select.cur-pill { max-width: none; }
 }

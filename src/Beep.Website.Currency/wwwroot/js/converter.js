@@ -104,5 +104,15 @@
 		root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}));
 
+	// On a phone the currency picker shows the code only ("EUR"); otherwise "EUR · Euro".
+	const narrow = window.matchMedia('(max-width: 640px)');
+	function labelCurrencies() {
+		currencySelect.querySelectorAll('option').forEach(o => {
+			o.textContent = narrow.matches ? o.value : `${o.value} · ${o.dataset.name}`;
+		});
+	}
+	narrow.addEventListener('change', labelCurrencies);
+	labelCurrencies();
+
 	render();
 })();

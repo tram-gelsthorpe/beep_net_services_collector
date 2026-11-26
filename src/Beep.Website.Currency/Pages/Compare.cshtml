@@ -5,15 +5,42 @@
 	ViewData["Nav"] = "compare";
 	var code = Model.Currency ?? "";
 	var quote = Model.QuoteCurrency ?? "";
+	var all = Model.AllCountries;
 }
 
 <main class="container">
 	<h1 class="page-title">@T["Compare banks"]</h1>
 
-	<form method="get" class="filters">
-		@if (Model.Countries.Count > 1)
+	<form method="get" class="filters cmp-filters">
+		<div class="field f-toggle">
+			<span>@T["Compare in"]</span>
+			<div class="seg" role="radiogroup">
+				<label class="seg-option">
+					<input type="radio" name="scope" value="one" checked="@(!all)" onchange="this.form.submit()" />
+					<span>@(Model.CountryName ?? T["Country"])</span>
+				</label>
+				<label class="seg-option">
+					<input type="radio" name="scope" value="all" checked="@all" onchange="this.form.submit()" />
+					<span>@T["All countries"]</span>
+				</label>
+			</div>
+		</div>
+		<label class="field">
+			<span>@T["Currency"]</span>
+			<select name="currency" onchange="this.form.submit()">
+				@foreach (var c in Model.Currencies)
+				{
+					<option value="@c.Code" selected="@(c.Code == Model.Currency)">@c.Code — @c.Name</option>
+				}
+			</select>
+		</label>
+		<label class="field">
+			<span>@T["Date"]</span>
+			<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
+		</label>
+		@if (!all && Model.Countries.Count > 1)
 		{
-			<label class="field f-country">
+			<label class="field">
 				<span>@T["Country"]</span>
 				<select name="country" onchange="this.form.submit()">
 					@foreach (var c in Model.Countries)
@@ -27,23 +54,6 @@
 		{
 			<input type="hidden" name="country" value="@Model.Country" />
 		}
-		<label class="field f-wide">
-			<span>@T["Currency"]</span>
-			<select name="currency" onchange="this.form.submit()">
-				@foreach (var c in Model.Currencies)
-				{
-					<option value="@c.Code" selected="@(c.Code == Model.Currency)">@c.Code — @c.Name</option>
-				}
-			</select>
-		</label>
-		<label class="field f-date">
-			<span>@T["Amount"]</span>
-			<input class="num" type="text" name="amount" inputmode="decimal" value="@Model.AmountDisplay" />
-		</label>
-		<label class="field f-date">
-			<span>@T["Date"]</span>
-			<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
-		</label>
 		<div class="field f-toggle">
 			<span>@T["I want to"]</span>
 			<div class="seg" role="radiogroup">
@@ -57,7 +67,14 @@
 				</label>
 			</div>
 		</div>
-		<div class="actions">
+		@if (!all)
+		{
+			<label class="field">
+				<span>@T["Amount"]</span>
+				<input class="num" type="text" name="amount" inputmode="decimal" value="@Model.AmountDisplay" />
+			</label>
+		}
+		<div class="actions @(all ? "span-2" : "")">
 			<button type="submit" class="btn btn-primary">@T["Compare"]</button>
 		</div>
 	</form>
@@ -66,7 +83,7 @@
 	{
 		<p class="notice error">@Model.Error</p>
 	}
-	else if (Model.Rows.Count == 0)
+	else if (Model.Rows.Count == 0 && Model.AllRows.Count == 0)
 	{
 		<p class="notice">
 			@(Model.Date is { } d
@@ -74,7 +91,7 @@
 				: T["No rates match this search."])
 		</p>
 	}
-	else
+	else if (!all)
 	{
 		var cheapest = Model.CheapestToBuy;
 		var best = Model.BestToSell;
@@ -132,9 +149,9 @@
 					</p>
 				</div>
 				<nav class="seg light" aria-label="@T["Sort"]">
-					<a href="@Model.SortUrl("sell")" aria-current="@(Model.SortBy == "sell" ? "true" : null)">@T["Sell rate"]</a>
-					<a href="@Model.SortUrl("buy")" aria-current="@(Model.SortBy == "buy" ? "true" : null)">@T["Buy rate"]</a>
-					<a href="@Model.SortUrl("spread")" aria-current="@(Model.SortBy == "spread" ? "true" : null)">@T["Spread"]</a>
+					<a href="@Model.PageUrl("sell")" aria-current="@(Model.SortBy == "sell" ? "true" : null)">@T["Sell rate"]</a>
+					<a href="@Model.PageUrl("buy")" aria-current="@(Model.SortBy == "buy" ? "true" : null)">@T["Buy rate"]</a>
+					<a href="@Model.PageUrl("spread")" aria-current="@(Model.SortBy == "spread" ? "true" : null)">@T["Spread"]</a>
 				</nav>
 			</div>
 			<div class="table-wrap">
@@ -212,7 +229,149 @@
 				</section>
 			}
 		</div>
-
-		<p class="footnote">@T["Rates are indicative and taken from each bank’s published table. Always confirm with the bank before exchanging."]</p>
 	}
+	else
+	{
+		var lowest = Model.LowestSpread;
+		var bestCountry = Model.BestCountry;
+		decimal maxSpread = Model.Rows.Select(r => RateFormat.Spread(r.Rate)).OfType<decimal>().DefaultIfEmpty(0m).Max();
+		int Bar(decimal? s) => s is { } v && maxSpread > 0 ? (int)Math.Round(Math.Clamp(v / maxSpread, 0m, 1m) * 100m) : 0;
+
+		<div class="summary">
+			<div class="card" style="--c:#F97316">
+				<small>@T.Format("Lowest {0} spread anywhere", code)</small>
+				@if (lowest is { } l)
+				{
+					<strong>@l.Bank.ShortName</strong>
+					<p>@(l.Rate.CountryName ?? "—") · @T["spread"] <b class="num" style="color:#C2410C">@RateFormat.FormatSpread(l.Spread)</b></p>
+				}
+				else
+				{
+					<strong>—</strong>
+				}
+			</div>
+			<div class="card" style="--c:#0369A1">
+				<small>@T.Format("Best country for {0}", code)</small>
+				@if (bestCountry is { } bc)
+				{
+					<strong>@bc.Country</strong>
+					<p>@T["Average spread"] <b class="num" style="color:#0369A1">@RateFormat.FormatSpread(bc.AverageSpread)</b> @T.Format("across {0} bank(s)", bc.Banks)</p>
+				}
+				else
+				{
+					<strong>—</strong>
+				}
+			</div>
+			<div class="card" style="--c:#6D28D9">
+				<small>@T["Coverage"]</small>
+				<strong>@T.Format("{0} country(ies) · {1} bank(s)", Model.CoverageCountries, Model.AllRows.Count)</strong>
+				<p>@T["Each bank’s rates are in its local currency"]</p>
+			</div>
+		</div>
+
+		<section class="bank cmp-desktop">
+			<div class="cmp-head">
+				<div>
+					<h2>@T.Format("{0} at banks in all countries", code)</h2>
+					<p>
+						@T.Format("Rates of {0}", RateFormat.FormatDate(Model.AllRows.Max(r => r.Rate.Date)))
+						· @(Model.SortBy == "country" ? T["sorted by country"] : T["sorted by lowest spread"])
+						· @T["rates in each bank’s local currency"]
+					</p>
+				</div>
+				<div class="cmp-tools">
+					<form method="get">
+						<input type="hidden" name="scope" value="all" />
+						<input type="hidden" name="currency" value="@Model.Currency" />
+						<input type="hidden" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
+						<input type="hidden" name="side" value="@(Model.Buying ? "buy" : "sell")" />
+						<input type="hidden" name="sort" value="@Model.SortBy" />
+						<select class="pill-select" name="only" aria-label="@T["Filter by country"]" onchange="this.form.submit()">
+							<option value="">@T["All countries"]</option>
+							@foreach (var c in Model.RowCountries)
+							{
+								<option value="@c.Code" selected="@(string.Equals(c.Code, Model.Only, StringComparison.OrdinalIgnoreCase))">@c.Name</option>
+							}
+						</select>
+					</form>
+					<nav class="seg light" aria-label="@T["Sort"]">
+						<a href="@Model.PageUrl("spread")" aria-current="@(Model.SortBy == "spread" ? "true" : null)">@T["Spread"]</a>
+						<a href="@Model.PageUrl("country")" aria-current="@(Model.SortBy == "country" ? "true" : null)">@T["Country"]</a>
+					</nav>
+				</div>
+			</div>
+			<div class="table-wrap">
+				<table class="cmp-table cmp-all">
+					<thead>
+						<tr>
+							<th>@T["Bank"]</th>
+							<th class="left">@T["Country"]</th>
+							<th>@T["Buy · transfer"]</th>
+							<th>@T["Sell"]</th>
+							<th class="left">@T["Spread"]</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (var i = 0; i < Model.Rows.Count; i++)
+						{
+							var (bank, rate) = Model.Rows[i];
+							var colour = RateFormat.BankColours[i % RateFormat.BankColours.Count];
+							var spread = RateFormat.Spread(rate);
+							<tr>
+								<td>
+									<span class="bank-cell">
+										<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
+										<span><b>@bank.ShortName</b><small class="num">@bank.Bic</small></span>
+									</span>
+								</td>
+								<td class="left">
+									<span class="country-cell"><b>@(rate.CountryName ?? "—")</b>@if (rate.QuoteCurrencyCode is { } q) { <span class="ccy">@q</span> }</span>
+								</td>
+								<td class="num @(rate.BuyingRateTransfer is null ? "na" : "")">@RateFormat.Format(rate.BuyingRateTransfer)</td>
+								<td class="num sell @(rate.SellingRate is null ? "na" : "")">@RateFormat.Format(rate.SellingRate)</td>
+								<td class="left spread-col">
+									<span class="spread">
+										<span class="bar"><i style="width:@(Bar(spread))%"></i></span>
+										<span class="num">@RateFormat.FormatSpread(spread)</span>
+									</span>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="cmp-foot">
+				<span>@T["Rates are in each bank’s local currency, so banks in different countries are compared by spread."]</span>
+			</div>
+		</section>
+
+		<div class="bank-cards">
+			@for (var i = 0; i < Model.Rows.Count; i++)
+			{
+				var (bank, rate) = Model.Rows[i];
+				var colour = RateFormat.BankColours[i % RateFormat.BankColours.Count];
+				<section class="card bank-card">
+					<div class="top">
+						<span class="bank-cell">
+							<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
+							<span>
+								<b>@bank.ShortName</b>
+								<small>@(rate.CountryName ?? "—") @if (rate.QuoteCurrencyCode is { } q) { <span class="ccy">@q</span> }</small>
+							</span>
+						</span>
+						<span class="bank-card-sell">
+							<small>@T["Spread"]</small>
+							<span class="num spread-big">@RateFormat.FormatSpread(RateFormat.Spread(rate))</span>
+						</span>
+					</div>
+					<div class="grid grid-2">
+						<span><small>@T["Buy · transfer"]</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
+						<span class="end"><small>@T["Sell"]</small><span class="num kv-sell">@RateFormat.Format(rate.SellingRate)</span></span>
+					</div>
+				</section>
+			}
+		</div>
+	}
+
+	<p class="footnote">@T["Rates are indicative and taken from each bank’s published table. Always confirm with the bank before exchanging."]</p>
 </main>

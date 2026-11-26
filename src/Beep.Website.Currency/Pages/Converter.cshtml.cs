@@ -10,11 +10,15 @@ namespace Beep.Website.Currency.Pages;
 /// Converter: converts between a foreign currency and the bank's currency (VND) at one bank's latest rates.
 /// Foreign → VND uses the bank's buy rate (transfer or cash); VND → foreign uses its sell rate. The page
 /// sends the bank's rates once; the conversion itself runs in the browser (wwwroot/js/converter.js).
-/// <c>/Converter?bank=BFTVVNVX&amp;currency=EUR</c>.
+/// The Country and Bank pickers choose the bank: <c>/Converter?country=VN&amp;bank=BFTVVNVX&amp;currency=EUR</c>.
 /// </summary>
 public sealed class ConverterModel(BeepApiClient api, UiText text, ILogger<ConverterModel> logger) : PageModel
 {
 	private static readonly string[] PreferredCurrencies = ["EUR", "USD"];
+
+	/// <summary>The bank's country code; its banks fill the Bank picker.</summary>
+	[BindProperty(SupportsGet = true)]
+	public string? Country { get; set; }
 
 	/// <summary>The bank's BIC.</summary>
 	[BindProperty(SupportsGet = true)]
@@ -23,6 +27,7 @@ public sealed class ConverterModel(BeepApiClient api, UiText text, ILogger<Conve
 	[BindProperty(SupportsGet = true)]
 	public string? Currency { get; set; }
 
+	public IReadOnlyList<CountryItem> Countries { get; private set; } = [];
 	public IReadOnlyList<BankItem> Banks { get; private set; } = [];
 	public BankRates? Rates { get; private set; }
 	public string? Error { get; private set; }
@@ -31,7 +36,13 @@ public sealed class ConverterModel(BeepApiClient api, UiText text, ILogger<Conve
 	{
 		try
 		{
-			Banks = await api.GetBanksAsync(null, cancellationToken);
+			Countries = await api.GetCountriesAsync(cancellationToken);
+			var country = Countries.FirstOrDefault(c => string.Equals(c.Code, Country, StringComparison.OrdinalIgnoreCase))
+				?? Countries.FirstOrDefault();
+			Country = country?.Code;
+
+			// A bank of another country (after the country changed) falls back to the country's first bank.
+			Banks = await api.GetBanksAsync(Country, cancellationToken);
 			var bank = Banks.FirstOrDefault(b => string.Equals(b.Bic, Bank, StringComparison.OrdinalIgnoreCase))
 				?? Banks.FirstOrDefault();
 			if (bank is null)

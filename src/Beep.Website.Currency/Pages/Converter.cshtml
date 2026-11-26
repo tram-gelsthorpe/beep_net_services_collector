@@ -30,6 +30,27 @@
 						<button type="button" data-dir="v2f" aria-pressed="false"></button>
 					</div>
 				</div>
+				<form method="get" class="conv-where">
+					<label class="field">
+						<span>@T["Country"]</span>
+						<select name="country" onchange="this.form.elements.bank.value = ''; this.form.submit()">
+							@foreach (var c in Model.Countries)
+							{
+								<option value="@c.Code" selected="@(c.Code == Model.Country)">@c.Name</option>
+							}
+						</select>
+					</label>
+					<label class="field">
+						<span>@T["Bank"]</span>
+						<select name="bank" onchange="this.form.submit()">
+							@foreach (var b in Model.Banks)
+							{
+								<option value="@b.Bic" selected="@(b.Bic == Model.Bank)">@BankRates.ShortNameOf(b.Name)</option>
+							}
+						</select>
+					</label>
+					<input type="hidden" name="currency" value="@Model.Currency" data-bank-currency />
+				</form>
 				<div class="conv-boxes">
 					<label class="conv-box">
 						<span>@T["You have"]</span>
@@ -38,7 +59,7 @@
 							<select data-currency class="cur-pill" aria-label="@T["Currency"]">
 								@foreach (var r in bank.Rates)
 								{
-									<option value="@r.CurrencyCode" selected="@(r.CurrencyCode == Model.Currency)">@r.CurrencyCode · @r.CurrencyName</option>
+									<option value="@r.CurrencyCode" data-name="@r.CurrencyName" selected="@(r.CurrencyCode == Model.Currency)">@r.CurrencyCode · @r.CurrencyName</option>
 								}
 							</select>
 							<span data-quote-in class="cur-pill" hidden>@quote</span>
@@ -67,21 +88,6 @@
 
 			<aside class="conv-side">
 				<section class="card">
-					@if (Model.Banks.Count > 1)
-					{
-						<form method="get" class="conv-bank-form">
-							<label class="field">
-								<span>@T["Bank"]</span>
-								<select name="bank" onchange="this.form.submit()">
-									@foreach (var b in Model.Banks)
-									{
-										<option value="@b.Bic" selected="@(b.Bic == Model.Bank)">@b.Name</option>
-									}
-								</select>
-							</label>
-							<input type="hidden" name="currency" value="@Model.Currency" data-bank-currency />
-						</form>
-					}
 					<div class="bank-cell">
 						<span class="bank-dot bank-dot-lg">@bank.Badge</span>
 						<span>

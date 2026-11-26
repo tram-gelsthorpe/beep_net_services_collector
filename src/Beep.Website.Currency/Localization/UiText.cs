@@ -182,6 +182,28 @@ public sealed class UiText
 		new("bank buys (cash)", "ngân hàng mua (tiền mặt)", "ธนาคารรับซื้อ (เงินสด)", "银行买入（现钞）", "銀行の買値（現金）", "은행 매입(현찰)", "la banque achète (espèces)"),
 		new("bank sells", "ngân hàng bán", "ธนาคารขาย", "银行卖出", "銀行の売値", "은행 매도", "la banque vend"),
 		new("Compare {0} at other banks →", "So sánh {0} tại các ngân hàng khác →", "เปรียบเทียบ {0} กับธนาคารอื่น →", "比较其他银行的 {0} →", "他の銀行の {0} と比較 →", "다른 은행의 {0} 비교 →", "Comparer les {0} dans d’autres banques →"),
+
+		// Compare banks: all countries
+		new("Compare in", "So sánh tại", "เปรียบเทียบใน", "比较范围", "比較範囲", "비교 범위", "Comparer dans"),
+		new("Lowest {0} spread anywhere", "Chênh lệch {0} thấp nhất", "ส่วนต่าง {0} ต่ำที่สุด", "{0} 价差最低", "{0} のスプレッドが最も小さい銀行", "{0} 스프레드가 가장 낮은 곳", "Écart {0} le plus bas"),
+		new("spread", "chênh lệch", "ส่วนต่าง", "价差", "スプレッド", "스프레드", "écart"),
+		new("Best country for {0}", "Quốc gia tốt nhất cho {0}", "ประเทศที่ดีที่สุดสำหรับ {0}", "{0} 最佳国家", "{0} に最適な国", "{0}에 가장 좋은 국가", "Meilleur pays pour les {0}"),
+		new("Average spread", "Chênh lệch trung bình", "ส่วนต่างเฉลี่ย", "平均价差", "平均スプレッド", "평균 스프레드", "Écart moyen"),
+		new("across {0} bank(s)", "trên {0} ngân hàng", "จาก {0} ธนาคาร", "共 {0} 家银行", "{0} 行の平均", "은행 {0}곳 기준", "sur {0} banque(s)"),
+		new("Coverage", "Phạm vi", "ความครอบคลุม", "覆盖范围", "対象範囲", "범위", "Couverture"),
+		new("{0} country(ies) · {1} bank(s)", "{0} quốc gia · {1} ngân hàng", "{0} ประเทศ · {1} ธนาคาร", "{0} 个国家 · {1} 家银行", "{0} か国 · {1} 行", "{0}개국 · 은행 {1}곳", "{0} pays · {1} banque(s)"),
+		new("Each bank’s rates are in its local currency", "Tỷ giá của mỗi ngân hàng tính bằng nội tệ của nước đó", "อัตราของแต่ละธนาคารเป็นสกุลเงินท้องถิ่น", "各银行的汇率以其本币计", "各銀行のレートは現地通貨建てです", "각 은행의 환율은 현지 통화 기준입니다", "Les taux de chaque banque sont dans sa monnaie locale"),
+		new("{0} at banks in all countries", "{0} tại các ngân hàng ở mọi quốc gia", "{0} ที่ธนาคารในทุกประเทศ", "所有国家银行的 {0}", "すべての国の銀行の {0}", "모든 국가 은행의 {0}", "{0} dans les banques de tous les pays"),
+		new("sorted by country", "sắp xếp theo quốc gia", "เรียงตามประเทศ", "按国家排序", "国順", "국가순", "triées par pays"),
+		new("rates in each bank’s local currency", "tỷ giá tính bằng nội tệ của từng ngân hàng", "อัตราเป็นสกุลเงินท้องถิ่นของแต่ละธนาคาร", "汇率以各银行本币计", "レートは各銀行の現地通貨建て", "환율은 각 은행의 현지 통화 기준", "taux dans la monnaie locale de chaque banque"),
+		new("Filter by country", "Lọc theo quốc gia", "กรองตามประเทศ", "按国家筛选", "国で絞り込む", "국가별 필터", "Filtrer par pays"),
+		new("Rates are in each bank’s local currency, so banks in different countries are compared by spread.",
+			"Tỷ giá tính bằng nội tệ của từng ngân hàng, nên các ngân hàng ở các quốc gia khác nhau được so sánh theo chênh lệch.",
+			"อัตราเป็นสกุลเงินท้องถิ่นของแต่ละธนาคาร จึงเปรียบเทียบธนาคารต่างประเทศกันด้วยส่วนต่าง",
+			"汇率以各银行本币计，因此不同国家的银行按价差比较。",
+			"レートは各銀行の現地通貨建てのため、国の異なる銀行はスプレッドで比較します。",
+			"환율이 각 은행의 현지 통화 기준이므로 다른 국가의 은행은 스프레드로 비교합니다.",
+			"Les taux sont dans la monnaie locale de chaque banque : les banques de pays différents sont donc comparées par écart."),
 	}.ToDictionary(e => e.En, StringComparer.Ordinal);
 
 	private readonly ILogger<UiText> _logger;
