@@ -80,6 +80,8 @@ a { color: var(--accent); }
 
 /* ===== Main ===== */
 main.container { display: flex; flex-direction: column; gap: 24px; padding-top: 32px; padding-bottom: 64px; }
+/* Below a filter bar (Bank rates), the same space as between the boxes. */
+.container:has(> .filters) + main.container { padding-top: 24px; }
 /* Let wide tables scroll inside their card instead of widening the page. */
 main > * { min-width: 0; }
 
@@ -89,7 +91,7 @@ main > * { min-width: 0; }
 /* Highlight cards */
 .featured { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .fcard {
-	background: #fff; border-radius: var(--radius-card); padding: 20px 22px; display: flex; flex-direction: column; gap: 16px;
+	background: #fff; border-radius: var(--radius-card); padding: 16px 22px 20px; /* + the 4px top line = 20px, as at the bottom */ display: flex; flex-direction: column; gap: 16px;
 	box-shadow: 0 6px 20px rgba(15, 23, 42, .08); border-top: 4px solid var(--c);
 }
 .fcard-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -216,7 +218,7 @@ tr.no-match td { text-align: left; color: var(--muted); }
 .f-toggle { flex: 1.4 1 220px; gap: 4px; }
 .f-toggle .seg { background: transparent; padding: 0; }
 .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.summary .card { padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; border-top: 4px solid var(--c); }
+.summary .card { padding: 16px 22px 20px; /* + the 4px top line = 20px, as at the bottom */ display: flex; flex-direction: column; gap: 10px; border-top: 4px solid var(--c); }
 .summary small { font-size: 13px; font-weight: 500; color: var(--muted); }
 .summary strong { font: 600 22px var(--font-display); }
 .summary strong.num { font-family: var(--font-num); }
