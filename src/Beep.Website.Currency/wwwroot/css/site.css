@@ -540,3 +540,11 @@ select.cur-pill {
 		select.cur-pill { width: 110px; }
 	}
 }
+
+/* Compare filters on desktop: both rows as tall as the one-line fields (54px). The "I want to" box keeps the same
+   8px padding and 2px label gap as the others, with Buy/Sell buttons the height of a line of text. */
+@media (min-width: 641px) {
+	.cmp-filters { grid-auto-rows: 1fr; }
+	.cmp-filters .f-toggle { gap: 2px; }
+	.cmp-filters .f-toggle .seg-option span { height: 21px; font-size: 12.5px; }
+}
