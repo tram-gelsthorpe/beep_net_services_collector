@@ -52,7 +52,7 @@
 		const which = f2v ? (state.mode === 'cash' ? data.text.buysCash : data.text.buysTransfer) : data.text.sells;
 		$('[data-rate-line]').innerHTML = used == null
 			? `— · <span class="nowrap">${which}</span>`
-			: format(data.text.rateUsed, `<b dir="ltr">1 ${state.currency} = ${fmt(used, 2)} ${quote}</b>`) + ` · <span class="nowrap">${which}</span>`; // the rate's name stays on one line ("ธนาคารรับซื้อ (โอน)")
+			: format(data.text.rateUsed, `<b dir="ltr" class="nowrap">1 ${state.currency} = ${fmt(used, 2)} ${quote}</b>`) + ` · <span class="nowrap">${which}</span>`; // the rate and its name each stay on one line ("27,815.14 VND", "ธนาคารรับซื้อ (โอน)")
 
 		modeSeg.hidden = !f2v;
 		modeSeg.querySelectorAll('button').forEach(b => {

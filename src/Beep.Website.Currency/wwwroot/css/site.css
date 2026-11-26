@@ -358,8 +358,9 @@ select.cur-pill {
 	.bank-card-sell { text-align: end; }
 	.bank-card-sell small { display: block; font-size: 11px; color: var(--muted); }
 	.bank-card .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
-	.bank-card .grid small { display: block; font-size: 11px; color: var(--muted); }
+	.bank-card .grid small { display: block; font-size: 11px; color: var(--muted); text-wrap: balance; } /* "Payer" / "pour 1,000", not "Payer pour" / "1,000" */
 	.bank-card .grid span { font-size: 13px; }
+	.bank-card .grid small span { font-size: inherit; } /* the label's halves ("Achat ·", "espèces") */
 	.bank-card .grid .end { text-align: end; }
 	/* Label at the top, value at the bottom: the values stay level when a label takes two lines (German). */
 	.bank-card .grid > span { display: flex; flex-direction: column; justify-content: space-between; gap: 2px; }

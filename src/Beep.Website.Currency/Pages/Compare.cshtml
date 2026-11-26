@@ -230,8 +230,8 @@
 						</span>
 					</div>
 					<div class="grid">
-						<span><small>@T["Buy · cash"]</small><span class="num">@RateFormat.Format(rate.BuyingRateCash)</span></span>
-						<span><small>@T["Buy · transfer"]</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
+						<span><small>@BreakOnlyAfterDot(T["Buy · cash"])</small><span class="num">@RateFormat.Format(rate.BuyingRateCash)</span></span>
+						<span><small>@BreakOnlyAfterDot(T["Buy · transfer"])</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
 						<span class="end"><small>@T.Format("Pay for {0}", Model.AmountDisplay)</small><span class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount)</span></span>
 					</div>
 				</section>
@@ -376,7 +376,7 @@
 						</span>
 					</div>
 					<div class="grid grid-2">
-						<span><small>@T["Buy · transfer"]</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
+						<span><small>@BreakOnlyAfterDot(T["Buy · transfer"])</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
 						<span class="end"><small>@T["Sell"]</small><span class="num kv-sell">@RateFormat.Format(rate.SellingRate)</span></span>
 					</div>
 				</section>
@@ -386,3 +386,16 @@
 
 	<p class="footnote">@T["Rates are indicative and taken from each bank’s published table. Always confirm with the bank before exchanging."]</p>
 </main>
+
+@functions {
+	// A card label wraps only after its dot, keeping each half whole: "Aankoop ·" / "contant" (not "Aankoop" / "· contant"),
+	// "Mua ·" / "chuyển khoản" (not "Mua · chuyển" / "khoản").
+	static Microsoft.AspNetCore.Html.IHtmlContent BreakOnlyAfterDot(string label)
+	{
+		var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+		var halves = label.Split(" · ");
+		return new Microsoft.AspNetCore.Html.HtmlString(halves.Length == 2
+			? $"<span class=\"nowrap\">{enc.Encode(halves[0])} ·</span> <span class=\"nowrap\">{enc.Encode(halves[1])}</span>"
+			: enc.Encode(label));
+	}
+}
