@@ -248,3 +248,87 @@ main.container{padding-top:24px;padding-bottom:64px}
   select.cur-pill{max-width:none}
 }
 @media (min-width:641px){ .cmp-filters [data-only][hidden] + .actions{grid-column:span 2} }
+
+/* ===== Subscribe button (header) ===== */
+.subscribe-btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border:0;border-radius:999px;background:#15803D;color:#fff;font:600 14px var(--font-body);cursor:pointer}
+@media (max-width:640px){ .subscribe-btn{width:36px;padding:0;justify-content:center} .subscribe-btn span{display:none} }
+.site-header > div:last-child{display:flex;align-items:center;gap:8px}
+
+/* ===== Subscribe dialog ===== */
+.sub-open{overflow:hidden}
+.sub-overlay{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;padding:64px 24px;overflow-y:auto}
+.sub-dialog{width:100%;max-width:600px;background:#fff;border-radius:20px;padding:28px;box-shadow:0 24px 60px rgba(15,23,42,.35)}
+.sub-dialog form{display:flex;flex-direction:column;gap:20px}
+.sub-handle{display:none}
+.sub-head{display:flex;gap:14px;align-items:center}
+.sub-head > div{flex:1}
+.sub-head h2,.sub-done h2{margin:0;font:600 24px var(--font-display);letter-spacing:-.01em}
+.sub-head p{margin:4px 0 0;font-size:14px;color:var(--muted)}
+.sub-icon{width:48px;height:48px;flex:none;border-radius:50%;background:#FFEDD5;display:flex;align-items:center;justify-content:center}
+.sub-close{width:40px;height:40px;flex:none;align-self:flex-start;border:0;border-radius:50%;background:var(--field);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sub-field{display:flex;flex-direction:column;gap:6px}
+.sub-label{font-size:13px;font-weight:600}
+.sub-count{font-weight:400;color:var(--muted)}
+.sub-input{height:48px;padding:0 14px;border:1px solid #D0D5DD;border-radius:10px;font:15px var(--font-body);color:var(--ink);background:#fff}
+.sub-select{appearance:none;-webkit-appearance:none;padding-right:40px;font-weight:500;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475467' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right 14px center no-repeat}
+.sub-err{font-size:12px;color:#B42318}
+/* Checklist box: search + "select all" + list showing 3 rows, scrolls for more */
+.checklist{border:1px solid #D0D5DD;border-radius:10px;overflow:hidden;background:#fff}
+.cl-search{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-bottom:1px solid var(--line)}
+.cl-search input{flex:1;min-width:0;border:0;outline:none;font:14px var(--font-body);color:var(--ink)}
+.cl-all,.cl-item{display:flex;align-items:center;gap:12px;cursor:pointer;font-size:14px}
+.cl-all{height:44px;padding:0 12px;border-bottom:1px solid var(--line);background:#F8FAFF;font-weight:600}
+.cl-list{max-height:128px;overflow-y:auto;padding:4px}
+.cl-item{min-height:40px;padding:0 8px;border-radius:8px;font-weight:500}
+.cl-item:has(input:checked){background:#F5F8FF}
+.cl-item .muted{color:var(--muted);font-weight:400}
+.cl-item b{display:inline-block;width:36px;font-weight:500}
+.checklist input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent);flex:none}
+.cl-empty{padding:12px 8px;font-size:13px;color:var(--muted)}
+.sub-submit{height:52px;font-size:16px;border-radius:12px}
+.sub-note{margin:0;font-size:12px;color:var(--muted);text-align:center}
+.sub-done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:16px 8px}
+.sub-done p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+.sub-done p b{color:var(--ink)}
+.sub-done-icon{width:64px;height:64px;border-radius:50%;background:#E0E7FF;display:flex;align-items:center;justify-content:center}
+.sub-done-actions{display:flex;gap:8px;width:100%;flex-wrap:wrap}
+.sub-done-actions .btn{flex:1;min-width:140px}
+@media (max-width:640px){
+  .sub-overlay{padding:48px 0 0;align-items:flex-end}
+  .sub-dialog{border-radius:24px 24px 0 0;padding:12px 16px 32px;max-width:none;min-height:calc(100% - 0px)}
+  .sub-handle{display:block;width:40px;height:5px;border-radius:3px;background:#D0D5DD;margin:0 auto 18px}
+  .sub-head h2{font-size:20px}
+}
+@media (max-width:640px){
+  .site-header{flex-wrap:nowrap;gap:8px}
+  .header-left{gap:0;min-width:0}
+  .site-header > div:last-child{gap:6px;flex:none}
+  .sub-overlay{align-items:flex-start}
+}
+
+/* ===== Countries multi-select (Compare) — dropdown is exactly as wide as the field ===== */
+.ms{position:relative;z-index:10;padding:0}
+.ms-trigger{display:flex;flex-direction:column;align-items:stretch;gap:2px;width:100%;padding:8px 14px;border:0;border-radius:var(--radius-field);background:transparent;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.ms-trigger > span:first-child{font-size:12px;font-weight:500;color:var(--muted)}
+.ms-trigger[aria-expanded="true"]{box-shadow:0 0 0 2px var(--accent)}
+.ms-value{display:flex;align-items:center;justify-content:space-between;gap:8px;font:500 15px var(--font-body);color:var(--ink)}
+.ms-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-count{flex:none;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent-tint);color:var(--accent);font-size:12px;display:flex;align-items:center;justify-content:center}
+.ms-panel{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border-radius:12px;box-shadow:0 16px 40px rgba(15,23,42,.22),0 0 0 1px #E4E7EC;overflow:hidden}
+.ms-panel .checklist{border:0;border-radius:0}
+.ms-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.btn-done{height:36px;padding:0 16px;border:0;border-radius:8px;background:var(--ink);color:#fff;font:600 13px var(--font-body);cursor:pointer}
+
+/* ===== Language menu: same width as its button (desktop) ===== */
+@media (min-width:641px){
+  .lang-btn{min-width:150px;justify-content:space-between}
+  .lang-menu{left:0;right:0;width:auto}
+  .lang-menu .code{display:none}
+}
+.ms .ms-value span{font-size:15px;font-weight:500;color:var(--ink)}
+.ms .ms-value .ms-count{font-size:12px;color:var(--accent)}
+.ms .cl-all span,.ms .cl-item span{font-size:14px;color:var(--ink)}
+.ms .cl-item span.muted{font-size:12px;color:var(--muted)}
+.ms .ms-foot span{font-size:12px;color:var(--muted)}
+@media (max-width:640px){ .cmp-filters .ms{grid-column:1 / -1} }

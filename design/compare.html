@@ -20,6 +20,7 @@
     </nav>
   </div>
   <div style="display:flex;align-items:center;gap:6px">
+    <button class="subscribe-btn" type="button" data-open-subscribe aria-label="Subscribe to rate alerts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Subscribe</span></button>
     <div class="lang" id="lang">
       <button class="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" id="langBtn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2547D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
@@ -36,8 +37,17 @@
   <h1 class="page-title">Compare banks</h1>
 
   <form class="filters cmp-filters">
-    <div class="field f-toggle"><span>Compare in</span>
-      <div class="seg" id="scopeSeg"><button type="button" data-scope="one" aria-pressed="true">Vietnam</button><button type="button" data-scope="all" aria-pressed="false">All countries</button></div>
+    <div class="field ms" id="countryMs">
+      <button type="button" class="ms-trigger" aria-haspopup="true" aria-expanded="false"><span>Countries</span>
+        <span class="ms-value"><span class="ms-label" id="msLabel">Vietnam</span><span class="ms-count num" id="msCount">1</span></span></button>
+      <div class="ms-panel" hidden>
+        <div class="checklist">
+          <label class="cl-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="msQ" placeholder="Search countries" aria-label="Search countries"></label>
+          <label class="cl-all"><input type="checkbox" id="msAll"><span>All countries</span></label>
+          <div class="cl-list" id="msList"></div>
+        </div>
+        <div class="ms-foot"><span id="msHint"></span><button type="button" class="btn-done" id="msDone">Done</button></div>
+      </div>
     </div>
     <label class="field"><span>Currency</span><select><option>EUR — Euro</option></select></label>
     <label class="field"><span>Date</span><input type="date" value="2026-11-26"></label>
@@ -56,7 +66,7 @@
 
   <section class="bank cmp-desktop" data-only="one">
     <div class="cmp-head">
-      <div><h2>EUR at Vietnamese banks</h2><p>Rates of 26/11/2026 · sorted by lowest sell rate · all values in VND</p></div>
+      <div><h2>EUR at banks in <span id="oneCountry">Vietnam</span></h2><p>Rates of 26/11/2026 · sorted by lowest sell rate · all values in <span id="oneCcy">VND</span></p></div>
       <div class="seg light"><button type="button" aria-pressed="true">Sell rate</button><button type="button" aria-pressed="false">Buy rate</button><button type="button" aria-pressed="false">Spread</button></div>
     </div>
     <div class="table-wrap">
@@ -78,7 +88,7 @@
 
   <section class="bank cmp-desktop" data-only="all" hidden>
     <div class="cmp-head">
-      <div><h2>EUR at banks in all countries</h2><p>Rates of 26/11/2026 · sorted by lowest spread · rates in each bank’s local currency</p></div>
+      <div><h2>EUR at banks in <span id="nCountries">2</span> countries</h2><p>Rates of 26/11/2026 · sorted by lowest spread · rates in each bank’s local currency</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <select class="pill-select" aria-label="Filter by country"><option>All countries</option><option>Vietnam</option></select>
         <div class="seg light"><button type="button" aria-pressed="true">Spread</button><button type="button" aria-pressed="false">Country</button></div>
@@ -140,14 +150,37 @@ document.getElementById('allCards').innerHTML = ALL.map(b => `<section class="ca
   <div class="grid" style="grid-template-columns:1fr 1fr"><span><small>Buy transfer</small><span class="num">${b.transfer}</span></span>
   <span style="text-align:right"><small>Sell</small><span class="num" style="color:var(--sell);font-weight:500">${b.sell}</span></span></div></section>`).join('');
 
-// Scope switch: "Vietnam" compares prices in VND; "All countries" compares by spread.
-document.getElementById('scopeSeg').onclick = e => {
-  const btn = e.target.closest('button'); if (!btn) return;
-  const scope = btn.dataset.scope;
-  document.querySelectorAll('#scopeSeg button').forEach(x => x.setAttribute('aria-pressed', x === btn));
-  document.querySelectorAll('[data-only]').forEach(el => el.hidden = el.dataset.only !== scope);
-};
+// Countries multi-select (checklist dropdown, same width as its field).
+// 1 country → compare prices in that country's currency. 2+ countries → compare by spread across countries.
+const COUNTRIES = [['Vietnam','VND'],['Thailand','THB'],['Singapore','SGD'],['Malaysia','MYR'],['Philippines','PHP'],['Indonesia','IDR'],['Cambodia','KHR']];
+const sel = new Set(['Vietnam']);
+const ms = document.getElementById('countryMs'), panel = ms.querySelector('.ms-panel'), trig = ms.querySelector('.ms-trigger');
+function renderCountries(){
+  const q = document.getElementById('msQ').value.toLowerCase();
+  const shown = COUNTRIES.filter(([n]) => n.toLowerCase().includes(q));
+  document.getElementById('msList').innerHTML = shown.length ? shown.map(([n,c]) => `<label class="cl-item"><input type="checkbox" value="${n}" ${sel.has(n)?'checked':''}><span style="flex:1">${n}</span><span class="num muted" style="font-size:12px">${c}</span></label>`).join('') : '<div class="cl-empty">No matches.</div>';
+  const all = document.getElementById('msAll'); all.checked = sel.size === COUNTRIES.length; all.indeterminate = sel.size > 0 && sel.size < COUNTRIES.length;
+  const list = COUNTRIES.map(c => c[0]).filter(n => sel.has(n));
+  document.getElementById('msLabel').textContent = !list.length ? 'Choose countries' : list.length === COUNTRIES.length ? 'All countries' : list.length <= 2 ? list.join(', ') : `${list[0]} +${list.length-1} more`;
+  document.getElementById('msCount').textContent = list.length;
+  const one = list[0] || 'Vietnam', ccy = (COUNTRIES.find(c => c[0] === one) || COUNTRIES[0])[1];
+  document.getElementById('msHint').textContent = list.length === 1 ? `Comparing prices in ${ccy}` : list.length > 1 ? `Comparing ${list.length} countries by spread` : 'Pick at least one';
+  const mode = list.length > 1 ? 'all' : 'one';
+  document.querySelectorAll('[data-only]').forEach(el => el.hidden = el.dataset.only !== mode);
+  document.getElementById('oneCountry').textContent = one; document.getElementById('oneCcy').textContent = ccy;
+  document.getElementById('nCountries').textContent = list.length;
+  // In "all" mode show only the chosen countries' banks (wire to real data).
+  document.querySelectorAll('#allRows tr, #allCards .bank-card').forEach((el, i) => { el.hidden = !sel.has(ALL[i % ALL.length].country); });
+}
+trig.onclick = () => { const open = panel.hidden; panel.hidden = !open; trig.setAttribute('aria-expanded', open); };
+document.getElementById('msDone').onclick = () => { panel.hidden = true; trig.setAttribute('aria-expanded', false); };
+document.addEventListener('click', e => { if (!ms.contains(e.target)) { panel.hidden = true; trig.setAttribute('aria-expanded', false); } });
+document.getElementById('msQ').addEventListener('input', renderCountries);
+document.getElementById('msList').addEventListener('change', e => { e.target.checked ? sel.add(e.target.value) : sel.delete(e.target.value); renderCountries(); });
+document.getElementById('msAll').addEventListener('change', e => { sel.clear(); if (e.target.checked) COUNTRIES.forEach(c => sel.add(c[0])); renderCountries(); });
+renderCountries();
 </script>
 <script src="lang.js"></script>
+<script src="subscribe.js"></script>
 </body>
 </html>

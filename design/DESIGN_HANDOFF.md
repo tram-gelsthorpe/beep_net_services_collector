@@ -1,4 +1,4 @@
-# Beep Currency — redesign handoff (v3)
+# Beep Currency — redesign handoff (v5)
 
 Three pages, each responsive (desktop and mobile ≤ 640px), sharing one stylesheet.
 
@@ -9,6 +9,7 @@ Three pages, each responsive (desktop and mobile ≤ 640px), sharing one stylesh
 | `converter.html` | **Converter**: working currency converter |
 | `styles.css` | All styles and design tokens, shared by the three pages |
 | `lang.js` | Language dropdown, shared by all pages |
+| `subscribe.js` | **Subscribe** button and the "Get rate alerts" dialog, shared by all pages (open any page with `#subscribe` to see it straight away) |
 | `background.png` | Full-page background image |
 
 Open any page in a browser to see it working. Make the window narrower than 640px to see the mobile layout.
@@ -48,6 +49,7 @@ Restyle the existing Beep Currency site to match these pages.
 The currency code pills in tables cycle through five tints: sky, violet, orange, pink and yellow.
 
 ## Shared layout
+- **Dropdown width rule.** Every dropdown list is exactly as wide as the control that opens it (Countries list = Countries field; language menu = language button). On desktop the language button is at least 150px wide and the menu shows just the language names. The mobile language menu is the one exception: the mobile button only shows "EN", so its menu stays 250px wide.
 - **Width.** Content is at most 1180px wide, with a 32px gutter (16px on mobile). The header, filter bar, cards and tables share this exact width, so their left and right edges line up.
 - **Background.** `background.png` is set to `cover`, anchored to the top, on the whole page. Text that sits directly on the background is white.
 - **Header.** It has no bar behind it. It contains:
@@ -66,10 +68,10 @@ The currency code pills in tables cycle through five tints: sky, violet, orange,
    - **Rates table:** five columns, with the spread shown as an orange bar.
    - **Mobile:** the highlight cards become a single list. The table shows only Currency, Buy transfer and Sell.
 2. **Compare banks:**
-   - **Compare in:** a switch between **one country** (Vietnam) and **All countries**.
-     - *One country:* banks are compared on price in the local currency, including "You pay for <amount>".
-     - *All countries:* each bank quotes in its own currency, so banks are compared by **spread %**. The table gains a Country column with a local-currency label, a country filter and "+ Add a country". The summary cards change to lowest spread anywhere, best country (average spread) and coverage.
-   - **Filter layout:** two rows of three equal columns. Row 1 is Compare in, Currency and Date. Row 2 is I want to, Amount and the Compare button, which fills its column. Amount is shown only in one-country mode. The box has 20px × 22px padding and 16px gaps, the same as the summary cards.
+   - **Countries:** a multi-select dropdown checklist. When closed, it shows the chosen countries ("Vietnam", "Vietnam, Thailand", "Vietnam +3 more" or "All countries") and a count. When open, it shows a search field, an "All countries" row (a dash when only some are ticked), a list that shows 3 rows and scrolls, and a footer with a hint and a Done button.
+     - *One country:* banks are compared on price in that country's currency, including "You pay for <amount>".
+     - *Two or more countries:* each bank quotes in its own currency, so banks are compared by **spread %**. The table gains a Country column with a local-currency label, shows only the chosen countries, and has "+ Add a country". The summary cards change to lowest spread anywhere, best country (average spread) and coverage.
+   - **Filter layout:** two rows of three equal columns. Row 1 is Countries, Currency and Date. Row 2 is I want to, Amount and the Compare button, which fills its column. Amount is shown only when one country is chosen; then the Compare button widens to fill the gap. The box has 20px × 22px padding and 16px gaps, the same as the summary cards.
    - **Filter bar:** Currency, Amount and Date, plus a "Buy / Sell" toggle and the Compare button.
    - **Summary cards:** cheapest bank to buy from, best bank to sell to, and the difference between the best and worst bank.
    - **Table:** sortable by sell rate, buy rate or spread, with a "You pay for <amount>" column (amount × sell rate) and an "+ Add a bank" button.
@@ -82,6 +84,17 @@ The currency code pills in tables cycle through five tints: sky, violet, orange,
    - **Bank card:** shows the chosen currency's three rates.
    - **Currency tiles:** "1 unit in VND today". Clicking a tile switches the converter to that currency.
 
+4. **Subscribe (rate alerts)**, on every page:
+   - **Header button:** a green (`#15803D`) pill with a bell icon and "Subscribe". On mobile it shows only the round green bell icon.
+   - **Dialog:** a centred pop-up (max 600px) over a darkened page on desktop; a sheet that slides up from the bottom on mobile. Close with ✕, Escape or clicking outside.
+   - **Fields:**
+     - Email address.
+     - Country: changing it loads that country's banks and clears the bank selection.
+     - Banks and Currencies, each a **checklist box**. From top to bottom: a search field, a "Select all" row (shows a dash when only some are selected), then a list that shows **3 rows** and scrolls for more. A count above each box says, for example, "3 of 30 selected". This works for lists of 50+ banks.
+   - **Validation:** the email must be valid, and at least one bank and one currency must be ticked. Otherwise a red message shows under that field.
+   - **On submit:** POST `{ email, country, banks[], currencies[] }` to the backend (see the TODO in `subscribe.js`). Then show "You're subscribed", repeating the choices, with a note to confirm by email and **Edit alerts** / **Done** buttons.
+   - **Backend still needed:** storing subscriptions, double opt-in confirmation email, sending one email per rate update, and an unsubscribe link in every email.
+
 ## Formulas
 - Spread = (sell − buy transfer) ÷ buy transfer. Confirm this is the definition you want.
 - Compare, "You pay" = amount × sell rate.
@@ -91,5 +104,6 @@ The currency code pills in tables cycle through five tints: sky, violet, orange,
 ## Open items
 - **USD.** The USD rates are placeholders. The live site has them.
 - **Banks and countries.** The banks on Compare (BIDV, VietinBank, Techcombank, ACB) and the countries in All-countries mode (Thailand, Singapore, Malaysia, Philippines) are examples. Use the ones the site really covers.
+- **Subscribe data.** The 30 Vietnamese banks in the Subscribe form are real names used to show a long list; the other countries' banks are placeholders. Load both from the site's data.
 - **Languages.** The language list is a proposal. Remove any languages the site will not support.
 - **Accessibility.** The 36px header buttons are smaller than the 44px recommended for touch on mobile. Increase them there if needed.
