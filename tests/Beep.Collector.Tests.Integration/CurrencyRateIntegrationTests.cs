@@ -260,6 +260,70 @@ public sealed class CurrencyRateIntegrationTests
 			await controller.RecordVietcombankCurrencyRate(Request(Guid.Empty), CancellationToken.None));
 	}
 
+	[TestMethod]
+	public async Task OtherBankEndpoint_RecordsAtCollectionTime_AndSkipsUnchangedRates()
+	{
+		const string WooriBic = "HVBKVNVX";
+		await using (var connection = new SqlConnection(_connectionString))
+			await connection.ExecuteAsync("""
+				IF NOT EXISTS (SELECT 1 FROM dbo.Bank WHERE Bic = @WooriBic)
+					INSERT INTO dbo.Bank (Country_Id, Bic, Name) VALUES (NEWID(), @WooriBic, N'Woori Bank Vietnam')
+				""", new { WooriBic });
+
+		var page = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "BankRatePages", "woori.json"));
+		var collected = new StubCollectedData();
+		var alerts = new RecordingQueue();
+		var controller = new CurrencyRateController(collected, _repository, alerts, NullLogger<CurrencyRateController>.Instance);
+		var morning = new DateTimeOffset(2026, 11, 26, 2, 15, 30, TimeSpan.Zero); // 09:15:30 in Vietnam
+
+		async Task<CurrencyRateSaveResult> Deliver(string json, DateTimeOffset collectedAt)
+		{
+			var id = Guid.NewGuid();
+			collected[id] = json;
+			var ok = await controller.RecordBankCurrencyRate("woori",
+				new() { WebsiteSelectorsId = Guid.NewGuid(), CollectedDataId = id, CollectedAt = collectedAt }, CancellationToken.None);
+			return (CurrencyRateSaveResult)((OkObjectResult)ok).Value!;
+		}
+
+		// USD and EUR are known currencies here; Woori's KRW, JPY, GBP, AUD, SGD and CAD are not.
+		var first = await Deliver(page, morning);
+		Assert.AreEqual(2, first.Inserted);
+		Assert.HasCount(6, first.UnknownCurrencies);
+		Assert.AreEqual("HVBKVNVX rate alerts", alerts.Descriptions.Single());
+
+		var unchanged = await Deliver(page, morning.AddHours(3));
+		Assert.AreEqual(new CurrencyRateSaveResult(0, 2, unchanged.UnknownCurrencies), unchanged, CurrencyRateSaveResultComparer.Instance,
+			"collected again with the same rates: nothing recorded");
+		Assert.HasCount(1, alerts.Descriptions, "and no alert");
+
+		var usdChanged = await Deliver(page.Replace("\"26,060\"", "\"26,070\""), morning.AddHours(6));
+		Assert.AreEqual(1, usdChanged.Inserted, "USD changed at 15:15");
+		Assert.AreEqual(1, usdChanged.Duplicates, "EUR did not");
+
+		await using (var connection = new SqlConnection(_connectionString))
+		{
+			var usd = (await connection.QueryAsync<(DateTimeOffset RateTime, decimal SellingRate)>("""
+				SELECT r.RateTime, r.SellingRate
+				FROM dbo.Currency_Rate_Bank r JOIN dbo.Currency c ON c.Id = r.Currency_Id JOIN dbo.Bank b ON b.Id = r.Bank_Id
+				WHERE b.Bic = @WooriBic AND c.CodeISO = 'USD' ORDER BY r.RateTime
+				""", new { WooriBic })).ToList();
+			CollectionAssert.AreEqual(
+				new[] { (new DateTimeOffset(2026, 11, 26, 9, 15, 0, TimeSpan.FromHours(7)), 26060m),
+				        (new DateTimeOffset(2026, 11, 26, 15, 15, 0, TimeSpan.FromHours(7)), 26070m) },
+				usd);
+		}
+
+		Assert.IsInstanceOfType<NotFoundObjectResult>(await controller.RecordBankCurrencyRate(
+			"notabank", Request(Guid.NewGuid()), CancellationToken.None));
+		Assert.IsInstanceOfType<BadRequestObjectResult>(await controller.RecordBankCurrencyRate(
+			"woori", new() { WebsiteSelectorsId = Guid.NewGuid(), CollectedDataId = Guid.NewGuid() }, CancellationToken.None),
+			"the time it was collected is needed");
+		var other = Guid.NewGuid();
+		collected[other] = VietcombankJson(At(10), ("USD", 1m));
+		Assert.IsInstanceOfType<UnprocessableEntityObjectResult>(await controller.RecordBankCurrencyRate(
+			"woori", Request(other), CancellationToken.None), "another bank's data");
+	}
+
 	// ---------------------------------------------------------------- backfill from Vietcombank's API
 
 	[TestMethod]

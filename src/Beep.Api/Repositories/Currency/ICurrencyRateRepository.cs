@@ -20,13 +20,18 @@ public interface ICurrencyRateRepository
 		string bankBic, DateOnly from, DateOnly to, CancellationToken cancellationToken);
 
 	/// <summary>Record the rates of the bank with BIC <paramref name="bankBic"/> (<c>dbo.Bank.Bic</c>).</summary>
+	/// <param name="skipUnchanged">
+	/// Also skip a rate equal to the bank's previous one of that currency and day (for rates timed by when
+	/// they were collected, so collecting an unchanged page again records nothing)
+	/// </param>
 	/// <exception cref="InvalidOperationException">No bank, or more than one, has that BIC.</exception>
 	Task<CurrencyRateSaveResult> SaveBankRatesAsync(
-		string bankBic, IReadOnlyList<CurrencyRateBank> rates, CancellationToken cancellationToken);
+		string bankBic, IReadOnlyList<CurrencyRateBank> rates, CancellationToken cancellationToken,
+		bool skipUnchanged = false);
 }
 
 /// <param name="Inserted">Rates recorded</param>
-/// <param name="Duplicates">Already recorded (same bank, currency, day and time)</param>
+/// <param name="Duplicates">Already recorded (same bank, currency, day and time; or unchanged, with skipUnchanged)</param>
 /// <param name="UnknownCurrencies">Codes not in dbo.Currency; nothing recorded for them</param>
 public sealed record CurrencyRateSaveResult(int Inserted, int Duplicates, IReadOnlyList<string> UnknownCurrencies);
 
@@ -39,6 +44,19 @@ public sealed class CurrencyRateRepository : ICurrencyRateRepository
 		           WHERE Bank_Id = @BankId AND Currency_Id = @CurrencyId AND [Date] = @Date AND RateTime = @RateTime)
 		BEGIN
 			SELECT 0; -- repeated delivery
+			RETURN;
+		END
+
+		IF @SkipUnchanged = 1 AND EXISTS (
+			SELECT 1
+			FROM (SELECT TOP (1) BuyingRateCash, BuyingRateTransfer, SellingRate
+			      FROM dbo.Currency_Rate_Bank WITH (UPDLOCK, HOLDLOCK)
+			      WHERE Bank_Id = @BankId AND Currency_Id = @CurrencyId AND [Date] = @Date AND RateTime < @RateTime
+			      ORDER BY RateTime DESC) previous
+			WHERE EXISTS (SELECT previous.BuyingRateCash, previous.BuyingRateTransfer, previous.SellingRate
+			              INTERSECT SELECT @BuyingRateCash, @BuyingRateTransfer, @SellingRate))
+		BEGIN
+			SELECT 0; -- unchanged since the previous rate
 			RETURN;
 		END
 
@@ -89,7 +107,8 @@ public sealed class CurrencyRateRepository : ICurrencyRateRepository
 	}
 
 	public async Task<CurrencyRateSaveResult> SaveBankRatesAsync(
-		string bankBic, IReadOnlyList<CurrencyRateBank> rates, CancellationToken cancellationToken)
+		string bankBic, IReadOnlyList<CurrencyRateBank> rates, CancellationToken cancellationToken,
+		bool skipUnchanged = false)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(bankBic);
 		ArgumentNullException.ThrowIfNull(rates);
@@ -128,6 +147,7 @@ public sealed class CurrencyRateRepository : ICurrencyRateRepository
 			parameters.Add("BuyingRateTransfer", rate.BuyingRateTransfer);
 			parameters.Add("SellingRate", rate.SellingRate);
 			parameters.Add("CreatedBy", _createdBy);
+			parameters.Add("SkipUnchanged", skipUnchanged);
 
 			var recorded = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
 				SaveRateSql, parameters, transaction, cancellationToken: cancellationToken));

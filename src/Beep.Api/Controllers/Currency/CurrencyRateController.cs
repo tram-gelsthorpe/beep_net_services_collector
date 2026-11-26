@@ -151,11 +151,33 @@ public class CurrencyRateController : ControllerBase
 	public Task<IActionResult> RecordVietcombankCurrencyRate(
 		[FromBody] CollectionDeliveryRequest request,
 		CancellationToken cancellationToken) =>
-		RecordAsync(VietcombankRateParser.BankBic, VietcombankRateParser.Parse, request, cancellationToken);
+		RecordAsync(VietcombankRateParser.BankBic, json => VietcombankRateParser.Parse(json), false, request, cancellationToken);
+
+	/// <summary>
+	/// Records the rates of another bank's collected rate page: <paramref name="bank"/> is its name in
+	/// <see cref="BankRateParsers.All"/> (hsbc, woori, ocb, seabank, agribank, bvbank, vietabank, vietinbank,
+	/// namabank, ncb). Pages that give no publication time are recorded at <c>CollectedAt</c>.
+	/// </summary>
+	[HttpPost("currency/{bank}")]
+	public Task<IActionResult> RecordBankCurrencyRate(
+		string bank,
+		[FromBody] CollectionDeliveryRequest request,
+		CancellationToken cancellationToken)
+	{
+		var parser = BankRateParsers.ForName(bank);
+		if (parser is null)
+			return Task.FromResult<IActionResult>(NotFound(new { error = $"No rate page reader for bank '{bank}'" }));
+		if (parser.UsesCollectionTime && request.CollectedAt == default)
+			return Task.FromResult<IActionResult>(BadRequest(new { error = "CollectedAt is required" }));
+
+		return RecordAsync(parser.Bic, json => parser.Parse(json, request.CollectedAt), parser.UsesCollectionTime,
+			request, cancellationToken);
+	}
 
 	private async Task<IActionResult> RecordAsync(
 		string bankBic,
 		Func<string, IReadOnlyList<CurrencyRateBank>> parse,
+		bool skipUnchanged,
 		CollectionDeliveryRequest request,
 		CancellationToken cancellationToken)
 	{
@@ -186,7 +208,7 @@ public class CurrencyRateController : ControllerBase
 				return UnprocessableEntity(new { error = ex.Message });
 			}
 
-			var result = await _currencyRates.SaveBankRatesAsync(bankBic, rates, cancellationToken);
+			var result = await _currencyRates.SaveBankRatesAsync(bankBic, rates, cancellationToken, skipUnchanged);
 
 			_logger.LogInformation(
 				"Recorded {BankBic} rates from collected data {CollectedDataId}: {Inserted} inserted, " +

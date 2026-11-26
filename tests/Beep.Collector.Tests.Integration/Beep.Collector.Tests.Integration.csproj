@@ -29,6 +29,8 @@
     <None Include="..\..\src\Beep.Api\Resource\*.sql" Link="ApiResource\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- Beep.Notification's User_Notification script, so NotificationIntegrationTests runs it as deployed -->
     <None Include="..\..\src\Beep.Notification\Resource\*.sql" Link="NotificationResource\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- What the collector extracted from each bank's rate page on 26/11/2026, for BankRateParserTests -->
+    <None Update="BankRatePages\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

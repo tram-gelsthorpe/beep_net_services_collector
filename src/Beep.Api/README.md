@@ -9,6 +9,7 @@ EventBus and records bank currency rates, and serves the recorded rates (to Beep
 | Method | Route | Description |
 | --- | --- | --- |
 | `POST` | `/api/currencyrate/currency/vietcombank` | Record Vietcombank's rates (bank BIC `BFTVVNVX`) from a collection result. |
+| `POST` | `/api/currencyrate/currency/{bank}` | Record another Vietnamese bank's rates from its rate page (see [Other banks](#other-banks)). |
 | `GET` | `/api/currencyrate/countries` | Countries that have a bank with rates: `[{ "code", "name" }]`. |
 | `GET` | `/api/currencyrate/banks?country=&bank=` | Banks with rates and their latest date. |
 | `GET` | `/api/currencyrate/latest?date=&country=&bank=` | The latest rate of each bank and currency. |
@@ -38,7 +39,8 @@ The endpoint then:
 1. reads `ExtractedJson` of `CollectedDataId` from the Collector database (`dbo.WebsiteSelectorsCollectedData`);
 2. reads the bank's rate list from it. For Vietcombank: `ContentSelector.Date` is the day, `UpdatedDate`
    the time, and each `Data` item maps `cash` to `BuyingRateCash`, `transfer` to `BuyingRateTransfer` and
-   `sell` to `SellingRate` (a rate of `0.00`, meaning not offered, is stored as NULL);
+   `sell` to `SellingRate` (a rate of `0.00`, meaning not offered, is stored as NULL). For the other banks,
+   see [Other banks](#other-banks);
 3. finds the bank in `dbo.Bank` by the endpoint's BIC and each currency in `dbo.Currency` by `CodeISO`;
 4. inserts one `dbo.Currency_Rate_Bank` row per currency, with `Date`, `RateTime` (the bank's local time and
    offset), `Version` 1 and `CreatedBy` = `Audit:CreatedBy`.
@@ -50,7 +52,37 @@ Earlier rates of a day are kept; the current rate of a day is the one with the h
 | --- | --- |
 | `200` `{ "inserted", "duplicates", "unknownCurrencies" }` | Recorded (currency codes not in `dbo.Currency` are listed and skipped) |
 | `404` | The collection result does not exist or has no extracted data |
+| `400` | No `CollectedDataId`; or, for a bank recorded at its collection time, no `CollectedAt` |
+| `404` | (other banks) No bank of that name |
 | `422` | The extracted data is not the bank's rate list |
+
+### Other banks
+
+`{bank}` is one of these. [`Collector/Seed/Vietnam_Banks.sql`](../Beep.Collector/Seed/Vietnam_Banks.sql) sets up
+their WebsiteSelectors with the matching ContentSelector and DispatchUrl.
+
+| `{bank}` | BIC | Page | Columns after the currency |
+| --- | --- | --- | --- |
+| `hsbc` | `HSBCVNVX` | table cells; `25.716`, `158,61` | buy cash, buy transfer, sell cash, sell transfer |
+| `woori` | `HVBKVNVX` | table cells; JPY and KRW per 100 | buy cash, buy transfer, sell cash, sell transfer |
+| `ocb` | `ORCOVNVX` | table cells; `USD100` (the $100 notes' row) | name, buy cash, buy transfer, sell cash, sell transfer |
+| `agribank` | `VBAAVNVX` | table cells | buy cash, buy transfer, sell |
+| `bvbank` | `VCBCVNVX` | table cells | buy cash, buy transfer, sell cash, sell transfer |
+| `vietabank` | `VNACVNVX` | table cells | name, buy cash, buy transfer, sell cash, sell transfer |
+| `vietinbank` | `ICBVVNVX` | table cells; `# 25.470` | buy cash, buy transfer, sell |
+| `namabank` | `NAMAVNVX` | table cells; `25.610,00` | buy cash, buy transfer, sell |
+| `ncb` | `NVBAVNVX` | table cells | buy cash, buy transfer, sell transfer, sell cash |
+| `seabank` | `SEAVVNVX` | the script with `listExchangeRate` | `buy`, `transferBuy`, `transferSell` (or `sell`) |
+
+A table's cell holding a currency code (`USD`, `USD100`, `Đô la Mỹ (USD)`) starts its row. Only a currency's
+first row is read (the largest notes), gold (`XAU`) is left out, and `0`, `-` or an empty cell is stored as NULL.
+`SellingRate` is the transfer selling rate where the bank gives one. These pages give no publication time, so a
+rate is recorded at `CollectedAt` (to the minute, Vietnam time), and is skipped when it equals the bank's
+previous rate of that currency and day: collecting an unchanged page again records nothing and sends no alert.
+
+SeABank's page lists each of the day's updates with its `updateTime`, which is used as `RateTime`.
+
+Each bank must be in A_1_Beep_Global_Currency's `dbo.Bank` with its BIC, or the endpoint answers `500`.
 
 Before the first run, apply [`Resource/Currency_Rate_Bank_RateTime.sql`](Resource/Currency_Rate_Bank_RateTime.sql)
 to A_1_Beep_Global_Currency: it adds `RateTime` and an index on `(Bank_Id, Currency_Id, Date, RateTime)`.

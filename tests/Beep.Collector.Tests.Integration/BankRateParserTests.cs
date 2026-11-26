@@ -1,0 +1,134 @@
+using Beep.Api.Domain.Currency;
+
+namespace Beep.Collector.Tests.Integration;
+
+/// <summary>
+/// Reading the Vietnamese banks' rate pages (<see cref="BankRateParsers"/>), from what the collector extracted
+/// from each page on 26/11/2026 (BankRatePages/*.json).
+/// </summary>
+[TestClass]
+public sealed class BankRateParserTests
+{
+	// 09:15:30 in Vietnam.
+	private static readonly DateTimeOffset CollectedAt = new(2026, 11, 26, 2, 15, 30, TimeSpan.Zero);
+	private static readonly DateTimeOffset RecordedAt = new(2026, 11, 26, 9, 15, 0, TimeSpan.FromHours(7));
+
+	[TestMethod]
+	// bank, currencies read, then USD: buy cash, buy transfer, sell (0: not offered)
+	[DataRow("hsbc", 11, 25716, 25716, 26025)]
+	[DataRow("woori", 8, 25635, 25640, 26060)]
+	[DataRow("ocb", 11, 25638, 25678, 26100)]          // the $100 notes' row, not $20 or $1
+	[DataRow("agribank", 15, 25610, 25640, 26020)]
+	[DataRow("bvbank", 13, 25635, 25665, 26035)]       // no gold
+	[DataRow("vietabank", 11, 25630, 25680, 26030)]    // the $50-$100 notes' row
+	[DataRow("vietinbank", 19, 25470, 25470, 26010)]   // "# 25.470": large notes; 25.470 written as a number
+	[DataRow("namabank", 10, 25610, 25660, 26040)]     // headers and the gold table left out
+	[DataRow("ncb", 10, 25570, 25620, 26080)]          // the large notes' row; selling by transfer
+	public void Table_ReadsTheBanksPage(string bank, int currencies, int buyCash, int buyTransfer, int sell)
+	{
+		var parser = BankRateParsers.ForName(bank)!;
+		var rates = parser.Parse(Page(bank), CollectedAt);
+
+		Assert.HasCount(currencies, rates);
+		Assert.HasCount(currencies, rates.Select(r => r.CurrencyCode).Distinct(), "one row per currency");
+		Assert.IsFalse(rates.Any(r => r.CurrencyCode is "XAU" or "VND"), "no gold");
+		Assert.IsTrue(parser.UsesCollectionTime);
+		Assert.IsTrue(rates.All(r => r.RateTime == RecordedAt && r.Date == new DateOnly(2026, 11, 26)),
+			"collected at 09:15:30 in Vietnam: recorded at 09:15");
+
+		var usd = rates.Single(r => r.CurrencyCode == "USD");
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 26), RecordedAt, buyCash, buyTransfer, sell), usd);
+	}
+
+	[TestMethod]
+	public void Table_ReadsEachNumberFormat()
+	{
+		// 158,61 (HSBC, dots for thousands); 15,882 per 100 yen (Woori); 3.166 written as a number (VietinBank)
+		Assert.AreEqual(158.61m, Rate("hsbc", "JPY").BuyingRateCash);
+		Assert.AreEqual(734m, Rate("hsbc", "THB").BuyingRateCash);
+		Assert.AreEqual(158.82m, Rate("woori", "JPY").BuyingRateCash);
+		Assert.AreEqual(18.66m, Rate("woori", "KRW").BuyingRateCash);
+		Assert.AreEqual(3166m, Rate("vietinbank", "HKD").BuyingRateCash);
+		Assert.AreEqual(80819m, Rate("vietinbank", "KWD").BuyingRateTransfer);
+		Assert.AreEqual(0.65m, Rate("vietinbank", "LAK").BuyingRateTransfer);
+		Assert.AreEqual(159.33m, Rate("ocb", "JPY").BuyingRateCash);
+		Assert.AreEqual(25610m, Rate("namabank", "USD").BuyingRateCash);
+		Assert.AreEqual(18.27m, Rate("namabank", "KRW").BuyingRateCash);
+	}
+
+	[TestMethod]
+	public void Table_NotOffered_IsNull()
+	{
+		// BVBank 0.00, VietABank and VietinBank "-", OCB 0, Agribank's missing cell
+		CollectionAssert.AreEqual(new decimal?[] { null, 30618m, 31589m }, Rates(Rate("bvbank", "CHF")));
+		CollectionAssert.AreEqual(new decimal?[] { null, 3196m, 3453m }, Rates(Rate("vietabank", "HKD")));
+		CollectionAssert.AreEqual(new decimal?[] { null, 3798m, 3948m }, Rates(Rate("vietinbank", "CNY")));
+		CollectionAssert.AreEqual(new decimal?[] { null, null, 31494m }, Rates(Rate("ocb", "CHF")));
+		CollectionAssert.AreEqual(new decimal?[] { null, 18.57m, 20.55m }, Rates(Rate("agribank", "KRW")));
+	}
+
+	[TestMethod]
+	public void Table_Date_IsTheDayInVietnam()
+	{
+		// 26/11 18:30 UTC is 27/11 01:30 in Vietnam.
+		var rates = BankRateTable.Woori.Parse(Page("woori"), new DateTimeOffset(2026, 11, 26, 18, 30, 0, TimeSpan.Zero));
+		Assert.AreEqual(new DateOnly(2026, 11, 27), rates[0].Date);
+		Assert.AreEqual(new DateTimeOffset(2026, 11, 27, 1, 30, 0, TimeSpan.FromHours(7)), rates[0].RateTime);
+	}
+
+	[TestMethod]
+	public void SeABank_ReadsEachUpdateOfTheDay_WithItsTime()
+	{
+		var parser = BankRateParsers.ForName("seabank")!;
+		var rates = parser.Parse(Page("seabank"), CollectedAt);
+
+		Assert.IsFalse(parser.UsesCollectionTime);
+		Assert.HasCount(44, rates, "4 updates of 11 currencies");
+		Assert.IsFalse(rates.Any(r => r.CurrencyCode.Length != 3 || r.CurrencyCode == "XAU"), "no USD_1, USD_5_20 or gold");
+
+		var usd = rates.Where(r => r.CurrencyCode == "USD").ToList();
+		CollectionAssert.AreEqual(
+			new[] { At(8, 51), At(11, 25), At(13, 30), At(17, 2) },
+			usd.Select(r => r.RateTime).ToArray());
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 26), At(17, 2), 25630m, 25630m, 26010m), usd[^1]);
+
+		var krw = rates.First(r => r.CurrencyCode == "KRW");
+		CollectionAssert.AreEqual(new decimal?[] { null, 17.99m, 20.99m }, Rates(krw), "no cash rate");
+		Assert.AreEqual(157.52m, rates.First(r => r.CurrencyCode == "JPY").BuyingRateCash);
+
+		static DateTimeOffset At(int hour, int minute) => new(2026, 11, 26, hour, minute, 0, TimeSpan.FromHours(7));
+	}
+
+	[TestMethod]
+	[DataRow("hsbc", "")]
+	[DataRow("hsbc", "not json")]
+	[DataRow("hsbc", """{"ContentSelector":"USD 25.716"}""")]
+	[DataRow("hsbc", """{"ContentSelector":["Ngoại tệ","Mua"]}""")]
+	[DataRow("hsbc", """{"ContentSelector":["USD","abc"]}""")]
+	[DataRow("hsbc", """{"Other":[]}""")]
+	[DataRow("seabank", """{"ContentSelector":"self.__next_f.push([1,\"nothing here\"])"}""")]
+	[DataRow("seabank", """{"ContentSelector":["USD","25,635"]}""")]
+	[DataRow("seabank", """{"ContentSelector":"self.__next_f.push([1,\"{\\\"listExchangeRate\\\":{\\\"details\\\":[]}}\"])"}""")]
+	public void Parsers_RejectOtherData(string bank, string json) =>
+		Assert.ThrowsExactly<FormatException>(() => BankRateParsers.ForName(bank)!.Parse(json, CollectedAt));
+
+	[TestMethod]
+	public void Parsers_HaveOneNameAndBicEach()
+	{
+		Assert.HasCount(10, BankRateParsers.All);
+		Assert.HasCount(10, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(10, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.IsFalse(BankRateParsers.All.Any(p => p.Bic == VietcombankRateParser.BankBic || p.Name == "vietcombank"),
+			"Vietcombank has its own endpoint");
+		Assert.AreSame(BankRateTable.Hsbc, BankRateParsers.ForName("HSBC"));
+		Assert.IsNull(BankRateParsers.ForName("notabank"));
+	}
+
+	private static string Page(string bank) =>
+		File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "BankRatePages", bank + ".json"));
+
+	private static CurrencyRateBank Rate(string bank, string code) =>
+		BankRateParsers.ForName(bank)!.Parse(Page(bank), CollectedAt).Single(r => r.CurrencyCode == code);
+
+	private static decimal?[] Rates(CurrencyRateBank rate) => [rate.BuyingRateCash, rate.BuyingRateTransfer, rate.SellingRate];
+}
