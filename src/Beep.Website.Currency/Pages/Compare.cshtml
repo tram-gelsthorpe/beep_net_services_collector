@@ -50,6 +50,7 @@
 		<label class="field">
 			<span>@T["Currency"]</span>
 			<select name="currency" onchange="this.form.submit()">
+				<button><selectedcontent></selectedcontent></button>
 				@foreach (var c in Model.Currencies)
 				{
 					<option value="@c.Code" selected="@(c.Code == Model.Currency)">@c.Code — @c.Name</option>

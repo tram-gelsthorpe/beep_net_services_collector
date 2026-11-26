@@ -343,6 +343,8 @@ select.cur-pill {
 	.bank-card .grid small { display: block; font-size: 11px; color: var(--muted); }
 	.bank-card .grid span { font-size: 13px; }
 	.bank-card .grid .end { text-align: end; }
+	/* Label at the top, value at the bottom: the values stay level when a label takes two lines (German). */
+	.bank-card .grid > span { display: flex; flex-direction: column; justify-content: space-between; gap: 2px; }
 	.bank-card .sell { font-size: 17px; font-weight: 500; color: var(--sell); }
 
 	/* Converter */
@@ -383,7 +385,8 @@ select.cur-pill {
 .conv-where { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
 
 @media (max-width: 640px) {
-	.cmp-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+	/* One field per row: half the width is too narrow for a currency's name and its list ("CNY — PRC Yuan Renminbi"). */
+	.cmp-filters { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px; }
 	.cmp-filters .f-toggle, .cmp-filters .actions, .cmp-filters .actions.span-2 { grid-column: 1 / -1; }
 	.bank-card .grid-2 { grid-template-columns: 1fr 1fr; }
 
@@ -506,6 +509,10 @@ select.cur-pill {
 
 	/* Each select keeps its own chevron (a background image). */
 	select::picker-icon { display: none; }
+	/* A select may start with <button><selectedcontent></selectedcontent></button> (Chrome shows the chosen option in
+	   it; other browsers ignore it): its text stays on one line and ends in "…" before the chevron. */
+	select > button { all: unset; display: block; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+	select > button selectedcontent { display: inline; }
 	:root select { field-sizing: fixed; align-items: center; }
 
 	.field:has(> select) { anchor-name: --dropdown; anchor-scope: --dropdown; }
@@ -631,6 +638,15 @@ select.cur-pill {
 	.nav.open a { height: 44px; color: var(--ink); border-radius: 10px; }
 	.nav.open a:hover { background: var(--field); }
 	.nav.open a[aria-current="page"] { background: #EEF2FF; }
+}
+
+/* ===== Narrow phones (≤ 420px) =====
+   The header fits on one row: the language button drops its globe. */
+@media (max-width: 420px) {
+	.site-header { gap: 8px; flex-wrap: nowrap; }
+	.header-left { min-width: 0; }
+	.lang-btn { padding: 0 10px; gap: 6px; }
+	.lang-btn > svg:first-child { display: none; }
 }
 
 /* ===== Right to left (Arabic: <html dir="rtl">) =====
