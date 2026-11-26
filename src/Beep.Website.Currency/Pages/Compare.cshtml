@@ -1,0 +1,218 @@
+@page
+@model CompareModel
+@{
+	ViewData["Title"] = T["Compare banks"];
+	ViewData["Nav"] = "compare";
+	var code = Model.Currency ?? "";
+	var quote = Model.QuoteCurrency ?? "";
+}
+
+<main class="container">
+	<h1 class="page-title">@T["Compare banks"]</h1>
+
+	<form method="get" class="filters">
+		@if (Model.Countries.Count > 1)
+		{
+			<label class="field f-country">
+				<span>@T["Country"]</span>
+				<select name="country" onchange="this.form.submit()">
+					@foreach (var c in Model.Countries)
+					{
+						<option value="@c.Code" selected="@(c.Code == Model.Country)">@c.Name</option>
+					}
+				</select>
+			</label>
+		}
+		else
+		{
+			<input type="hidden" name="country" value="@Model.Country" />
+		}
+		<label class="field f-wide">
+			<span>@T["Currency"]</span>
+			<select name="currency" onchange="this.form.submit()">
+				@foreach (var c in Model.Currencies)
+				{
+					<option value="@c.Code" selected="@(c.Code == Model.Currency)">@c.Code — @c.Name</option>
+				}
+			</select>
+		</label>
+		<label class="field f-date">
+			<span>@T["Amount"]</span>
+			<input class="num" type="text" name="amount" inputmode="decimal" value="@Model.AmountDisplay" />
+		</label>
+		<label class="field f-date">
+			<span>@T["Date"]</span>
+			<input type="date" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
+		</label>
+		<div class="field f-toggle">
+			<span>@T["I want to"]</span>
+			<div class="seg" role="radiogroup">
+				<label class="seg-option">
+					<input type="radio" name="side" value="buy" checked="@Model.Buying" onchange="this.form.submit()" />
+					<span>@T.Format("Buy {0}", code)</span>
+				</label>
+				<label class="seg-option">
+					<input type="radio" name="side" value="sell" checked="@(!Model.Buying)" onchange="this.form.submit()" />
+					<span>@T.Format("Sell {0}", code)</span>
+				</label>
+			</div>
+		</div>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">@T["Compare"]</button>
+		</div>
+	</form>
+
+	@if (Model.Error is not null)
+	{
+		<p class="notice error">@Model.Error</p>
+	}
+	else if (Model.Rows.Count == 0)
+	{
+		<p class="notice">
+			@(Model.Date is { } d
+				? T.Format("No rates match this search on or before {0}.", RateFormat.FormatDate(d))
+				: T["No rates match this search."])
+		</p>
+	}
+	else
+	{
+		var cheapest = Model.CheapestToBuy;
+		var best = Model.BestToSell;
+		var (difference, compared) = Model.BestVsWorst;
+
+		<div class="summary">
+			<div class="card" style="--c:#F97316">
+				<small>@T.Format("Cheapest place to buy {0}", code)</small>
+				@if (cheapest is { } c)
+				{
+					<strong>@c.Bank.ShortName</strong>
+					<p>
+						@T["Sells at"] <b class="num" style="color:#C2410C">@RateFormat.Format(c.Rate.SellingRate)</b>
+						· @T["you pay"] <b class="num">@RateFormat.FormatAmount(c.Rate.SellingRate * Model.Amount) @quote</b>
+					</p>
+				}
+				else
+				{
+					<strong>—</strong>
+				}
+			</div>
+			<div class="card" style="--c:#0369A1">
+				<small>@T.Format("Best place to sell {0}", code)</small>
+				@if (best is { } b)
+				{
+					<strong>@b.Bank.ShortName</strong>
+					<p>
+						@T["Buys at"] <b class="num" style="color:#0369A1">@RateFormat.Format(b.Rate.BuyingRateTransfer)</b>
+						· @T["you get"] <b class="num">@RateFormat.FormatAmount(b.Rate.BuyingRateTransfer * Model.Amount) @quote</b>
+					</p>
+				}
+				else
+				{
+					<strong>—</strong>
+				}
+			</div>
+			<div class="card" style="--c:#6D28D9">
+				<small>@T["Difference best vs. worst"]</small>
+				<strong class="num" style="color:#6D28D9">@RateFormat.FormatAmount(difference) @quote</strong>
+				<p>@T.Format("on {0} {1} across {2} bank(s)", Model.AmountDisplay, code, compared)</p>
+			</div>
+		</div>
+
+		<section class="bank cmp-desktop">
+			<div class="cmp-head">
+				<div>
+					<h2>@T.Format("{0} at banks in {1}", code, Model.CountryName ?? "")</h2>
+					<p>
+						@T.Format("Rates of {0}", RateFormat.FormatDate(Model.Rows.Max(r => r.Rate.Date)))
+						· @(Model.SortBy switch { "buy" => T["sorted by highest buy rate"], "spread" => T["sorted by lowest spread"], _ => T["sorted by lowest sell rate"] })
+						@if (quote.Length > 0)
+						{
+							<text>· @T.Format("all values in {0}", quote)</text>
+						}
+					</p>
+				</div>
+				<nav class="seg light" aria-label="@T["Sort"]">
+					<a href="@Model.SortUrl("sell")" aria-current="@(Model.SortBy == "sell" ? "true" : null)">@T["Sell rate"]</a>
+					<a href="@Model.SortUrl("buy")" aria-current="@(Model.SortBy == "buy" ? "true" : null)">@T["Buy rate"]</a>
+					<a href="@Model.SortUrl("spread")" aria-current="@(Model.SortBy == "spread" ? "true" : null)">@T["Spread"]</a>
+				</nav>
+			</div>
+			<div class="table-wrap">
+				<table class="cmp-table">
+					<thead>
+						<tr>
+							<th>@T["Bank"]</th>
+							<th>@T["Buy · cash"]</th>
+							<th>@T["Buy · transfer"]</th>
+							<th>@T["Sell"]</th>
+							<th>@T["Spread"]</th>
+							<th>@T.Format("You pay for {0} {1}", Model.AmountDisplay, code)</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (var i = 0; i < Model.Rows.Count; i++)
+						{
+							var (bank, rate) = Model.Rows[i];
+							var colour = RateFormat.BankColours[i % RateFormat.BankColours.Count];
+							<tr>
+								<td>
+									<span class="bank-cell">
+										<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
+										<span>
+											<b>@bank.ShortName</b>
+											<small>
+												<span class="num">@bank.Bic</span>
+												@if (rate.RateTime is { } t)
+												{
+													<text> · @RateFormat.FormatPublished(t)</text>
+												}
+											</small>
+										</span>
+									</span>
+								</td>
+								<td class="num @(rate.BuyingRateCash is null ? "na" : "")">@RateFormat.Format(rate.BuyingRateCash)</td>
+								<td class="num @(rate.BuyingRateTransfer is null ? "na" : "")">@RateFormat.Format(rate.BuyingRateTransfer)</td>
+								<td class="num sell @(rate.SellingRate is null ? "na" : "")">@RateFormat.Format(rate.SellingRate)</td>
+								<td class="num muted-num">@RateFormat.FormatSpread(RateFormat.Spread(rate))</td>
+								<td class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount)</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="cmp-foot">
+				<span>@T.Format("Showing {0} bank(s)", Model.Rows.Count) · @T["“You pay” = amount × sell rate"]</span>
+			</div>
+		</section>
+
+		<div class="bank-cards">
+			@for (var i = 0; i < Model.Rows.Count; i++)
+			{
+				var (bank, rate) = Model.Rows[i];
+				var colour = RateFormat.BankColours[i % RateFormat.BankColours.Count];
+				<section class="card bank-card">
+					<div class="top">
+						<span class="bank-cell">
+							<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
+							<span>
+								<b>@bank.ShortName</b>
+								<small>@bank.Bic@(rate.RateTime is { } t ? " · " + RateFormat.FormatPublished(t) : "")</small>
+							</span>
+						</span>
+						<span class="bank-card-sell">
+							<small>@T["Sell"]</small>
+							<span class="num sell">@RateFormat.Format(rate.SellingRate)</span>
+						</span>
+					</div>
+					<div class="grid">
+						<span><small>@T["Buy · cash"]</small><span class="num">@RateFormat.Format(rate.BuyingRateCash)</span></span>
+						<span><small>@T["Buy · transfer"]</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
+						<span class="end"><small>@T.Format("Pay for {0}", Model.AmountDisplay)</small><span class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount)</span></span>
+					</div>
+				</section>
+			}
+		</div>
+
+		<p class="footnote">@T["Rates are indicative and taken from each bank’s published table. Always confirm with the bank before exchanging."]</p>
+	}
+</main>

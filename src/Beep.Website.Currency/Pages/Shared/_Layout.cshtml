@@ -2,6 +2,8 @@
 @{
 	var current = Languages.For(CultureInfo.CurrentUICulture);
 	var returnUrl = Uri.EscapeDataString($"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}");
+	var nav = ViewData["Nav"] as string ?? "rates";
+	string? Current(string page) => page == nav ? "page" : null;
 }
 <!DOCTYPE html>
 <html lang="@current.Code">
@@ -18,32 +20,43 @@
 	<header class="container site-header">
 		<div class="header-left">
 			<a class="logo" asp-page="/Index"><span class="logo-mark">B</span><span class="logo-text">Beep Currency</span></a>
-			<nav class="nav" aria-label="Main">
-				<a asp-page="/Index" aria-current="page">@T["Bank rates"]</a>
+			<nav class="nav" id="main-nav" aria-label="Main">
+				<a asp-page="/Index" aria-current="@Current("rates")">@T["Bank rates"]</a>
+				<a asp-page="/Compare" aria-current="@Current("compare")">@T["Compare banks"]</a>
+				<a asp-page="/Converter" aria-current="@Current("converter")">@T["Converter"]</a>
 			</nav>
 		</div>
-		<div class="lang" data-lang>
-			<button class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="lang-menu" title="@T["Choose language"]">
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2547D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></svg>
-				<span>@current.NativeName</span>
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+		<div class="header-right">
+			<div class="lang" data-lang>
+				<button class="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="lang-menu" title="@T["Choose language"]">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2547D0" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></svg>
+					<span class="lang-name">@current.NativeName</span>
+					<span class="lang-code">@current.Code.ToUpperInvariant()</span>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+				</button>
+				<ul class="lang-menu" id="lang-menu" aria-label="@T["Choose language"]">
+					<li class="lang-title" aria-hidden="true">@T["Language"]</li>
+					@foreach (var language in Languages.All)
+					{
+						<li>
+							<a href="@($"{Context.Request.PathBase}/language/{language.Code}?returnUrl={returnUrl}")" lang="@language.Code"
+							   aria-current="@(language == current ? "true" : null)">
+								<span class="code">@language.Code.ToUpperInvariant()</span><span class="name">@language.NativeName</span>
+							</a>
+						</li>
+					}
+				</ul>
+			</div>
+			<button class="menu-btn" type="button" aria-label="@T["Open menu"]" aria-expanded="false" aria-controls="main-nav" data-menu>
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
 			</button>
-			<ul class="lang-menu" id="lang-menu" aria-label="@T["Choose language"]">
-				@foreach (var language in Languages.All)
-				{
-					<li>
-						<a href="@($"{Context.Request.PathBase}/language/{language.Code}?returnUrl={returnUrl}")" lang="@language.Code"
-						   aria-current="@(language == current ? "true" : null)">
-							<span class="code">@language.Code.ToUpperInvariant()</span>@language.NativeName
-						</a>
-					</li>
-				}
-			</ul>
 		</div>
 	</header>
+	<div class="lang-backdrop" data-backdrop></div>
 
 	@RenderBody()
 
 	<script src="~/js/site.js" asp-append-version="true"></script>
+	@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

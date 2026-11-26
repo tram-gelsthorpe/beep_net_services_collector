@@ -56,7 +56,7 @@
 	{
 		<p class="notice">
 			@(Model.Date is { } d
-				? T.Format("No rates match this search on or before {0}.", IndexModel.FormatDate(d))
+				? T.Format("No rates match this search on or before {0}.", RateFormat.FormatDate(d))
 				: T["No rates match this search."])
 		</p>
 	}
@@ -68,8 +68,8 @@
 			<div class="featured">
 				@foreach (var f in featured)
 				{
-					var spread = IndexModel.Spread(f);
-					<div class="fcard @IndexModel.FeaturedTheme(f.CurrencyCode)">
+					var spread = RateFormat.Spread(f);
+					<div class="fcard @RateFormat.FeaturedTheme(f.CurrencyCode)">
 						<div class="fcard-head">
 							<span class="fcard-id">
 								<span class="sym">@(f.CurrencySymbol ?? f.CurrencyCode[..1])</span>
@@ -78,11 +78,11 @@
 									<span class="fcard-name">@f.CurrencyName</span>
 								</span>
 							</span>
-							<span class="badge">@T.Format("Spread {0}", IndexModel.FormatSpread(spread))</span>
+							<span class="badge">@T.Format("Spread {0}", RateFormat.FormatSpread(spread))</span>
 						</div>
 						<div class="fcard-rates">
-							<div><small>@T["We buy"]</small><span class="num">@IndexModel.Format(f.BuyingRateTransfer)</span></div>
-							<div><small>@T["We sell"]</small><span class="num sell">@IndexModel.Format(f.SellingRate)</span></div>
+							<div><small>@T["We buy"]</small><span class="num">@RateFormat.Format(f.BuyingRateTransfer)</span></div>
+							<div><small>@T["We sell"]</small><span class="num sell">@RateFormat.Format(f.SellingRate)</span></div>
 						</div>
 					</div>
 				}
@@ -110,15 +110,15 @@
 						<span class="chip blue num">@bank.Bic</span>
 						@if (bank.SameDate)
 						{
-							<span class="chip orange">@T.Format("Rates of {0}", IndexModel.FormatDate(bank.LastDate))</span>
+							<span class="chip orange">@T.Format("Rates of {0}", RateFormat.FormatDate(bank.LastDate))</span>
 						}
 						else
 						{
-							<span class="chip orange">@T.Format("Rates of {0} to {1}", IndexModel.FormatDate(bank.FirstDate), IndexModel.FormatDate(bank.LastDate))</span>
+							<span class="chip orange">@T.Format("Rates of {0} to {1}", RateFormat.FormatDate(bank.FirstDate), RateFormat.FormatDate(bank.LastDate))</span>
 						}
 						@if (bank.PublishedAt is { } published)
 						{
-							<span class="chip">@T.Format("Published {0} ({1})", IndexModel.FormatPublished(published), IndexModel.FormatOffset(published.Offset))</span>
+							<span class="chip">@T.Format("Published {0} ({1})", RateFormat.FormatPublished(published), RateFormat.FormatOffset(published.Offset))</span>
 						}
 					</div>
 				</div>
@@ -136,7 +136,7 @@
 					</span>
 				</div>
 				<div class="table-wrap">
-					<table>
+					<table class="rates-table">
 						<thead>
 							<tr>
 								<th>@T["Currency"]</th>
@@ -150,7 +150,7 @@
 							@for (var i = 0; i < bank.Rates.Count; i++)
 							{
 								var r = bank.Rates[i];
-								var spread = IndexModel.Spread(r);
+								var spread = RateFormat.Spread(r);
 								<tr data-search="@($"{r.CurrencyCode} {r.CurrencyName}".ToLowerInvariant())">
 									<td>
 										<span class="cur">
@@ -158,17 +158,17 @@
 											<span class="cur-name">@r.CurrencyName</span>
 											@if (!bank.SameDate)
 											{
-												<span class="cur-date">@IndexModel.FormatDate(r.Date)</span>
+												<span class="cur-date">@RateFormat.FormatDate(r.Date)</span>
 											}
 										</span>
 									</td>
-									<td class="num @(r.BuyingRateCash is null ? "na" : "")">@IndexModel.Format(r.BuyingRateCash)</td>
-									<td class="num @(r.BuyingRateTransfer is null ? "na" : "")">@IndexModel.Format(r.BuyingRateTransfer)</td>
-									<td class="num sell @(r.SellingRate is null ? "na" : "")">@IndexModel.Format(r.SellingRate)</td>
+									<td class="num @(r.BuyingRateCash is null ? "na" : "")">@RateFormat.Format(r.BuyingRateCash)</td>
+									<td class="num @(r.BuyingRateTransfer is null ? "na" : "")">@RateFormat.Format(r.BuyingRateTransfer)</td>
+									<td class="num sell @(r.SellingRate is null ? "na" : "")">@RateFormat.Format(r.SellingRate)</td>
 									<td>
 										<span class="spread">
 											<span class="bar"><i style="width:@(bank.SpreadBarWidth(spread))%"></i></span>
-											<span class="num">@IndexModel.FormatSpread(spread)</span>
+											<span class="num">@RateFormat.FormatSpread(spread)</span>
 										</span>
 									</td>
 								</tr>
