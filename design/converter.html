@@ -40,6 +40,10 @@
         <h1>Currency converter</h1>
         <div class="seg"><button type="button" id="dirF2V" aria-pressed="true"></button><button type="button" id="dirV2F" aria-pressed="false"></button></div>
       </div>
+      <div class="conv-where">
+        <label class="field"><span>Country</span><select id="convCountry"><option>Vietnam</option></select></label>
+        <label class="field"><span>Bank</span><select id="convBank"><option>Vietcombank</option></select></label>
+      </div>
       <div class="conv-boxes">
         <label class="conv-box"><span>You have</span>
           <span class="conv-row"><input id="amount" inputmode="decimal" aria-label="Amount" value="1,000">
@@ -98,7 +102,9 @@ const R = {
 const S = { cur:'EUR', dir:'f2v', mode:'transfer', amount:1000 };
 const $ = id => document.getElementById(id);
 const fmt = (n,d) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-$('curSel').innerHTML = Object.keys(R).map(c => `<option value="${c}">${c} · ${R[c][0]}</option>`).join('');
+const narrow = () => window.matchMedia('(max-width:640px)').matches;
+function fillCurrencies(){ $('curSel').innerHTML = Object.keys(R).map(c => `<option value="${c}">${narrow() ? c : c + ' · ' + R[c][0]}</option>`).join(''); $('curSel').value = S.cur; }
+fillCurrencies(); window.addEventListener('resize', fillCurrencies);
 function render(){
   const r = R[S.cur], f2v = S.dir === 'f2v';
   if (r[1] == null) S.mode = 'transfer';

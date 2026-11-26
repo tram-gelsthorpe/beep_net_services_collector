@@ -35,23 +35,26 @@
 <main class="container">
   <h1 class="page-title">Compare banks</h1>
 
-  <form class="filters" style="margin-top:0">
-    <label class="field f-wide"><span>Currency</span><select id="cmpCur"><option>EUR — Euro</option></select></label>
-    <label class="field f-date"><span>Amount</span><input class="num" type="text" value="1,000"></label>
-    <label class="field f-date"><span>Date</span><input type="date" value="2026-11-26"></label>
+  <form class="filters cmp-filters">
+    <div class="field f-toggle"><span>Compare in</span>
+      <div class="seg" id="scopeSeg"><button type="button" data-scope="one" aria-pressed="true">Vietnam</button><button type="button" data-scope="all" aria-pressed="false">All countries</button></div>
+    </div>
+    <label class="field"><span>Currency</span><select><option>EUR — Euro</option></select></label>
+    <label class="field"><span>Date</span><input type="date" value="2026-11-26"></label>
     <div class="field f-toggle"><span>I want to</span>
       <div class="seg"><button type="button" aria-pressed="true">Buy EUR</button><button type="button" aria-pressed="false">Sell EUR</button></div>
     </div>
+    <label class="field" data-only="one"><span>Amount</span><input class="num" type="text" value="1,000"></label>
     <div class="actions"><button class="btn btn-primary" type="submit">Compare</button></div>
   </form>
 
-  <div class="summary">
+  <div class="summary" data-only="one">
     <div class="card" style="--c:#F97316"><small>Cheapest place to buy EUR</small><strong>[Bank]</strong><p>Sells at <b class="num" style="color:#C2410C">[rate]</b> · you pay <b class="num">[total] VND</b></p></div>
     <div class="card" style="--c:#0369A1"><small>Best place to sell EUR</small><strong>[Bank]</strong><p>Buys at <b class="num" style="color:#0369A1">[rate]</b> · you get <b class="num">[total] VND</b></p></div>
     <div class="card" style="--c:#6D28D9"><small>Difference best vs. worst</small><strong class="num" style="color:#6D28D9">[amount] VND</strong><p>on 1,000 EUR across [n] banks</p></div>
   </div>
 
-  <section class="bank cmp-desktop">
+  <section class="bank cmp-desktop" data-only="one">
     <div class="cmp-head">
       <div><h2>EUR at Vietnamese banks</h2><p>Rates of 26/11/2026 · sorted by lowest sell rate · all values in VND</p></div>
       <div class="seg light"><button type="button" aria-pressed="true">Sell rate</button><button type="button" aria-pressed="false">Buy rate</button><button type="button" aria-pressed="false">Spread</button></div>
@@ -65,7 +68,32 @@
     <div class="cmp-foot"><span>Showing 5 banks · “You pay” = amount × sell rate</span><button type="button" class="btn-ghost">+ Add a bank</button></div>
   </section>
 
-  <div class="bank-cards" id="cmpCards"></div>
+  <div class="bank-cards" id="cmpCards" data-only="one"></div>
+
+  <div class="summary" data-only="all" hidden>
+    <div class="card" style="--c:#F97316"><small>Lowest EUR spread anywhere</small><strong>[Bank]</strong><p>[Country] · spread <b class="num" style="color:#C2410C">[—]</b></p></div>
+    <div class="card" style="--c:#0369A1"><small>Best country for EUR</small><strong>[Country]</strong><p>Average spread <b class="num" style="color:#0369A1">[—]</b> across [n] banks</p></div>
+    <div class="card" style="--c:#6D28D9"><small>Coverage</small><strong>[n] countries · [n] banks</strong><p>Each bank’s rates are in its local currency</p></div>
+  </div>
+
+  <section class="bank cmp-desktop" data-only="all" hidden>
+    <div class="cmp-head">
+      <div><h2>EUR at banks in all countries</h2><p>Rates of 26/11/2026 · sorted by lowest spread · rates in each bank’s local currency</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="pill-select" aria-label="Filter by country"><option>All countries</option><option>Vietnam</option></select>
+        <div class="seg light"><button type="button" aria-pressed="true">Spread</button><button type="button" aria-pressed="false">Country</button></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="cmp-table">
+        <thead><tr><th>Bank</th><th style="text-align:left">Country</th><th>Buy · transfer</th><th>Sell</th><th style="text-align:left">Spread</th></tr></thead>
+        <tbody id="allRows"></tbody>
+      </table>
+    </div>
+    <div class="cmp-foot"><span>Rates are in each bank’s local currency, so banks in different countries are compared by spread.</span><button type="button" class="btn-ghost">+ Add a country</button></div>
+  </section>
+
+  <div class="bank-cards" id="allCards" data-only="all" hidden></div>
 
   <p class="footnote">Rates are indicative and taken from each bank’s published table. Always confirm with the bank before exchanging.</p>
 </main>
@@ -89,6 +117,36 @@ document.getElementById('cmpCards').innerHTML = BANKS.map(b => `<section class="
   <span style="text-align:right"><small style="display:block;font-size:11px;color:var(--muted)">Sell</small><span class="num sell">${b.sell}</span></span></div>
   <div class="grid"><span><small>Buy cash</small><span class="num">${b.cash}</span></span><span><small>Buy transfer</small><span class="num">${b.transfer}</span></span>
   <span style="text-align:right"><small>Pay for 1,000</small><span class="num" style="font-weight:500">${b.total}</span></span></div></section>`).join('');
+
+// All-countries mode: only Vietcombank is real; the rest are placeholders.
+const ALL = [
+  { short:'VCB', name:'Vietcombank', bic:'BFTVVNVX', country:'Vietnam', ccy:'VND', transfer:'27,815.14', sell:'28,989.55', spread:4.22, t:'#E0E7FF', c:'#2547D0' },
+  { short:'BIDV', name:'BIDV', bic:'[BIC]', country:'Vietnam', ccy:'VND', transfer:'[rate]', sell:'[rate]', spread:null, t:'#E0F2FE', c:'#075985' },
+  { short:'TH', name:'[Bank]', bic:'[BIC]', country:'Thailand', ccy:'THB', transfer:'[rate]', sell:'[rate]', spread:null, t:'#EDE9FE', c:'#5B21B6' },
+  { short:'SG', name:'[Bank]', bic:'[BIC]', country:'Singapore', ccy:'SGD', transfer:'[rate]', sell:'[rate]', spread:null, t:'#FFEDD5', c:'#9A3412' },
+  { short:'MY', name:'[Bank]', bic:'[BIC]', country:'Malaysia', ccy:'MYR', transfer:'[rate]', sell:'[rate]', spread:null, t:'#FCE7F3', c:'#9D174D' },
+  { short:'PH', name:'[Bank]', bic:'[BIC]', country:'Philippines', ccy:'PHP', transfer:'[rate]', sell:'[rate]', spread:null, t:'#FEF9C3', c:'#854D0E' }
+];
+const sp = b => b.spread == null ? '[—]' : b.spread.toFixed(2) + '%';
+const ccy = b => `<span class="ccy">${b.ccy}</span>`;
+document.getElementById('allRows').innerHTML = ALL.map(b => `<tr>
+  <td><span class="bank-cell">${dot(b)}<span><b>${b.name}</b><small class="num">${b.bic}</small></span></span></td>
+  <td style="text-align:left"><span style="display:inline-flex;gap:8px;align-items:center"><b style="font-weight:500">${b.country}</b>${ccy(b)}</span></td>
+  <td class="num">${b.transfer}</td><td class="num sell">${b.sell}</td>
+  <td style="text-align:left;width:180px"><span class="spread"><span class="bar"><i style="width:${b.spread ? Math.round(b.spread/6*100) : 0}%"></i></span><span class="num">${sp(b)}</span></span></td></tr>`).join('');
+document.getElementById('allCards').innerHTML = ALL.map(b => `<section class="card bank-card">
+  <div class="top"><span class="bank-cell">${dot(b)}<span><b>${b.name}</b><small>${b.country} ${ccy(b)}</small></span></span>
+  <span style="text-align:right"><small style="display:block;font-size:11px;color:var(--muted)">Spread</small><span class="num" style="font-size:17px;font-weight:500;color:#C2410C">${sp(b)}</span></span></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr"><span><small>Buy transfer</small><span class="num">${b.transfer}</span></span>
+  <span style="text-align:right"><small>Sell</small><span class="num" style="color:var(--sell);font-weight:500">${b.sell}</span></span></div></section>`).join('');
+
+// Scope switch: "Vietnam" compares prices in VND; "All countries" compares by spread.
+document.getElementById('scopeSeg').onclick = e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const scope = btn.dataset.scope;
+  document.querySelectorAll('#scopeSeg button').forEach(x => x.setAttribute('aria-pressed', x === btn));
+  document.querySelectorAll('[data-only]').forEach(el => el.hidden = el.dataset.only !== scope);
+};
 </script>
 <script src="lang.js"></script>
 </body>

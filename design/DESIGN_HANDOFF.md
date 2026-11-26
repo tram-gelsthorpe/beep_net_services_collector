@@ -1,4 +1,4 @@
-# Beep Currency — redesign handoff (v2)
+# Beep Currency — redesign handoff (v3)
 
 Three pages, each responsive (desktop and mobile ≤ 640px), sharing one stylesheet.
 
@@ -29,7 +29,7 @@ Restyle the existing Beep Currency site to match these pages.
 | `--accent` | `#2547D0` | links, globe icon, selected states |
 | `--cta` | `#F97316` | main buttons (Show rates, Compare, swap), spread bars |
 | `--sell` | `#1E3A8A` | sell-rate numbers |
-| `--page-fallback` | `#2A3BB0` | colour shown while the background image loads |
+| `--page-fallback` | `#1E2A78` | colour shown while the background image loads |
 | radius | 16px cards, 10px fields and buttons, 999px pills | |
 
 **Fonts** (from Google Fonts):
@@ -66,11 +66,16 @@ The currency code pills in tables cycle through five tints: sky, violet, orange,
    - **Rates table:** five columns, with the spread shown as an orange bar.
    - **Mobile:** the highlight cards become a single list. The table shows only Currency, Buy transfer and Sell.
 2. **Compare banks:**
+   - **Compare in:** a switch between **one country** (Vietnam) and **All countries**.
+     - *One country:* banks are compared on price in the local currency, including "You pay for <amount>".
+     - *All countries:* each bank quotes in its own currency, so banks are compared by **spread %**. The table gains a Country column with a local-currency label, a country filter and "+ Add a country". The summary cards change to lowest spread anywhere, best country (average spread) and coverage.
+   - **Filter layout:** two rows of three equal columns. Row 1 is Compare in, Currency and Date. Row 2 is I want to, Amount and the Compare button, which fills its column. Amount is shown only in one-country mode. The box has 20px × 22px padding and 16px gaps, the same as the summary cards.
    - **Filter bar:** Currency, Amount and Date, plus a "Buy / Sell" toggle and the Compare button.
    - **Summary cards:** cheapest bank to buy from, best bank to sell to, and the difference between the best and worst bank.
    - **Table:** sortable by sell rate, buy rate or spread, with a "You pay for <amount>" column (amount × sell rate) and an "+ Add a bank" button.
    - **Mobile:** each bank becomes a card.
 3. **Converter:**
+   - **Country and Bank:** two pickers at the top choose which bank's rates the converter uses. Changing either one reloads the rates.
    - **Direction:** foreign → VND uses the bank's buy rate; VND → foreign uses the sell rate. Users can switch direction, and the orange button swaps it.
    - **Rate choice:** Transfer or Cash. Cash is disabled when the bank has no cash rate.
    - **Quick amounts:** preset amount chips.
@@ -85,6 +90,6 @@ The currency code pills in tables cycle through five tints: sky, violet, orange,
 
 ## Open items
 - **USD.** The USD rates are placeholders. The live site has them.
-- **Banks.** The banks on Compare (BIDV, VietinBank, Techcombank, ACB) are examples. Use the banks the site really covers.
+- **Banks and countries.** The banks on Compare (BIDV, VietinBank, Techcombank, ACB) and the countries in All-countries mode (Thailand, Singapore, Malaysia, Philippines) are examples. Use the ones the site really covers.
 - **Languages.** The language list is a proposal. Remove any languages the site will not support.
 - **Accessibility.** The 36px header buttons are smaller than the 44px recommended for touch on mobile. Increase them there if needed.
