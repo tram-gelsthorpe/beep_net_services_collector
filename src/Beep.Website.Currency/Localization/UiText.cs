@@ -33,7 +33,6 @@ public sealed class UiText
 	private static readonly Dictionary<string, Entry> Entries = new Entry[]
 	{
 		// Layout and navigation
-		new("Latest bank rates", "Tỷ giá ngân hàng mới nhất", "อัตราแลกเปลี่ยนธนาคารล่าสุด", "最新银行汇率", "最新の銀行レート", "최신 은행 환율", "Derniers taux bancaires", "Aktuelle Bankkurse", "Últimos tipos de cambio bancarios", "Kurs bank terbaru", "Kadar bank terkini", "Actuele bankkoersen", "أحدث أسعار البنوك"),
 		new("Bank rates", "Tỷ giá ngân hàng", "อัตราธนาคาร", "银行汇率", "銀行レート", "은행 환율", "Taux bancaires", "Bankkurse", "Tipos bancarios", "Kurs bank", "Kadar bank", "Bankkoersen", "أسعار البنوك"),
 		new("Choose language", "Chọn ngôn ngữ", "เลือกภาษา", "选择语言", "言語を選択", "언어 선택", "Choisir la langue", "Sprache wählen", "Elegir idioma", "Pilih bahasa", "Pilih bahasa", "Taal kiezen", "اختر اللغة"),
 		new("Error", "Lỗi", "ข้อผิดพลาด", "错误", "エラー", "오류", "Erreur", "Fehler", "Error", "Kesalahan", "Ralat", "Fout", "خطأ"),
