@@ -95,10 +95,11 @@
 						<span>
 							<b class="conv-bank-name">@bank.ShortName</b>
 							<small class="conv-bank-meta">
-								@T.Format("Rates of {0}", RateFormat.FormatDate(bank.LastDate))
+								@* A line each, so the time never breaks off on its own ("published 25/11" / "23:00"). *@
+								<span>@T.Format("Rates of {0}", RateFormat.FormatDate(bank.LastDate))</span>
 								@if (bank.PublishedAt is { } published)
 								{
-									<text> · @T.Format("published {0}", RateFormat.FormatPublished(published))</text>
+									<span>@T.Format("published {0}", RateFormat.FormatPublished(published))</span>
 								}
 							</small>
 						</span>
