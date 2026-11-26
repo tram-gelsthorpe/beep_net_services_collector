@@ -126,6 +126,8 @@ main > * { min-width: 0; }
 .toolbar .hint { font-size: 13px; color: var(--muted); }
 /* Text that wraps never ends with a lone word or character on its last line ("率" alone in Chinese at 320px). */
 p, .hint, .conv-help span, .notice, .tiles-head span, .btn-link, .summary small, th { text-wrap: pretty; }
+/* Headings break only at spaces, never inside a Chinese, Japanese or Korean word ("スプレ" / "ッド"). */
+th { word-break: keep-all; }
 
 /* Rates table */
 .table-wrap { overflow-x: auto; }
