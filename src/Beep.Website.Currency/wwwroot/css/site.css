@@ -548,3 +548,52 @@ select.cur-pill {
 	.cmp-filters .f-toggle { gap: 2px; }
 	.cmp-filters .f-toggle .seg-option span { height: 21px; font-size: 12.5px; }
 }
+
+/* ===== Date fields: a calendar pop-up like the dropdown lists (site.js, input[data-datepicker]) ===== */
+.field:has(> .date-trigger) { position: relative; }
+.date-trigger {
+	display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 21px; padding: 0;
+	border: 0; background: transparent; font: 500 15px var(--font-body); color: var(--ink); text-align: left; cursor: pointer;
+}
+.date-trigger:focus-visible { outline: none; }
+.date-trigger .date-value { font-size: 15px; font-weight: 500; color: var(--ink); }
+.date-trigger.empty .date-value { color: var(--muted); }
+.date-trigger svg { width: 17px; height: 17px; flex: none; color: var(--muted); }
+.field:has(> .date-trigger[aria-expanded="true"]) { box-shadow: 0 0 0 2px var(--accent); }
+
+.date-pop {
+	position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40; box-sizing: border-box; padding: 6px;
+	border-radius: 12px; background: #fff; color: var(--ink); cursor: default;
+	box-shadow: 0 16px 40px rgba(15, 23, 42, .22), 0 0 0 1px #E4E7EC;
+}
+.date-pop[hidden] { display: none; }
+.date-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 2px 2px 6px; }
+.date-title { flex: 1; text-align: center; font: 600 14px var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.date-nav {
+	width: 32px; height: 32px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px;
+	background: transparent; color: var(--ink); cursor: pointer;
+}
+.date-nav svg { width: 18px; height: 18px; }
+.date-nav:hover, .date-nav:focus-visible { background: var(--field); outline: none; }
+.date-nav:disabled { opacity: .3; background: transparent; cursor: default; }
+.date-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.date-wd { padding: 4px 0; text-align: center; font: 600 11px var(--font-body); color: var(--muted); white-space: nowrap; overflow: hidden; }
+.date-day {
+	height: 34px; min-width: 0; padding: 0; border: 0; border-radius: 8px; background: transparent;
+	font: 500 14px var(--font-body); color: var(--ink); cursor: pointer;
+}
+.date-day:hover, .date-day:focus-visible { background: var(--field); outline: none; }
+.date-day.out { color: var(--muted); opacity: .6; }
+.date-day.today { color: var(--accent); font-weight: 700; }
+.date-day[aria-selected="true"] { background: #EEF2FF; color: var(--accent); font-weight: 700; box-shadow: inset 0 0 0 1px var(--accent); }
+.date-day:disabled { opacity: .3; background: transparent; cursor: default; }
+/* Narrow fields (phones, the Bank rates date): one-letter weekdays and a smaller title. */
+.date-pop.compact .date-title { font-size: 13px; }
+.date-pop.compact .date-nav { width: 28px; }
+.date-pop.compact .date-day { height: 30px; font-size: 13px; }
+.date-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.date-foot button {
+	height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent;
+	font: 600 13px var(--font-body); color: var(--accent); cursor: pointer;
+}
+.date-foot button:hover, .date-foot button:focus-visible { background: var(--field); outline: none; }

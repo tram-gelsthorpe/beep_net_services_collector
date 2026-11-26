@@ -260,6 +260,11 @@ public sealed class UiText
 		new("Unsubscribe", "Hủy đăng ký", "ยกเลิกการสมัคร", "退订", "配信停止", "구독 취소", "Se désabonner"),
 		new("You’re unsubscribed", "Bạn đã hủy đăng ký", "คุณยกเลิกการสมัครแล้ว", "您已退订", "配信を停止しました", "구독이 취소되었습니다", "Vous êtes désabonné"),
 		new("You won’t get any more emails about new rates. You can subscribe again at any time.", "Bạn sẽ không nhận thêm email nào về tỷ giá mới. Bạn có thể đăng ký lại bất cứ lúc nào.", "คุณจะไม่ได้รับอีเมลเกี่ยวกับอัตราใหม่อีก และสามารถสมัครใหม่ได้ทุกเมื่อ", "您将不再收到新汇率的邮件。您可以随时重新订阅。", "新しいレートのメールは届かなくなります。いつでも再登録できます。", "새 환율에 대한 이메일을 더 이상 받지 않습니다. 언제든지 다시 구독할 수 있습니다.", "Vous ne recevrez plus d’e-mails sur les nouveaux taux. Vous pouvez vous réabonner à tout moment."),
+		new("Latest", "Mới nhất", "ล่าสุด", "最新", "最新", "최신", "Plus récent"),
+		new("Today", "Hôm nay", "วันนี้", "今天", "今日", "오늘", "Aujourd’hui"),
+		new("Clear", "Xóa", "ล้าง", "清除", "クリア", "지우기", "Effacer"),
+		new("Previous month", "Tháng trước", "เดือนก่อนหน้า", "上个月", "前の月", "이전 달", "Mois précédent"),
+		new("Next month", "Tháng sau", "เดือนถัดไป", "下个月", "次の月", "다음 달", "Mois suivant"),
 	}.ToDictionary(e => e.En, StringComparer.Ordinal);
 
 	private readonly ILogger<UiText> _logger;

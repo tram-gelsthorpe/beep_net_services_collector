@@ -113,3 +113,168 @@ document.querySelectorAll('[data-rates]').forEach(section => {
 	all.addEventListener('change', () => { boxes.forEach(b => { b.checked = all.checked; }); render(); });
 	render();
 })();
+
+// Date fields (input[data-datepicker]): a calendar pop-up styled like the dropdown lists and as wide as its field,
+// instead of the browser's own. The input becomes hidden and keeps the value the server reads (yyyy-mm-dd); a button
+// shows it as dd/mm/yyyy, or data-empty ("Latest") when there is none. Days after today can't be chosen.
+document.querySelectorAll('input[data-datepicker]').forEach(input => {
+	const field = input.closest('.field');
+	const text = input.dataset;
+	const lang = document.documentElement.lang || 'en';
+	const pad = n => String(n).padStart(2, '0');
+	const iso = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+	const parse = value => {
+		const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+		return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+	};
+	const addDays = (date, n) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+
+	let firstDay = 1;
+	try {
+		const locale = new Intl.Locale(lang);
+		const week = locale.getWeekInfo?.() ?? locale.weekInfo;
+		if (week) firstDay = week.firstDay % 7;
+	} catch { }
+	const monthTitle = new Intl.DateTimeFormat(lang, { month: 'long', year: 'numeric' });
+	const weekdayShort = new Intl.DateTimeFormat(lang, { weekday: 'short' });
+	const weekdayNarrow = new Intl.DateTimeFormat(lang, { weekday: 'narrow' });
+	const fullDate = new Intl.DateTimeFormat(lang, { dateStyle: 'full' });
+
+	const el = (tag, className, props = {}) => Object.assign(document.createElement(tag), { className }, props);
+	const icon = (path) => {
+		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		svg.setAttribute('viewBox', '0 0 24 24');
+		svg.setAttribute('aria-hidden', 'true');
+		svg.innerHTML = path;
+		return svg;
+	};
+
+	input.type = 'hidden';
+	const trigger = el('button', 'date-trigger', { type: 'button' });
+	trigger.setAttribute('aria-haspopup', 'dialog');
+	trigger.setAttribute('aria-expanded', 'false');
+	const value = el('span', 'date-value');
+	trigger.append(value, icon('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'));
+	input.after(trigger);
+
+	const pop = el('div', 'date-pop', { hidden: true });
+	pop.setAttribute('role', 'dialog');
+	pop.setAttribute('aria-label', field.querySelector('span')?.textContent ?? '');
+	field.append(pop);
+
+	let view; // the first day of the month shown
+
+	function showValue() {
+		const date = parse(input.value);
+		value.textContent = date ? `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}` : text.empty;
+		trigger.classList.toggle('empty', !date);
+	}
+
+	function render(focus) {
+		const chosen = parse(input.value);
+		const year = view.getFullYear(), month = view.getMonth();
+		const first = new Date(year, month, 1);
+		const start = addDays(first, -((first.getDay() - firstDay + 7) % 7));
+		const weeks = Math.ceil(((first.getDay() - firstDay + 7) % 7 + new Date(year, month + 1, 0).getDate()) / 7);
+		const compact = field.offsetWidth < 300;
+		pop.classList.toggle('compact', compact);
+		const weekdayName = compact ? weekdayNarrow : weekdayShort;
+		pop.replaceChildren();
+
+		const head = el('div', 'date-head');
+		const prev = el('button', 'date-nav', { type: 'button', title: text.prev, onclick: () => move(-1) });
+		prev.setAttribute('aria-label', text.prev);
+		prev.append(icon('<path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'));
+		const next = el('button', 'date-nav', { type: 'button', title: text.next, onclick: () => move(1) });
+		next.setAttribute('aria-label', text.next);
+		next.append(icon('<path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'));
+		next.disabled = year > today.getFullYear() || (year === today.getFullYear() && month >= today.getMonth());
+		const title = monthTitle.format(first);
+		const heading = el('div', 'date-title', { textContent: title.charAt(0).toLocaleUpperCase(lang) + title.slice(1) });
+		heading.setAttribute('aria-live', 'polite');
+		head.append(prev, heading, next);
+
+		const grid = el('div', 'date-grid');
+		grid.setAttribute('role', 'grid');
+		for (let i = 0; i < 7; i++)
+			grid.append(el('span', 'date-wd', { textContent: weekdayName.format(addDays(start, i)) }));
+		const target = focus && focus.getMonth() === month ? focus : chosen && chosen.getMonth() === month && chosen.getFullYear() === year ? chosen
+			: today.getMonth() === month && today.getFullYear() === year ? today : first;
+		for (let i = 0; i < weeks * 7; i++) {
+			const date = addDays(start, i);
+			const day = el('button', 'date-day', { type: 'button', textContent: date.getDate() });
+			day.dataset.date = iso(date);
+			day.setAttribute('aria-label', fullDate.format(date));
+			day.tabIndex = +date === +target ? 0 : -1;
+			if (date.getMonth() !== month) day.classList.add('out');
+			if (+date === +today) day.classList.add('today');
+			if (chosen && +date === +chosen) day.setAttribute('aria-selected', 'true');
+			day.disabled = date > today;
+			grid.append(day);
+		}
+
+		const foot = el('div', 'date-foot');
+		foot.append(
+			el('button', '', { type: 'button', textContent: text.today, onclick: () => choose(today) }),
+			el('button', '', { type: 'button', textContent: text.clear, onclick: () => choose(null) }));
+		pop.append(head, grid, foot);
+		if (focus !== undefined) grid.querySelector('.date-day[tabindex="0"]')?.focus();
+	}
+
+	function move(months, focus) {
+		view = new Date(view.getFullYear(), view.getMonth() + months, 1);
+		render(focus ?? null);
+	}
+
+	function setOpen(open) {
+		if (open === !pop.hidden) return;
+		pop.hidden = !open;
+		trigger.setAttribute('aria-expanded', String(open));
+		if (open) {
+			const date = parse(input.value) ?? today;
+			view = new Date(date.getFullYear(), date.getMonth(), 1);
+			render(date);
+		}
+	}
+
+	function choose(date) {
+		const changed = input.value !== (date ? iso(date) : '');
+		input.value = date ? iso(date) : '';
+		showValue();
+		setOpen(false);
+		trigger.focus();
+		if (changed) input.dispatchEvent(new Event('change', { bubbles: true }));
+	}
+
+	trigger.addEventListener('click', () => setOpen(pop.hidden));
+	// The pop-up is inside the field's <label>: a click on it must not reach the label, which would click the button.
+	pop.addEventListener('click', e => {
+		e.preventDefault();
+		const day = e.target.closest('.date-day');
+		if (day && !day.disabled) choose(parse(day.dataset.date));
+	});
+	pop.addEventListener('keydown', e => {
+		if (e.key === 'Escape') { e.preventDefault(); setOpen(false); trigger.focus(); return; }
+		const day = e.target.closest('.date-day');
+		if (!day) return;
+		const date = parse(day.dataset.date);
+		const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+		let to;
+		if (e.key in steps) to = addDays(date, steps[e.key]);
+		else if (e.key === 'Home') to = addDays(date, -((date.getDay() - firstDay + 7) % 7));
+		else if (e.key === 'End') to = addDays(date, 6 - ((date.getDay() - firstDay + 7) % 7));
+		else if (e.key === 'PageUp' || e.key === 'PageDown') to = new Date(date.getFullYear(), date.getMonth() + (e.key === 'PageUp' ? -1 : 1), date.getDate());
+		else return;
+		e.preventDefault();
+		if (to > today) to = today;
+		view = new Date(to.getFullYear(), to.getMonth(), 1);
+		render(to);
+	});
+	// composedPath: a click on the month arrows re-renders the pop-up, so its target is no longer in the page.
+	document.addEventListener('click', e => { if (!e.composedPath().includes(field)) setOpen(false); });
+	field.addEventListener('focusout', e => { if (!pop.hidden && e.relatedTarget && !field.contains(e.relatedTarget)) setOpen(false); });
+
+	showValue();
+});
