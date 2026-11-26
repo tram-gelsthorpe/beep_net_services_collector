@@ -580,7 +580,9 @@ select.cur-pill {
 @media (min-width: 641px) {
 	.cmp-filters { grid-auto-rows: 1fr; }
 	.cmp-filters .f-toggle { gap: 2px; }
-	.cmp-filters .f-toggle .seg-option span { height: 21px; font-size: 12.5px; }
+	.cmp-filters .f-toggle .seg-option { flex: 1 1 auto; min-width: 0; } /* each half as wide as its label, shrinking only when both don't fit */
+	/* A label too long for its half wraps onto two balanced lines ("Vendre des USD" at 768px), instead of running out of the box. */
+	.cmp-filters .f-toggle .seg-option span { height: auto; min-height: 21px; padding-block: 2px; font-size: 12.5px; line-height: 1.2; white-space: normal; text-wrap: balance; text-align: center; }
 }
 
 /* ===== Date fields: a calendar pop-up like the dropdown lists (site.js, input[data-datepicker]) ===== */
