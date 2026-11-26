@@ -248,7 +248,7 @@ tr.no-match td { text-align: start; color: var(--muted); }
 	flex: 1; min-width: 0; border: 0; background: transparent; padding: 0; outline: none; overflow-wrap: anywhere;
 	font: 500 30px var(--font-num); color: var(--ink);
 }
-.conv-row output { color: var(--sell); }
+.conv-row output { color: var(--sell); overflow-wrap: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* converter.js shrinks it to fit */
 .cur-pill {
 	height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px #E4E7EC;
 	display: flex; align-items: center; font: 600 15px var(--font-body); color: var(--ink);
@@ -356,6 +356,12 @@ select.cur-pill {
 	select.cur-pill { max-width: 120px; }
 	.tiles-card { padding: 16px; }
 	.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+	.tile-sell { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	/* Quick amounts: one row that scrolls sideways, edge to edge of the card (100,000,000 doesn't fit a fifth). */
+	.chips-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+	.chips-row::-webkit-scrollbar { display: none; }
+	.chips-row button { flex: none; }
+	.logo-text { white-space: nowrap; }
 }
 
 /* ===== v3: Compare filters, all-countries table, converter pickers ===== */
@@ -647,6 +653,13 @@ select.cur-pill {
 	.header-left { min-width: 0; }
 	.lang-btn { padding: 0 10px; gap: 6px; }
 	.lang-btn > svg:first-child { display: none; }
+}
+/* Phones under 360px (320px): a smaller logo and menu button, so the header still fits one row. */
+@media (max-width: 359px) {
+	.logo { gap: 8px; }
+	.logo-text { font-size: 16px; }
+	.header-right { gap: 4px; }
+	.menu-btn { width: 36px; height: 36px; }
 }
 
 /* ===== Right to left (Arabic: <html dir="rtl">) =====

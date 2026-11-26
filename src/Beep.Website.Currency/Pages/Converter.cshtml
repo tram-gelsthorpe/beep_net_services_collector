@@ -34,6 +34,7 @@
 					<label class="field">
 						<span>@T["Country"]</span>
 						<select name="country" onchange="this.form.elements.bank.value = ''; this.form.submit()">
+							<button><selectedcontent></selectedcontent></button>
 							@foreach (var c in Model.Countries)
 							{
 								<option value="@c.Code" selected="@(c.Code == Model.Country)">@c.Name</option>
@@ -43,6 +44,7 @@
 					<label class="field">
 						<span>@T["Bank"]</span>
 						<select name="bank" onchange="this.form.submit()">
+							<button><selectedcontent></selectedcontent></button>
 							@foreach (var b in Model.Banks)
 							{
 								<option value="@b.Bic" selected="@(b.Bic == Model.Bank)">@BankRates.ShortNameOf(b.Name)</option>

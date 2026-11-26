@@ -47,6 +47,8 @@
 			? '—'
 			: f2v ? fmt(state.amount * used, 0) : fmt(state.amount / used, 2);
 
+		fitResult();
+
 		const which = f2v ? (state.mode === 'cash' ? data.text.buysCash : data.text.buysTransfer) : data.text.sells;
 		$('[data-rate-line]').innerHTML = used == null
 			? `— · ${which}`
@@ -105,6 +107,16 @@
 	}));
 
 	// On a phone the currency picker shows the code only ("EUR"); otherwise "EUR · Euro".
+	// The result stays on one line: on a narrow phone its font shrinks until the number fits (down to 14px).
+	function fitResult() {
+		const out = $('[data-result]');
+		out.style.fontSize = '';
+		let size = parseFloat(getComputedStyle(out).fontSize);
+		while (out.scrollWidth > out.clientWidth && size > 14) out.style.fontSize = `${--size}px`;
+	}
+	window.addEventListener('resize', fitResult);
+	document.fonts?.ready.then(fitResult); // the number font may load after the first render
+
 	const narrow = window.matchMedia('(max-width: 640px)');
 	function labelCurrencies() {
 		currencySelect.querySelectorAll('option').forEach(o => {
