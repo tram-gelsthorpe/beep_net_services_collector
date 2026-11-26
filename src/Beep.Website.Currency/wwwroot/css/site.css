@@ -116,7 +116,7 @@ main > * { min-width: 0; }
 .bank h2 { margin: 0; font: 600 22px var(--font-display); letter-spacing: -.01em; }
 .bank-head p { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; }
-.chip { padding: 6px 10px; border-radius: 999px; background: #F2F4F7; color: var(--ink-2); }
+.chip { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #F2F4F7; color: var(--ink-2); }
 .chip.blue { background: var(--accent-tint); color: #1E3A8A; }
 .chip.orange { background: #FFEDD5; color: #9A3412; }
 .toolbar { padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -279,7 +279,7 @@ select.cur-pill {
 .conv-bank-meta { display: block; }
 .conv-bank-meta > span { display: block; }
 .conv-bank-meta > span::first-letter { text-transform: uppercase; } /* "published …" starts its own line */
-.kv { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.kv { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .kv span:first-child { color: var(--muted); }
 .kv-sell { color: var(--sell); font-weight: 500; }
 .btn-link { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; text-align: center; border-radius: 10px; background: var(--field); color: var(--ink); font: 600 14px var(--font-body); text-decoration: none; }
