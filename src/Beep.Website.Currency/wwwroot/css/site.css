@@ -642,6 +642,14 @@ select.cur-pill {
 	.lang-menu .code { display: inline; }
 }
 
+/* Desktop: the spread badge stays beside the name in every card; a long name ("UK Pound Sterling") wraps instead,
+   so the three cards' rates line up (at 1100px the GBP badge dropped under the name in Spanish). */
+@media (min-width: 1100px) {
+	.fcard-head { flex-wrap: nowrap; }
+	.fcard-id { min-width: 0; }
+	.fcard .badge { flex: none; white-space: nowrap; }
+	.fcard-rates { margin-top: auto; } /* at the bottom of every card, level even when a name takes two lines */
+}
 /* Bank rates and Compare on tablets (641–1099px). */
 @media (min-width: 641px) and (max-width: 1099px) {
 	/* Reset and Show rates fill the rest of their row, never alone at its start. */
