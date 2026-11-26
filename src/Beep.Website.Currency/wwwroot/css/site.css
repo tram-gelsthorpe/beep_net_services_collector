@@ -639,6 +639,30 @@ select.cur-pill {
 	.lang-menu .code { display: inline; }
 }
 
+/* Bank rates on tablets (641–1099px). */
+@media (min-width: 641px) and (max-width: 1099px) {
+	/* Reset and Show rates fill the rest of their row, never alone at its start. */
+	.actions { flex: 1 1 auto; }
+	.actions .btn { flex: 1 1 auto; }
+	/* The spread badge under the name in every card, so the three cards match. */
+	.fcard-head { flex-direction: column; align-items: flex-start; }
+	/* The five columns fit the card (the Spread column was cut off below 860px). */
+	.rates-table { min-width: 0; font-size: 14px; }
+	.rates-table th, .rates-table td { padding-inline: 10px; }
+	.rates-table th { white-space: normal; vertical-align: bottom; font-size: 11px; letter-spacing: .02em; }
+	.rates-table th:first-child, .rates-table td:first-child { padding-inline-start: 28px; }
+	.rates-table th:last-child, .rates-table td:last-child { width: auto; padding-inline-end: 28px; }
+	.rates-table .bar { min-width: 32px; }
+	.rates-table .cur { gap: 8px; }
+}
+@media (min-width: 641px) and (max-width: 720px) {
+	/* The currency's name under its code: "Australian" beside its code is too wide in Spanish. */
+	.rates-table .cur { flex-direction: column; align-items: flex-start; gap: 4px; }
+	.rates-table .cur-name { font-size: 13px; }
+	/* Less room at the card's edges (28px above 720px, in line with the filter box). */
+	.rates-table th:first-child, .rates-table td:first-child { padding-inline-start: 20px; }
+	.rates-table th:last-child, .rates-table td:last-child { padding-inline-end: 20px; }
+}
 /* Narrower tablets (641–860px): the page links don't fit beside the logo in every language (French needs about
    830px), so they move into the menu button, as on phones; the menu opens under it at the header's end. */
 @media (min-width: 641px) and (max-width: 860px) {
