@@ -682,6 +682,9 @@ select.cur-pill {
 	/* Compare: six columns don't fit (German, Spanish), so Buy · cash and the bank's badge go; the name stays. */
 	.cmp-table:not(.cmp-all) :is(th, td):nth-child(2) { display: none; }
 	.cmp-table .bank-dot { display: none; }
+	/* Filters two a row: a third of the width (167px at 641px) is too narrow for "Vendre des USD" in the toggle. */
+	.cmp-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.cmp-filters .actions.span-2 { grid-column: auto; }
 }
 /* Narrower tablets (641–860px): the page links don't fit beside the logo in every language (French needs about
    830px), so they move into the menu button, as on phones; the menu opens under it at the header's end. */
