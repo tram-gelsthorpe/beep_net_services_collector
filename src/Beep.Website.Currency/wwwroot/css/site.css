@@ -663,6 +663,10 @@ select.cur-pill {
 	:is(.rates-table, .cmp-table) :is(th, td):first-child { padding-inline-start: 20px; }
 	:is(.rates-table, .cmp-table) :is(th, td):last-child { padding-inline-end: 20px; }
 }
+/* Converter on smaller tablets: four rate tiles a row (five were too narrow for "27,815.14" at 641px). */
+@media (min-width: 641px) and (max-width: 959px) {
+	.tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 @media (min-width: 641px) and (max-width: 767px) {
 	/* Compare: six columns don't fit (German, Spanish), so Buy · cash and the bank's badge go; the name stays. */
 	.cmp-table:not(.cmp-all) :is(th, td):nth-child(2) { display: none; }
