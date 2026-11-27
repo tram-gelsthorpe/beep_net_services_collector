@@ -32,6 +32,7 @@ public static class BankRateParsers
 
 	public static IReadOnlyList<IBankRateParser> All { get; } =
 	[
+		VietcombankRateParser.Instance,
 		BankRateTable.Hsbc,
 		BankRateTable.Woori,
 		BankRateTable.Ocb,

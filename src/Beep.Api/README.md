@@ -8,8 +8,7 @@ EventBus and records bank currency rates, and serves the recorded rates (to Beep
 
 | Method | Route | Description |
 | --- | --- | --- |
-| `POST` | `/api/currencyrate/currency/vietcombank` | Record Vietcombank's rates (bank BIC `BFTVVNVX`) from a collection result. |
-| `POST` | `/api/currencyrate/currency/{bank}` | Record another Vietnamese bank's rates from its rate page (see [Other banks](#other-banks)). |
+| `POST` | `/api/currencyrate/currency/{bank}` | Record a bank's rates from a collection result of its rate page: `vietcombank` (BIC `BFTVVNVX`) or one of the [other banks](#other-banks). |
 | `GET` | `/api/currencyrate/countries` | Countries that have a bank with rates: `[{ "code", "name" }]`. |
 | `GET` | `/api/currencyrate/banks?country=&bank=` | Banks with rates and their latest date. |
 | `GET` | `/api/currencyrate/latest?date=&country=&bank=` | The latest rate of each bank and currency. |
@@ -53,7 +52,7 @@ Earlier rates of a day are kept; the current rate of a day is the one with the h
 | `200` `{ "inserted", "duplicates", "unknownCurrencies" }` | Recorded (currency codes not in `dbo.Currency` are listed and skipped) |
 | `404` | The collection result does not exist or has no extracted data |
 | `400` | No `CollectedDataId`; or, for a bank recorded at its collection time, no `CollectedAt` |
-| `404` | (other banks) No bank of that name |
+| `404` | No bank of that name |
 | `422` | The extracted data is not the bank's rate list |
 
 ### Other banks

@@ -10,9 +10,26 @@ namespace Beep.Api.Domain.Currency;
 ///   "Data":[{"currencyCode":"USD","cash":"25610.00","transfer":"25640.00","sell":"26020.00"}, ...]}}
 /// </code>
 /// <c>cash</c> → BuyingRateCash, <c>transfer</c> → BuyingRateTransfer, <c>sell</c> → SellingRate.
+/// The page gives its publication time (<c>UpdatedDate</c>), so the collection time is not used.
 /// </summary>
-public static class VietcombankRateParser
+public sealed class VietcombankRateParser : IBankRateParser
 {
+	/// <summary>The one instance, in <see cref="BankRateParsers.All"/>.</summary>
+	public static readonly VietcombankRateParser Instance = new();
+
+	private VietcombankRateParser()
+	{
+	}
+
+	public string Name => "vietcombank";
+
+	public string Bic => BankBic;
+
+	public bool UsesCollectionTime => false;
+
+	IReadOnlyList<CurrencyRateBank> IBankRateParser.Parse(string extractedJson, DateTimeOffset collectedAt) =>
+		Parse(extractedJson);
+
 	/// <summary>Vietcombank's BIC, as in <c>dbo.Bank.Bic</c>.</summary>
 	public const string BankBic = "BFTVVNVX";
 

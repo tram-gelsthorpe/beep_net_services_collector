@@ -115,11 +115,12 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(10, BankRateParsers.All);
-		Assert.HasCount(10, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(10, BankRateParsers.All.Select(p => p.Bic).Distinct());
-		Assert.IsFalse(BankRateParsers.All.Any(p => p.Bic == VietcombankRateParser.BankBic || p.Name == "vietcombank"),
-			"Vietcombank has its own endpoint");
+		Assert.HasCount(11, BankRateParsers.All);
+		Assert.HasCount(11, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(11, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
+		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
+		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
 		Assert.AreSame(BankRateTable.Hsbc, BankRateParsers.ForName("HSBC"));
 		Assert.IsNull(BankRateParsers.ForName("notabank"));
 	}

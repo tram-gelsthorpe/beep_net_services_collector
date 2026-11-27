@@ -240,24 +240,24 @@ public sealed class CurrencyRateIntegrationTests
 		var alerts = new RecordingQueue();
 		var controller = new CurrencyRateController(collected, _repository, alerts, NullLogger<CurrencyRateController>.Instance);
 
-		var ok = await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None);
+		var ok = await controller.RecordBankCurrencyRate("vietcombank", Request(collectedDataId), CancellationToken.None);
 		var result = (CurrencyRateSaveResult)((OkObjectResult)ok).Value!;
 		Assert.AreEqual(new CurrencyRateSaveResult(2, 0, []), result, CurrencyRateSaveResultComparer.Instance);
 		Assert.AreEqual("BFTVVNVX rate alerts", alerts.Descriptions.Single(), "new rates: subscribers are emailed");
 
-		var again = await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None);
+		var again = await controller.RecordBankCurrencyRate("vietcombank", Request(collectedDataId), CancellationToken.None);
 		Assert.AreEqual(2, ((CurrencyRateSaveResult)((OkObjectResult)again).Value!).Duplicates, "a redelivery is accepted");
 		Assert.HasCount(1, alerts.Descriptions, "a redelivery sends no alert");
 
 		Assert.IsInstanceOfType<NotFoundObjectResult>(
-			await controller.RecordVietcombankCurrencyRate(Request(Guid.NewGuid()), CancellationToken.None));
+			await controller.RecordBankCurrencyRate("vietcombank", Request(Guid.NewGuid()), CancellationToken.None));
 
 		collected[collectedDataId] = """{"ContentSelector":"something else"}""";
 		Assert.IsInstanceOfType<UnprocessableEntityObjectResult>(
-			await controller.RecordVietcombankCurrencyRate(Request(collectedDataId), CancellationToken.None));
+			await controller.RecordBankCurrencyRate("vietcombank", Request(collectedDataId), CancellationToken.None));
 
 		Assert.IsInstanceOfType<BadRequestObjectResult>(
-			await controller.RecordVietcombankCurrencyRate(Request(Guid.Empty), CancellationToken.None));
+			await controller.RecordBankCurrencyRate("vietcombank", Request(Guid.Empty), CancellationToken.None));
 	}
 
 	[TestMethod]

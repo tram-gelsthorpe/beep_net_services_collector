@@ -142,22 +142,14 @@ public class CurrencyRateController : ControllerBase
 	}
 
 	/// <summary>
-	/// Record Vietcombank's rates from a collection result (bank BIC BFTVVNVX).
+	/// Records a bank's rates from a collection result of its rate page: <paramref name="bank"/> is its name in
+	/// <see cref="BankRateParsers.All"/> (vietcombank, hsbc, woori, ocb, seabank, agribank, bvbank, vietabank,
+	/// vietinbank, namabank, ncb). Pages that give no publication time are recorded at <c>CollectedAt</c>.
 	/// </summary>
 	/// <response code="200">Rates recorded (or already recorded)</response>
-	/// <response code="404">The collection result does not exist or has no extracted data</response>
-	/// <response code="422">The extracted data is not Vietcombank's rate list</response>
-	[HttpPost("currency/vietcombank")]
-	public Task<IActionResult> RecordVietcombankCurrencyRate(
-		[FromBody] CollectionDeliveryRequest request,
-		CancellationToken cancellationToken) =>
-		RecordAsync(VietcombankRateParser.BankBic, json => VietcombankRateParser.Parse(json), false, request, cancellationToken);
-
-	/// <summary>
-	/// Records the rates of another bank's collected rate page: <paramref name="bank"/> is its name in
-	/// <see cref="BankRateParsers.All"/> (hsbc, woori, ocb, seabank, agribank, bvbank, vietabank, vietinbank,
-	/// namabank, ncb). Pages that give no publication time are recorded at <c>CollectedAt</c>.
-	/// </summary>
+	/// <response code="400">No CollectedDataId; or no CollectedAt for a bank recorded at its collection time</response>
+	/// <response code="404">No such bank, or the collection result does not exist or has no extracted data</response>
+	/// <response code="422">The extracted data is not the bank's rate list</response>
 	[HttpPost("currency/{bank}")]
 	public Task<IActionResult> RecordBankCurrencyRate(
 		string bank,
