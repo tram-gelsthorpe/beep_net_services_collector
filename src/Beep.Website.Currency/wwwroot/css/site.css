@@ -250,6 +250,10 @@ tr.no-match td { text-align: start; color: var(--muted); }
 .bank-cell { display: flex; align-items: center; gap: 12px; }
 .bank-cell b { display: block; font-weight: 600; }
 .bank-cell small { font-size: 12px; color: var(--muted); }
+/* The full name, under a bank's short name. */
+.bank-full-name { display: block; font: 500 12px/1.35 var(--font-body); color: var(--muted); }
+.bank-head p.bank-full-name { margin: 2px 0 0; font-size: 13px; }
+.summary .card .bank-full-name { margin-top: 2px; }
 .cmp-foot { padding: 14px 28px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .bank-cards { display: none; }
 

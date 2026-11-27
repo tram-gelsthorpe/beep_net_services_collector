@@ -13,4 +13,5 @@ public sealed record LatestRateItem(
 	decimal? BuyingRateTransfer,
 	decimal? SellingRate,
 	string? CurrencySymbol,
-	string? QuoteCurrencyCode);
+	string? QuoteCurrencyCode,
+	string? BankShortName = null);

@@ -376,14 +376,14 @@ public sealed class NotificationIntegrationTests
 
 		private static readonly LatestBankRate[] Rates =
 		[
-			new(VietnamId, Bic, "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank", "USD", "US Dollar", "$", new DateTime(2026, 11, 26), Published, 25610m, 25640m, 26020m),
-			new(VietnamId, Bic, "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank", "EUR", "Euro", "€", new DateTime(2026, 11, 26), Published, 27500m, 27800m, 29000m),
-			new(VietnamId, OtherBic, "Asia Commercial Bank – ACB", "USD", "US Dollar", "$", new DateTime(2026, 11, 26), Published, 25600m, 25630m, 26010m),
+			new(VietnamId, Bic, "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank", "Vietcombank", "USD", "US Dollar", "$", new DateTime(2026, 11, 26), Published, 25610m, 25640m, 26020m),
+			new(VietnamId, Bic, "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank", "Vietcombank", "EUR", "Euro", "€", new DateTime(2026, 11, 26), Published, 27500m, 27800m, 29000m),
+			new(VietnamId, OtherBic, "Asia Commercial Bank – ACB", "ACB", "USD", "US Dollar", "$", new DateTime(2026, 11, 26), Published, 25600m, 25630m, 26010m),
 		];
 
 		public Task<IReadOnlyList<BankWithRates>> GetBanksWithRatesAsync(Guid? countryId, string? bank, CancellationToken cancellationToken) =>
 			Task.FromResult<IReadOnlyList<BankWithRates>>(Rates.GroupBy(r => r.Bic)
-				.Select(g => new BankWithRates(VietnamId, g.Key, g.First().BankName, new DateTime(2026, 11, 26))).ToList());
+				.Select(g => new BankWithRates(VietnamId, g.Key, g.First().BankName, null, new DateTime(2026, 11, 26))).ToList());
 
 		public Task<IReadOnlyList<LatestBankRate>> GetLatestRatesAsync(DateOnly? date, Guid? countryId, string? bank, CancellationToken cancellationToken) =>
 			Task.FromResult<IReadOnlyList<LatestBankRate>>(Rates

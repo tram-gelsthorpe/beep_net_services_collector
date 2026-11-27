@@ -28,7 +28,7 @@
 			<datalist id="banks">
 				@foreach (var b in Model.Banks)
 				{
-					<option value="@b.Bic">@b.Name</option>
+					<option value="@b.Bic">@b.Label</option>
 				}
 			</datalist>
 		</label>
@@ -54,7 +54,11 @@
 				{
 					<li>
 						<a asp-page="/Index" asp-route-country="@Model.Country" asp-route-date="@date" asp-route-bank="@b.Bic">
-							<span class="bank-choice-name">@b.Name <span class="chip blue num">@b.Bic</span></span>
+							<span class="bank-choice-name">@b.DisplayName <span class="chip blue num">@b.Bic</span></span>
+							@if (b.FullName is not null)
+							{
+								<span class="bank-choice-legal">@b.FullName</span>
+							}
 							@if (b.CountryName is not null)
 							{
 								<span class="bank-choice-legal">@b.CountryName</span>
@@ -119,7 +123,11 @@
 					<div class="bank-id">
 						<span class="bank-badge">@bank.Badge</span>
 						<div>
-							<h2>@bank.Name</h2>
+							<h2>@bank.DisplayName</h2>
+							@if (bank.FullName is not null)
+							{
+								<p class="bank-full-name">@bank.FullName</p>
+							}
 							@if (bank.CountryName is not null)
 							{
 								<p>@bank.CountryName</p>

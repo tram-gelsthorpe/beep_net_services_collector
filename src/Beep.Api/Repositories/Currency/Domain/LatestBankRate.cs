@@ -5,6 +5,7 @@ public sealed record LatestBankRate(
 	Guid CountryId,
 	string Bic,
 	string BankName,
+	string? BankShortName,
 	string CurrencyCode,
 	string CurrencyName,
 	string? CurrencySymbol,

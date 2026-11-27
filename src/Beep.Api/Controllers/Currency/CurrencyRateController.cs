@@ -75,7 +75,7 @@ public class CurrencyRateController : ControllerBase
 		return banks.Select(b =>
 		{
 			var c = all.GetValueOrDefault(b.CountryId);
-			return new BankResponse(b.Bic, b.Name, c?.Code, c?.Name, DateOnly.FromDateTime(b.LatestDate));
+			return new BankResponse(b.Bic, b.Name, c?.Code, c?.Name, DateOnly.FromDateTime(b.LatestDate), b.ShortName);
 		}).ToList();
 	}
 
@@ -125,7 +125,7 @@ public class CurrencyRateController : ControllerBase
 			return new LatestRateResponse(
 				r.Bic, r.BankName, c?.Code, c?.Name, r.CurrencyCode, r.CurrencyName,
 				DateOnly.FromDateTime(r.Date), r.RateTime, r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate,
-				r.CurrencySymbol, quote);
+				r.CurrencySymbol, quote, r.BankShortName);
 		}).ToList();
 	}
 

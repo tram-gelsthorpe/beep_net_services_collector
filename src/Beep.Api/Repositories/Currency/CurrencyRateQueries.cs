@@ -26,7 +26,7 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 	{
 		await using var connection = new SqlConnection(_connectionString);
 		var rows = await connection.QueryAsync<BankWithRates>(new CommandDefinition($"""
-			SELECT b.Country_Id AS CountryId, b.Bic, b.LongName AS Name, r.LatestDate
+			SELECT b.Country_Id AS CountryId, b.Bic, b.LongName AS Name, b.ShortName, r.LatestDate
 			FROM dbo.Bank b
 			CROSS APPLY (SELECT MAX(r.[Date]) AS LatestDate FROM dbo.Currency_Rate_Bank r WHERE r.Bank_Id = b.Id) r
 			WHERE r.LatestDate IS NOT NULL AND b.Bic IS NOT NULL AND {BankFilter}
@@ -40,7 +40,7 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 	{
 		await using var connection = new SqlConnection(_connectionString);
 		var rows = await connection.QueryAsync<LatestBankRate>(new CommandDefinition($"""
-			SELECT b.Country_Id AS CountryId, b.Bic, b.LongName AS BankName,
+			SELECT b.Country_Id AS CountryId, b.Bic, b.LongName AS BankName, b.ShortName AS BankShortName,
 			       RTRIM(c.CodeISO) AS CurrencyCode, c.Name AS CurrencyName, NULLIF(LTRIM(RTRIM(c.Symbol)), N'') AS CurrencySymbol,
 			       r.[Date], r.RateTime, r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate
 			FROM dbo.Bank b

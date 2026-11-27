@@ -1,7 +1,9 @@
 namespace Beep.Website.Currency;
 
 /// <summary>One bank's latest rates, with what the pages show about the bank.</summary>
-public sealed record BankRates(string Name, string Bic, string? CountryCode, string? CountryName, IReadOnlyList<LatestRateItem> Rates)
+/// <param name="Name">The bank's full name (dbo.Bank.LongName).</param>
+/// <param name="ShortName">Its usual name ("Vietcombank", dbo.Bank.ShortName), if it has one.</param>
+public sealed record BankRates(string Name, string Bic, string? CountryCode, string? CountryName, IReadOnlyList<LatestRateItem> Rates, string? ShortName = null)
 {
 	// Short names of banks whose initials don't give their usual abbreviation.
 	private static readonly Dictionary<string, string> KnownBadges = new(StringComparer.OrdinalIgnoreCase)
@@ -9,28 +11,28 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 		["BFTVVNVX"] = "VCB",
 	};
 
-	private static readonly string[] NameSeparators = [" – ", " — ", " - "];
-
-	/// <summary>Groups rates by bank, ordered by name.</summary>
+	/// <summary>Groups rates by bank, ordered by the name shown.</summary>
 	public static IReadOnlyList<BankRates> FromRates(IEnumerable<LatestRateItem> rates) =>
 		rates
 			.GroupBy(r => r.Bic)
-			.Select(g => new BankRates(g.First().BankName, g.Key, g.First().CountryCode, g.First().CountryName, g.ToList()))
-			.OrderBy(b => b.Name, StringComparer.CurrentCultureIgnoreCase)
+			.Select(g => new BankRates(g.First().BankName, g.Key, g.First().CountryCode, g.First().CountryName, g.ToList(), g.First().BankShortName))
+			.OrderBy(b => b.DisplayName, StringComparer.CurrentCultureIgnoreCase)
 			.ToList();
 
-	/// <summary>
-	/// Up to three letters for the round badge: the initials of what follows the name's last dash, its usual
-	/// name ("VietinBank" in "Ngân hàng TMCP Công Thương Việt Nam – VietinBank"), or of the whole name.
-	/// The pages show the bank's full name (<see cref="Name"/>) as it is in dbo.Bank.
-	/// </summary>
+	/// <summary>The name to show first: the short name ("Vietcombank"), else the full name.</summary>
+	public string DisplayName => ShortName ?? Name;
+
+	/// <summary>The full name to show under <see cref="DisplayName"/>: null when that is already the full name.</summary>
+	public string? FullName => ShortName is null ? null : Name;
+
+	/// <summary>Up to three letters for the round badge: the initials of <see cref="DisplayName"/>.</summary>
 	public string Badge
 	{
 		get
 		{
 			if (KnownBadges.TryGetValue(Bic, out var known))
 				return known;
-			var usual = UsualName(Name);
+			var usual = DisplayName;
 			var words = usual.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			return words.Length > 1
 				? string.Concat(words.Take(3).Select(w => char.ToUpperInvariant(w[0])))
@@ -58,16 +60,4 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 
 	public LatestRateItem? Rate(string currencyCode) =>
 		Rates.FirstOrDefault(r => string.Equals(r.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase));
-
-	// What follows the name's last dash, else the name: only for the badge's letters.
-	private static string UsualName(string name)
-	{
-		foreach (var separator in NameSeparators)
-		{
-			var at = name.LastIndexOf(separator, StringComparison.Ordinal);
-			if (at > 0 && at + separator.Length < name.Length)
-				return name[(at + separator.Length)..].Trim();
-		}
-		return name;
-	}
 }

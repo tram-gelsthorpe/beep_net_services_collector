@@ -13,6 +13,7 @@ namespace Beep.Api.Controllers.Currency;
 /// <param name="SellingRate">Bank sells</param>
 /// <param name="CurrencySymbol">Symbol of the currency ($, €), if known</param>
 /// <param name="QuoteCurrencyCode">Currency the rates are in: the bank country's currency, if known</param>
+/// <param name="BankShortName">The bank's usual name ("Vietcombank"), if it has one</param>
 public sealed record LatestRateResponse(
 	string Bic,
 	string BankName,
@@ -26,4 +27,5 @@ public sealed record LatestRateResponse(
 	decimal? BuyingRateTransfer,
 	decimal? SellingRate,
 	string? CurrencySymbol,
-	string? QuoteCurrencyCode);
+	string? QuoteCurrencyCode,
+	string? BankShortName);
