@@ -133,7 +133,8 @@ main > * { min-width: 0; }
 .chip.amber { background: #FEF3C7; color: #92400E; cursor: help; }
 .ref-tag { display: inline-block; margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px; background: #FEF3C7; color: #92400E;
 	font: 600 11px/1.5 var(--font-body); letter-spacing: 0; vertical-align: 2px; white-space: nowrap; cursor: help; }
-.ref-tag:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
+[data-tip] { cursor: help; }
+[data-tip]:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
 
 /* The pop-up of a [data-tip] (the "Reference rate" tag): drawn like the site's other pop-ups, placed by site.js. */
 .tip { position: fixed; z-index: 60; max-width: 280px; padding: 10px 14px; background: #fff; border-radius: 12px;

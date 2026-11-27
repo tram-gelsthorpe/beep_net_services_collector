@@ -137,7 +137,7 @@
 					<div class="chips">
 						@if (bank.IsReferenceRate)
 						{
-							<span class="chip amber" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span>
+							<span class="chip amber" tabindex="0" data-tip="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span>
 						}
 						<span class="chip blue num">@bank.Bic</span>
 						@if (bank.SameDate)
