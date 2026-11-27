@@ -8,10 +8,15 @@
 	const data = JSON.parse(root.dataset.converter);
 	const $ = selector => document.querySelector(selector);
 	const fmt = (n, digits) => n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+	// A rate as RateFormat.Format writes it: two decimals, up to five significant digits on a small rate (0.91266 EUR).
+	const fmtRate = n => n.toLocaleString('en-US', {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: n > 0 ? Math.min(10, Math.max(2, 4 - Math.floor(Math.log10(n)))) : 2,
+	});
 	const format = (template, ...args) => template.replace(/\{(\d+)\}/g, (_, i) => args[+i] ?? '');
 	const quote = data.quote;
 	const foreignAmounts = [100, 500, 1000, 5000, 10000];
-	const quoteAmounts = [1e6, 5e6, 1e7, 5e7, 1e8];
+	const quoteAmounts = data.quoteAmounts; // 1,000,000… VND; 100… EUR
 
 	const state = { currency: data.currency, dir: 'f2v', mode: 'transfer', amount: 1000 };
 
@@ -45,14 +50,14 @@
 		if (document.activeElement !== amountInput) amountInput.value = fmt(state.amount, f2v ? 0 : 0);
 		$('[data-result]').textContent = used == null || used === 0
 			? '—'
-			: f2v ? fmt(state.amount * used, 0) : fmt(state.amount / used, 2);
+			: f2v ? fmt(state.amount * used, data.quoteDecimals) : fmt(state.amount / used, 2);
 
 		fitResult();
 
 		const which = f2v ? (state.mode === 'cash' ? data.text.buysCash : data.text.buysTransfer) : data.text.sells;
 		$('[data-rate-line]').innerHTML = used == null
 			? `— · <span class="nowrap">${which}</span>`
-			: format(data.text.rateUsed, `<b dir="ltr" class="nowrap">1 ${state.currency} = ${fmt(used, 2)} ${quote}</b>`) + ` · <span class="nowrap">${which}</span>`; // the rate and its name each stay on one line ("27,815.14 VND", "ธนาคารรับซื้อ (โอน)")
+			: format(data.text.rateUsed, `<b dir="ltr" class="nowrap">1 ${state.currency} = ${fmtRate(used)} ${quote}</b>`) + ` · <span class="nowrap">${which}</span>`; // the rate and its name each stay on one line ("27,815.14 VND", "ธนาคารรับซื้อ (โอน)")
 
 		modeSeg.hidden = !f2v;
 		modeSeg.querySelectorAll('button').forEach(b => {
@@ -63,9 +68,9 @@
 		$('[data-quick]').innerHTML = (f2v ? foreignAmounts : quoteAmounts)
 			.map(v => `<button type="button" data-v="${v}">${fmt(v, 0)}</button>`).join('');
 
-		$('[data-r-cash]').textContent = r.cash == null ? '—' : fmt(r.cash, 2);
-		$('[data-r-transfer]').textContent = r.transfer == null ? '—' : fmt(r.transfer, 2);
-		$('[data-r-sell]').textContent = r.sell == null ? '—' : fmt(r.sell, 2);
+		$('[data-r-cash]').textContent = r.cash == null ? '—' : fmtRate(r.cash);
+		$('[data-r-transfer]').textContent = r.transfer == null ? '—' : fmtRate(r.transfer);
+		$('[data-r-sell]').textContent = r.sell == null ? '—' : fmtRate(r.sell);
 
 		const link = $('[data-compare-link]');
 		link.textContent = format(data.text.compare, state.currency).replace(/ ([→←])/, ' $1'); // the arrow never alone on a line
@@ -83,7 +88,7 @@
 
 	function setDirection(dir) {
 		state.dir = dir;
-		state.amount = dir === 'f2v' ? 1000 : 1e7;
+		state.amount = dir === 'f2v' ? 1000 : data.quoteStart;
 		render();
 	}
 

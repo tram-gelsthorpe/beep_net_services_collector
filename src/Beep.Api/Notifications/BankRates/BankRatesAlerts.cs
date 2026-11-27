@@ -67,7 +67,7 @@ public sealed class BankRatesAlerts(
 	public static NotificationEmail AlertEmail(Subscription subscription, NotificationWebsite website, IReadOnlyList<LatestBankRate> rates, string quote)
 	{
 		var language = EmailText.Language(subscription.Culture);
-		var bank = BankRatesNotification.ShortName(rates[0].BankName);
+		var bank = rates[0].BankShortName ?? BankRatesNotification.ShortName(rates[0].BankName);
 		var date = rates.Max(r => r.Date).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
 		var published = rates.Select(r => r.RateTime).Max() is { } t ? t.ToString("dd/MM HH:mm", CultureInfo.InvariantCulture) : "—";
 
@@ -75,7 +75,10 @@ public sealed class BankRatesAlerts(
 		var (start, end) = EmailText.IsRightToLeft(language) ? ("right", "left") : ("left", "right");
 		string Cell(string value, bool head = false, string? align = null, string colour = "#101828") =>
 			$"<{(head ? "th" : "td")} style=\"padding:10px 8px;border-bottom:1px solid #EAECF0;text-align:{align ?? end};font-size:{(head ? 12 : 14)}px;color:{(head ? "#667085" : colour)};font-weight:{(head ? 600 : 500)};white-space:nowrap\">{EmailLayout.Encode(value)}</{(head ? "th" : "td")}>";
-		static string Rate(decimal? rate) => rate is { } value ? value.ToString("#,##0.00", CultureInfo.InvariantCulture) : "—";
+		// Two decimals, up to five significant digits on a small rate (0.91266 EUR per USD), as on the website.
+		static string Rate(decimal? rate) => rate is { } value
+			? value.ToString("#,##0.00" + new string('#', value == 0 ? 0 : Math.Clamp(2 - (int)Math.Floor(Math.Log10((double)Math.Abs(value))), 0, 8)), CultureInfo.InvariantCulture)
+			: "—";
 
 		var rows = string.Concat(rates.Select(r =>
 			"<tr>" + Cell(r.CurrencyCode, align: start) + Cell(Rate(r.BuyingRateCash)) + Cell(Rate(r.BuyingRateTransfer)) + Cell(Rate(r.SellingRate), colour: "#1D4ED8") + "</tr>"));

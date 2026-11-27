@@ -63,23 +63,35 @@ public sealed class ConverterModel(BeepApiClient api, UiText text, ILogger<Conve
 		}
 	}
 
-	/// <summary>What converter.js needs: the bank's rates and the texts it writes.</summary>
-	public string ConverterJson() => JsonSerializer.Serialize(new
+	/// <summary>
+	/// What converter.js needs: the bank's rates, how to write them, and the texts it writes. The quick amounts in the
+	/// bank's currency follow the size of its dollar rate: 1,000,000 to 100,000,000 VND (1 USD = 25,640 VND), 100 to
+	/// 10,000 EUR (1 USD = 0.91 EUR).
+	/// </summary>
+	public string ConverterJson()
 	{
-		currency = Currency,
-		quote = Rates?.QuoteCurrency ?? "",
-		compareUrl = Url.Page("/Compare", new { country = Rates?.CountryCode, currency = "__CUR__" }),
-		rates = Rates?.Rates.ToDictionary(
-			r => r.CurrencyCode,
-			r => new { name = r.CurrencyName, cash = r.BuyingRateCash, transfer = r.BuyingRateTransfer, sell = r.SellingRate }),
-		text = new
+		var usd = Rates?.Rate("USD") is { } dollar ? dollar.SellingRate ?? dollar.BuyingRateTransfer : null;
+		var scale = usd is > 1m ? (decimal)Math.Pow(10, Math.Floor(Math.Log10((double)usd.Value))) : 1m;
+		return JsonSerializer.Serialize(new
 		{
-			rateUsed = text["Rate used: {0}"],
-			buysTransfer = text["bank buys (transfer)"],
-			buysCash = text["bank buys (cash)"],
-			sells = text["bank sells"],
-			compare = text["Compare {0} at other banks →"],
-			sell = text["sell {0}"],
-		},
-	});
+			currency = Currency,
+			quote = Rates?.QuoteCurrency ?? "",
+			quoteDecimals = RateFormat.AmountDecimals(Rates?.QuoteCurrency),
+			quoteAmounts = new[] { 100m, 500m, 1000m, 5000m, 10000m }.Select(a => a * scale).ToArray(),
+			quoteStart = 1000m * scale,
+			compareUrl = Url.Page("/Compare", new { country = Rates?.CountryCode, currency = "__CUR__" }),
+			rates = Rates?.Rates.ToDictionary(
+				r => r.CurrencyCode,
+				r => new { name = r.CurrencyName, cash = r.BuyingRateCash, transfer = r.BuyingRateTransfer, sell = r.SellingRate }),
+			text = new
+			{
+				rateUsed = text["Rate used: {0}"],
+				buysTransfer = text["bank buys (transfer)"],
+				buysCash = text["bank buys (cash)"],
+				sells = text["bank sells"],
+				compare = text["Compare {0} at other banks →"],
+				sell = text["sell {0}"],
+			},
+		});
+	}
 }

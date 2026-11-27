@@ -128,14 +128,64 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(11, BankRateParsers.All);
-		Assert.HasCount(11, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(11, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.HasCount(12, BankRateParsers.All);
+		Assert.HasCount(12, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(12, BankRateParsers.All.Select(p => p.Bic).Distinct());
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
 		Assert.AreSame(BankRateTableParser.Hsbc, BankRateParsers.ForName("HSBC"));
 		Assert.IsNull(BankRateParsers.ForName("notabank"));
+	}
+
+	[TestMethod]
+	public void Ecb_ReadsTheReferenceRates()
+	{
+		// The ECB page of 27/11/2026, as the collector extracted it: the day, then each currency's rate per euro.
+		var parser = BankRateParsers.ForName("ecb")!;
+		var rates = parser.Parse(Page("ecb"), CollectedAt);
+
+		Assert.AreSame(EcbRateParser.Instance, parser);
+		Assert.AreEqual("NBBEBEBB", parser.Bic);
+		Assert.IsFalse(parser.UsesCollectionTime, "the page gives its day");
+		Assert.HasCount(29, rates);
+		Assert.IsFalse(rates.Any(r => r.CurrencyCode == "EUR"));
+
+		// 16:00 in Brussels (winter time: UTC+1) on the page's day, whenever it was collected.
+		var published = new DateTimeOffset(2026, 11, 27, 16, 0, 0, TimeSpan.FromHours(1));
+		Assert.IsTrue(rates.All(r => r.Date == new DateOnly(2026, 11, 27) && r.RateTime == published));
+
+		// 1 EUR = 1.0957 USD, so 1 USD = 0.9126585744 EUR: one middle rate, no cash rate.
+		var usd = rates.Single(r => r.CurrencyCode == "USD");
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 27), published, null, 0.9126585744m, 0.9126585744m), usd);
+		Assert.AreEqual(Math.Round(1m / 174.81m, 10), rates.Single(r => r.CurrencyCode == "JPY").SellingRate);
+		Assert.AreEqual(Math.Round(1m / 20136.83m, 10), rates.Single(r => r.CurrencyCode == "IDR").SellingRate);
+		Assert.AreEqual(Math.Round(1m / 11.2080m, 10), rates.Single(r => r.CurrencyCode == "SEK").SellingRate);
+	}
+
+	[TestMethod]
+	public void Ecb_SummerTime_IsUtcPlusTwo()
+	{
+		var rates = EcbRateParser.Instance.Parse("""{"ContentSelector":["3 July 2026","USD",1.1712]}""", CollectedAt);
+
+		Assert.AreEqual(new DateTimeOffset(2026, 7, 3, 16, 0, 0, TimeSpan.FromHours(2)), rates.Single().RateTime);
+	}
+
+	[TestMethod]
+	public void Ecb_BadRate_IsLeftOut()
+	{
+		var skipped = new List<string>();
+		var rates = EcbRateParser.Instance.Parse("""{"ContentSelector":["27 November 2026","USD","n/a","JPY",174.81]}""", CollectedAt, skipped);
+
+		Assert.AreEqual("JPY", rates.Single().CurrencyCode);
+		Assert.AreEqual("NBBEBEBB USD is not a rate: 'n/a'", skipped.Single());
+	}
+
+	[TestMethod]
+	public void Ecb_NoDay_IsRefused()
+	{
+		Assert.ThrowsExactly<FormatException>(() =>
+			EcbRateParser.Instance.Parse("""{"ContentSelector":["USD",1.0957]}""", CollectedAt));
 	}
 
 	private static string Page(string bank) =>

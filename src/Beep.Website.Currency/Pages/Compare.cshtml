@@ -114,7 +114,7 @@
 					@if (c.Bank.FullName is not null) { <small class="bank-full-name">@c.Bank.FullName</small> }
 					<p>
 						@T["Sells at"] <b class="num" style="color:#C2410C">@RateFormat.Format(c.Rate.SellingRate)</b>
-						· @T["you pay"] <b class="num nowrap">@RateFormat.FormatAmount(c.Rate.SellingRate * Model.Amount) @quote</b>
+						· @T["you pay"] <b class="num nowrap">@RateFormat.FormatAmount(c.Rate.SellingRate * Model.Amount, quote) @quote</b>
 					</p>
 				}
 				else
@@ -130,7 +130,7 @@
 					@if (b.Bank.FullName is not null) { <small class="bank-full-name">@b.Bank.FullName</small> }
 					<p>
 						@T["Buys at"] <b class="num" style="color:#0369A1">@RateFormat.Format(b.Rate.BuyingRateTransfer)</b>
-						· @T["you get"] <b class="num nowrap">@RateFormat.FormatAmount(b.Rate.BuyingRateTransfer * Model.Amount) @quote</b>
+						· @T["you get"] <b class="num nowrap">@RateFormat.FormatAmount(b.Rate.BuyingRateTransfer * Model.Amount, quote) @quote</b>
 					</p>
 				}
 				else
@@ -140,7 +140,7 @@
 			</div>
 			<div class="card" style="--c:#6D28D9">
 				<small>@T["Difference best vs. worst"]</small>
-				<strong class="num" style="color:#6D28D9">@RateFormat.FormatAmount(difference) @quote</strong>
+				<strong class="num" style="color:#6D28D9">@RateFormat.FormatAmount(difference, quote) @quote</strong>
 				<p>@T.Format("on {0} {1} across {2} bank(s)", Model.AmountDisplay, code, compared)</p>
 			</div>
 		</div>
@@ -202,7 +202,7 @@
 								<td class="num @(rate.BuyingRateTransfer is null ? "na" : "")">@RateFormat.Format(rate.BuyingRateTransfer)</td>
 								<td class="num sell @(rate.SellingRate is null ? "na" : "")">@RateFormat.Format(rate.SellingRate)</td>
 								<td class="num muted-num">@RateFormat.FormatSpread(RateFormat.Spread(rate))</td>
-								<td class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount)</td>
+								<td class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount, quote)</td>
 							</tr>
 						}
 					</tbody>
@@ -236,7 +236,7 @@
 					<div class="grid">
 						<span><small>@DotLabel.BreakOnlyAfterDot(T["Buy · cash"])</small><span class="num">@RateFormat.Format(rate.BuyingRateCash)</span></span>
 						<span><small>@DotLabel.BreakOnlyAfterDot(T["Buy · transfer"])</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
-						<span class="end"><small>@T.Format("Pay for {0}", Model.AmountDisplay)</small><span class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount)</span></span>
+						<span class="end"><small>@T.Format("Pay for {0}", Model.AmountDisplay)</small><span class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount, quote)</span></span>
 					</div>
 				</section>
 			}
