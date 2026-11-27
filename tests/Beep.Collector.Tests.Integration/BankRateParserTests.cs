@@ -3,8 +3,8 @@ using Beep.Api.Domain.Currency;
 namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
-/// Reading the Vietnamese banks' rate pages (<see cref="BankRateParsers"/>), from what the collector extracted
-/// from each page on 26/11/2026 (BankRatePages/*.json).
+/// Reading the banks' rate pages (<see cref="BankRateParsers"/>), from what the collector extracted from each page
+/// (BankRatePages/*.json): the Vietnamese banks' on 26/11/2026, the ECB's on 27/11/2026 and SNS's on 28/11/2026.
 /// </summary>
 [TestClass]
 public sealed class BankRateParserTests
@@ -128,9 +128,9 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(12, BankRateParsers.All);
-		Assert.HasCount(12, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(12, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.HasCount(13, BankRateParsers.All);
+		Assert.HasCount(13, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(13, BankRateParsers.All.Select(p => p.Bic).Distinct());
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
@@ -189,6 +189,61 @@ public sealed class BankRateParserTests
 	{
 		Assert.ThrowsExactly<FormatException>(() =>
 			EcbRateParser.Instance.Parse("""{"ContentSelector":["USD",1.0957]}""", CollectedAt));
+	}
+
+	[TestMethod]
+	public void Sns_ReadsTheTransferRates()
+	{
+		// SNS's page of 28/11/2026, as the collector extracted its rates table: code, name, aankoop, verkoop per euro.
+		var parser = BankRateParsers.ForName("sns")!;
+		var rates = parser.Parse(Page("sns"), CollectedAt);
+
+		Assert.AreSame(SnsRateParser.Instance, parser);
+		Assert.AreEqual("SNSBNL2A", parser.Bic);
+		Assert.IsTrue(parser.UsesCollectionTime, "the page gives no time");
+		Assert.IsFalse(parser.IsReferenceRate, "SNS's own prices");
+		Assert.HasCount(13, rates);
+		Assert.IsFalse(rates.Any(r => r.CurrencyCode == "EUR"), "the euro's row (1,00000) is left out");
+
+		// Collected at 02:15:30 UTC: 03:15 in Amsterdam (winter time, UTC+1).
+		var recorded = new DateTimeOffset(2026, 11, 26, 3, 15, 0, TimeSpan.FromHours(1));
+		Assert.IsTrue(rates.All(r => r.Date == new DateOnly(2026, 11, 26) && r.RateTime == recorded));
+
+		// "USD 1,09335 1,10235": SNS sells a dollar at 1 / 1.09335 euro and buys one at 1 / 1.10235; no cash rate.
+		var usd = rates.Single(r => r.CurrencyCode == "USD");
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 26), recorded, null, 0.9071529006m, 0.9146202040m), usd);
+		Assert.IsTrue(usd.SellingRate > usd.BuyingRateTransfer, "a real spread");
+		Assert.AreEqual(Math.Round(1m / 365.68905m, 10), rates.Single(r => r.CurrencyCode == "HUF").SellingRate);
+	}
+
+	[TestMethod]
+	public void Sns_StopsAtTheFeesTable()
+	{
+		// Should the selector also take the page's second table (fees per currency), its repeated codes end the rates.
+		var rates = SnsRateParser.Instance.Parse(
+			"""{"ContentSelector":["USD","Amerikaanse dollar","1,09335","1,10235","USD","Dollar (VS)","0,0045","€ 0,00412"]}""",
+			CollectedAt);
+
+		Assert.AreEqual(Math.Round(1m / 1.09335m, 10), rates.Single().SellingRate);
+	}
+
+	[TestMethod]
+	public void Sns_BadRate_IsLeftOut()
+	{
+		var skipped = new List<string>();
+		var rates = SnsRateParser.Instance.Parse(
+			"""{"ContentSelector":["GBP","Britse pond","-","0,84093","USD","Amerikaanse dollar","1,09335","1,10235"]}""",
+			CollectedAt, skipped);
+
+		Assert.AreEqual("USD", rates.Single().CurrencyCode);
+		Assert.AreEqual("SNSBNL2A GBP is not a rate: '-' / '0,84093'", skipped.Single());
+	}
+
+	[TestMethod]
+	public void Sns_NoRates_IsRefused()
+	{
+		Assert.ThrowsExactly<FormatException>(() =>
+			SnsRateParser.Instance.Parse("""{"ContentSelector":["Afkorting","Omschrijving"]}""", CollectedAt));
 	}
 
 	private static string Page(string bank) =>
