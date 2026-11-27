@@ -280,3 +280,97 @@ document.querySelectorAll('input[data-datepicker]').forEach(input => {
 
 	showValue();
 });
+
+// Search fields with suggestions (input[list] in a .field): the datalist's options shown in a list styled like the
+// dropdowns and exactly as wide as the field, instead of the browser's own pop-up (which CSS can't size). Each option
+// shows its value (a BIC) and its label (the bank's name); typing filters on both, ignoring case and accents.
+// Choosing one fills the input, as the datalist did. Without JavaScript the datalist still works.
+document.querySelectorAll('.field input[list]').forEach((input, n) => {
+	const field = input.closest('.field');
+	const list = document.getElementById(input.getAttribute('list'));
+	if (!field || !list) return;
+	const fold = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+	const items = [...list.options].map(o => ({ value: o.value, label: o.label !== o.value ? o.label : '', key: fold(`${o.value} ${o.label}`) }));
+
+	input.removeAttribute('list');
+	field.classList.add('has-suggest');
+	const pop = Object.assign(document.createElement('div'), { className: 'suggest-pop', id: `suggest-${n}`, hidden: true });
+	pop.setAttribute('role', 'listbox');
+	field.append(pop);
+	input.setAttribute('role', 'combobox');
+	input.setAttribute('aria-autocomplete', 'list');
+	input.setAttribute('aria-controls', pop.id);
+	input.setAttribute('aria-expanded', 'false');
+
+	let shown = [];
+	let active = -1;
+
+	function setActive(i) {
+		const options = pop.children;
+		if (options[active]) options[active].removeAttribute('aria-selected');
+		active = i;
+		if (options[active]) {
+			options[active].setAttribute('aria-selected', 'true');
+			options[active].scrollIntoView({ block: 'nearest' });
+			input.setAttribute('aria-activedescendant', options[active].id);
+		} else {
+			input.removeAttribute('aria-activedescendant');
+		}
+	}
+
+	function setOpen(open) {
+		open = open && shown.length > 0;
+		pop.hidden = !open;
+		input.setAttribute('aria-expanded', String(open));
+		if (!open) setActive(-1);
+	}
+
+	function render() {
+		const words = fold(input.value).split(/\s+/).filter(Boolean);
+		// The field's own value (just chosen) shows the whole list, so another bank can be picked.
+		const all = items.some(i => i.value === input.value);
+		shown = all ? items : items.filter(i => words.every(w => i.key.includes(w)));
+		pop.replaceChildren(...shown.map((item, i) => {
+			const option = Object.assign(document.createElement('div'), { className: 'suggest-option', id: `${pop.id}-${i}` });
+			option.setAttribute('role', 'option');
+			option.append(Object.assign(document.createElement('span'), { className: 'suggest-value', textContent: item.value }));
+			if (item.label)
+				option.append(Object.assign(document.createElement('span'), { className: 'suggest-label', textContent: item.label }));
+			if (item.value === input.value) option.classList.add('current');
+			return option;
+		}));
+		active = -1;
+		setOpen(document.activeElement === input);
+	}
+
+	function choose(i) {
+		input.value = shown[i].value;
+		setOpen(false);
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+	}
+
+	input.addEventListener('focus', render);
+	input.addEventListener('click', () => { if (pop.hidden) render(); });
+	input.addEventListener('input', render);
+	input.addEventListener('blur', () => setOpen(false));
+	input.addEventListener('keydown', e => {
+		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+			e.preventDefault();
+			if (pop.hidden) { render(); return; }
+			const step = e.key === 'ArrowDown' ? 1 : -1;
+			setActive((active + step + shown.length + (active < 0 && step < 0 ? 1 : 0)) % shown.length);
+		} else if (e.key === 'Enter' && !pop.hidden && active >= 0) {
+			e.preventDefault(); // choose the bank; the next Enter submits the form
+			choose(active);
+		} else if (e.key === 'Escape' && !pop.hidden) {
+			e.preventDefault();
+			setOpen(false);
+		}
+	});
+	// mousedown, not click: the input keeps its focus, and the click doesn't reach the field's <label>.
+	pop.addEventListener('mousedown', e => {
+		e.preventDefault();
+		const option = e.target.closest('.suggest-option');
+		if (option) choose([...pop.children].indexOf(option));
+	});
+});
