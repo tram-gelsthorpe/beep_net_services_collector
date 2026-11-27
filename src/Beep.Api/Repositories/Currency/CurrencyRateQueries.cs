@@ -6,10 +6,10 @@ namespace Beep.Api.Repositories.Currency;
 
 public sealed class CurrencyRateQueries : ICurrencyRateQueries
 {
-	// A bank matches @Bank when its BIC equals it or its name contains it.
+	// A bank matches @Bank when its BIC equals it or its long or short name contains it.
 	private const string BankFilter = """
 		(@CountryId IS NULL OR b.Country_Id = @CountryId)
-		AND (@Bank IS NULL OR b.Bic = @Bank OR b.Name LIKE @BankPattern ESCAPE '\')
+		AND (@Bank IS NULL OR b.Bic = @Bank OR b.LongName LIKE @BankPattern ESCAPE '\' OR b.ShortName LIKE @BankPattern ESCAPE '\')
 		""";
 
 	private readonly string _connectionString;
@@ -26,11 +26,11 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 	{
 		await using var connection = new SqlConnection(_connectionString);
 		var rows = await connection.QueryAsync<BankWithRates>(new CommandDefinition($"""
-			SELECT b.Country_Id AS CountryId, b.Bic, b.Name, r.LatestDate
+			SELECT b.Country_Id AS CountryId, b.Bic, b.LongName AS Name, r.LatestDate
 			FROM dbo.Bank b
 			CROSS APPLY (SELECT MAX(r.[Date]) AS LatestDate FROM dbo.Currency_Rate_Bank r WHERE r.Bank_Id = b.Id) r
 			WHERE r.LatestDate IS NOT NULL AND b.Bic IS NOT NULL AND {BankFilter}
-			ORDER BY b.Name
+			ORDER BY b.LongName
 			""", Parameters(null, countryId, bank), cancellationToken: cancellationToken));
 		return rows.ToList();
 	}
@@ -40,7 +40,7 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 	{
 		await using var connection = new SqlConnection(_connectionString);
 		var rows = await connection.QueryAsync<LatestBankRate>(new CommandDefinition($"""
-			SELECT b.Country_Id AS CountryId, b.Bic, b.Name AS BankName,
+			SELECT b.Country_Id AS CountryId, b.Bic, b.LongName AS BankName,
 			       RTRIM(c.CodeISO) AS CurrencyCode, c.Name AS CurrencyName, NULLIF(LTRIM(RTRIM(c.Symbol)), N'') AS CurrencySymbol,
 			       r.[Date], r.RateTime, r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate
 			FROM dbo.Bank b
@@ -52,7 +52,7 @@ public sealed class CurrencyRateQueries : ICurrencyRateQueries
 				ORDER BY r.[Date] DESC, r.RateTime DESC) r
 			WHERE b.Bic IS NOT NULL AND {BankFilter}
 			  AND EXISTS (SELECT 1 FROM dbo.Currency_Rate_Bank x WHERE x.Bank_Id = b.Id)
-			ORDER BY b.Name, c.CodeISO
+			ORDER BY b.LongName, c.CodeISO
 			""", Parameters(date, countryId, bank), cancellationToken: cancellationToken));
 		return rows.ToList();
 	}

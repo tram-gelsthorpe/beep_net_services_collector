@@ -38,7 +38,8 @@ public sealed class CurrencyRateIntegrationTests
 			Id uniqueidentifier NOT NULL CONSTRAINT DF_b_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_b_Id PRIMARY KEY,
 			Country_Id uniqueidentifier NOT NULL,
 			Bic varchar(20) NULL,
-			Name nvarchar(254) NOT NULL,
+			LongName nvarchar(254) NOT NULL,
+			ShortName nvarchar(50) NULL,
 			IsSynchronized bit NOT NULL CONSTRAINT DF_b_IsSynchronized DEFAULT 0);
 
 		CREATE TABLE dbo.Currency (
@@ -89,14 +90,14 @@ public sealed class CurrencyRateIntegrationTests
 				await connection.ExecuteAsync(batch);
 
 		_bankId = await connection.ExecuteScalarAsync<Guid>(
-			"INSERT INTO dbo.Bank (Country_Id, Bic, Name) OUTPUT INSERTED.Id VALUES (NEWID(), @Bic, N'Vietcombank')",
+			"INSERT INTO dbo.Bank (Country_Id, Bic, LongName) OUTPUT INSERTED.Id VALUES (NEWID(), @Bic, N'Vietcombank')",
 			new { Bic });
 		await connection.ExecuteAsync("""
 			INSERT INTO dbo.Currency (CodeISO, Name, Symbol) VALUES ('USD', N'US Dollar', N'$'), ('EUR', N'Euro', NULL), ('SEK', N'Swedish Krona', N' ');
 			""");
 		// A bank of another country, for the read queries.
 		await connection.ExecuteAsync(
-			"INSERT INTO dbo.Bank (Country_Id, Bic, Name) VALUES (@OtherCountryId, @OtherBic, N'Asia Commercial 50% Bank')",
+			"INSERT INTO dbo.Bank (Country_Id, Bic, LongName) VALUES (@OtherCountryId, @OtherBic, N'Asia Commercial 50% Bank')",
 			new { OtherCountryId, OtherBic });
 	}
 
@@ -267,7 +268,7 @@ public sealed class CurrencyRateIntegrationTests
 		await using (var connection = new SqlConnection(_connectionString))
 			await connection.ExecuteAsync("""
 				IF NOT EXISTS (SELECT 1 FROM dbo.Bank WHERE Bic = @WooriBic)
-					INSERT INTO dbo.Bank (Country_Id, Bic, Name) VALUES (NEWID(), @WooriBic, N'Woori Bank Vietnam')
+					INSERT INTO dbo.Bank (Country_Id, Bic, LongName) VALUES (NEWID(), @WooriBic, N'Woori Bank Vietnam')
 				""", new { WooriBic });
 
 		var page = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "BankRatePages", "woori.json"));
