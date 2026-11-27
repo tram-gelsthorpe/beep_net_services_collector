@@ -68,7 +68,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 		CancellationToken cancellationToken)
 	{
 		var result = new ScheduleHandlerResult();
-		var counts = new Counts();
+		var counts = new ScheduleRegistrationCounts();
 
 		try
 		{
@@ -127,7 +127,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 	}
 
 	private async Task RegisterEndpointsAsync(
-		IReadOnlyList<ActiveWebsiteSelector> page, Guid lastId, Counts counts, CancellationToken ct)
+		IReadOnlyList<ActiveWebsiteSelector> page, Guid lastId, ScheduleRegistrationCounts counts, CancellationToken ct)
 	{
 		try
 		{
@@ -151,7 +151,7 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 	}
 
 	private async Task EnqueueWorkItemsAsync(
-		IReadOnlyList<ActiveWebsiteSelector> page, Guid lastId, Counts counts, CancellationToken ct)
+		IReadOnlyList<ActiveWebsiteSelector> page, Guid lastId, ScheduleRegistrationCounts counts, CancellationToken ct)
 	{
 		try
 		{
@@ -171,15 +171,5 @@ public class WebsiteCollectorScheduleHandler : IScheduleHandler
 				page.Count, lastId);
 			counts.FailedWorkItems += page.Count;
 		}
-	}
-
-	private sealed class Counts
-	{
-		public int Total, Registered, AlreadyQueued, FailedWorkItems;
-		public int EndpointsChanged, EndpointsDisabled, FailedEndpoints;
-
-		public override string ToString() =>
-			$"Registered: {Registered}, Already queued: {AlreadyQueued}, Failed: {FailedWorkItems}, Total: {Total}; " +
-			$"Endpoints changed: {EndpointsChanged}, disabled: {EndpointsDisabled}, failed: {FailedEndpoints}";
 	}
 }
