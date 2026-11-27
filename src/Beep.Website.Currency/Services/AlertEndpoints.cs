@@ -24,7 +24,7 @@ public static class AlertEndpoints
 
 			var rates = await api.GetLatestRatesAsync(null, chosen.Code, null, cancellationToken);
 			var banks = rates.GroupBy(r => r.Bic)
-				.Select(g => new { bic = g.Key, name = BankRates.ShortNameOf(g.First().BankName) })
+				.Select(g => new { bic = g.Key, name = g.First().BankName })
 				.OrderBy(b => b.name, StringComparer.CurrentCultureIgnoreCase)
 				.ToList();
 			var currencies = rates.GroupBy(r => r.CurrencyCode)

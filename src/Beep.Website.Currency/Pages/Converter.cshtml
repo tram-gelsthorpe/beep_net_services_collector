@@ -47,7 +47,7 @@
 							<button><selectedcontent></selectedcontent></button>
 							@foreach (var b in Model.Banks)
 							{
-								<option value="@b.Bic" selected="@(b.Bic == Model.Bank)">@BankRates.ShortNameOf(b.Name)</option>
+								<option value="@b.Bic" selected="@(b.Bic == Model.Bank)">@b.Name</option>
 							}
 						</select>
 					</label>
@@ -93,7 +93,7 @@
 					<div class="bank-cell">
 						<span class="bank-dot bank-dot-lg">@bank.Badge</span>
 						<span>
-							<b class="conv-bank-name">@bank.ShortName</b>
+							<b class="conv-bank-name">@bank.Name</b>
 							<small class="conv-bank-meta">
 								@* A line each, so the time never breaks off on its own ("published 25/11" / "23:00"). *@
 								<span>@T.Format("Rates of {0}", RateFormat.FormatDate(bank.LastDate))</span>
@@ -136,7 +136,7 @@
 			</div>
 		</section>
 
-		<p class="footnote">@T.Format("Results are estimates based on {0}’s published rates and may differ from the amount you receive at the counter.", bank.ShortName)</p>
+		<p class="footnote">@T.Format("Results are estimates based on {0}’s published rates and may differ from the amount you receive at the counter.", bank.Name)</p>
 	}
 </main>
 

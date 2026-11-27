@@ -52,15 +52,12 @@
 			<ul>
 				@foreach (var b in Model.Matches)
 				{
-					// The full name under the short one, when it says more ("Ngân hàng TMCP … – Vietcombank").
-					var shortName = BankRates.ShortNameOf(b.Name);
-					var details = string.Join(" · ", new[] { shortName == b.Name ? null : b.Name, b.CountryName }.OfType<string>());
 					<li>
 						<a asp-page="/Index" asp-route-country="@Model.Country" asp-route-date="@date" asp-route-bank="@b.Bic">
-							<span class="bank-choice-name">@shortName <span class="chip blue num">@b.Bic</span></span>
-							@if (details.Length > 0)
+							<span class="bank-choice-name">@b.Name <span class="chip blue num">@b.Bic</span></span>
+							@if (b.CountryName is not null)
 							{
-								<span class="bank-choice-legal">@details</span>
+								<span class="bank-choice-legal">@b.CountryName</span>
 							}
 						</a>
 					</li>
@@ -122,14 +119,11 @@
 					<div class="bank-id">
 						<span class="bank-badge">@bank.Badge</span>
 						<div>
-							<h2>@bank.ShortName</h2>
-							<p>
-								@(bank.LegalName ?? bank.Name)
-								@if (bank.CountryName is not null)
-								{
-									<span> · @bank.CountryName</span>
-								}
-							</p>
+							<h2>@bank.Name</h2>
+							@if (bank.CountryName is not null)
+							{
+								<p>@bank.CountryName</p>
+							}
 						</div>
 					</div>
 					<div class="chips">

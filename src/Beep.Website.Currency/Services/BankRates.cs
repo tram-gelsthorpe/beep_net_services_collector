@@ -11,34 +11,30 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 
 	private static readonly string[] NameSeparators = [" – ", " — ", " - "];
 
-	/// <summary>Groups rates by bank, ordered by short name.</summary>
+	/// <summary>Groups rates by bank, ordered by name.</summary>
 	public static IReadOnlyList<BankRates> FromRates(IEnumerable<LatestRateItem> rates) =>
 		rates
 			.GroupBy(r => r.Bic)
 			.Select(g => new BankRates(g.First().BankName, g.Key, g.First().CountryCode, g.First().CountryName, g.ToList()))
-			.OrderBy(b => b.ShortName, StringComparer.CurrentCultureIgnoreCase)
+			.OrderBy(b => b.Name, StringComparer.CurrentCultureIgnoreCase)
 			.ToList();
 
-	/// <summary>"Vietcombank" from "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank".</summary>
-	public string ShortName => SplitName().Short;
-
-	/// <summary>The short name of a bank name, as <see cref="ShortName"/>.</summary>
-	public static string ShortNameOf(string name) => SplitName(name).Short;
-
-	/// <summary>The legal name, when the bank's name has a short name after a dash; otherwise null.</summary>
-	public string? LegalName => SplitName().Legal;
-
-	/// <summary>Up to three letters for the round badge.</summary>
+	/// <summary>
+	/// Up to three letters for the round badge: the initials of what follows the name's last dash, its usual
+	/// name ("VietinBank" in "Ngân hàng TMCP Công Thương Việt Nam – VietinBank"), or of the whole name.
+	/// The pages show the bank's full name (<see cref="Name"/>) as it is in dbo.Bank.
+	/// </summary>
 	public string Badge
 	{
 		get
 		{
 			if (KnownBadges.TryGetValue(Bic, out var known))
 				return known;
-			var words = ShortName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+			var usual = UsualName(Name);
+			var words = usual.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			return words.Length > 1
 				? string.Concat(words.Take(3).Select(w => char.ToUpperInvariant(w[0])))
-				: ShortName[..Math.Min(3, ShortName.Length)].ToUpperInvariant();
+				: usual[..Math.Min(3, usual.Length)].ToUpperInvariant();
 		}
 	}
 
@@ -63,16 +59,15 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 	public LatestRateItem? Rate(string currencyCode) =>
 		Rates.FirstOrDefault(r => string.Equals(r.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase));
 
-	private (string Short, string? Legal) SplitName() => SplitName(Name);
-
-	private static (string Short, string? Legal) SplitName(string Name)
+	// What follows the name's last dash, else the name: only for the badge's letters.
+	private static string UsualName(string name)
 	{
 		foreach (var separator in NameSeparators)
 		{
-			var at = Name.LastIndexOf(separator, StringComparison.Ordinal);
-			if (at > 0 && at + separator.Length < Name.Length)
-				return (Name[(at + separator.Length)..].Trim(), Name[..at].Trim());
+			var at = name.LastIndexOf(separator, StringComparison.Ordinal);
+			if (at > 0 && at + separator.Length < name.Length)
+				return name[(at + separator.Length)..].Trim();
 		}
-		return (Name, null);
+		return name;
 	}
 }
