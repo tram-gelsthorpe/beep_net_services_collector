@@ -46,6 +46,4 @@ public sealed class NotificationController(SubscriptionService subscriptions) : 
 		await subscriptions.UnsubscribeAsync(request.Token, cancellationToken) is { } s
 			? Ok(new { website = s.Website, notificationType = s.NotificationType })
 			: NotFound(new { error = "Unknown or expired link" });
-
-	public sealed record TokenRequest(string? Token);
 }

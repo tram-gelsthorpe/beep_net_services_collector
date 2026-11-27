@@ -507,7 +507,7 @@ public sealed class CurrencyRateIntegrationTests
 			},
 		});
 
-	private static CurrencyRateController.CollectionDeliveryRequest Request(Guid collectedDataId) => new()
+	private static CollectionDeliveryRequest Request(Guid collectedDataId) => new()
 	{
 		WebsiteSelectorsId = Guid.NewGuid(),
 		CollectedDataId = collectedDataId,
