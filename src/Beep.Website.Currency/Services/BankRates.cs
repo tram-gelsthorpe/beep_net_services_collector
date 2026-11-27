@@ -10,6 +10,9 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 	{
 		["BFTVVNVX"] = "VCB",
 		["VCBCVNVX"] = "BVB", // Viet Capital Bank, now BVBank: its initials would be VCB, Vietcombank's badge.
+		// VietinBank and VietABank would both be VIE: their stock tickers.
+		["ICBVVNVX"] = "CTG",
+		["VNACVNVX"] = "VAB",
 	};
 
 	/// <summary>Groups rates by bank, ordered by the name shown.</summary>
