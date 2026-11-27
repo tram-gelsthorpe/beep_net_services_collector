@@ -132,7 +132,11 @@ public sealed class BankBackfill
 
 		try
 		{
-			return _bank.Parse(body, day);
+			var skipped = new List<string>();
+			var rates = _bank.Parse(body, day, skipped);
+			foreach (var note in skipped)
+				_logger.LogWarning("{Day:yyyy-MM-dd}: {Bank}: a currency is left out: {Skipped}", day, _bank.Name, note);
+			return rates;
 		}
 		catch (FormatException ex)
 		{

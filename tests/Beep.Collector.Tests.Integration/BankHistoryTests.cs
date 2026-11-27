@@ -134,6 +134,21 @@ public sealed class BankHistoryTests
 	}
 
 	[TestMethod]
+	public async Task Backfill_ADayWithATypoInOneRate_RecordsTheOtherCurrencies()
+	{
+		// As Agribank's AUD of 10/11/2023: "15162.." for 16798.00.
+		var page = Answer("agribank-2026-11-20.html").Replace("<td>16798.00</td>", "<td>16798..</td>");
+		var bank = new StubBank(_ => (HttpStatusCode.OK, page));
+		var repository = new MemoryRepository();
+
+		var result = await Backfill("agribank", bank, repository).RunAsync(Friday, Friday, TimeSpan.Zero, CancellationToken.None);
+
+		Assert.AreEqual(1, result.DaysRecorded);
+		Assert.AreEqual(14, result.RatesInserted, "the 15 currencies but AUD");
+		Assert.IsEmpty(result.FailedDays);
+	}
+
+	[TestMethod]
 	public async Task Backfill_Ncb_ADayAnsweredWithAnEarlierDaysTable_HasNoRates()
 	{
 		var bank = new StubBank(day => (HttpStatusCode.OK, Answer(day.Day == 20 ? "ncb-2026-11-20.html" : "ncb-2026-11-22.html")));

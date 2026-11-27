@@ -23,5 +23,6 @@ public sealed class VietcombankHistory : IBankHistory
 
 	public bool MeansNoRates(HttpStatusCode status) => false;
 
-	public IReadOnlyList<CurrencyRateBank> Parse(string body, DateOnly day) => VietcombankRateParser.ParseRateList(body);
+	public IReadOnlyList<CurrencyRateBank> Parse(string body, DateOnly day, ICollection<string>? skipped = null) =>
+		VietcombankRateParser.ParseRateList(body);
 }

@@ -34,7 +34,7 @@ public abstract class TableBankHistory : IBankHistory
 
 	public virtual bool MeansNoRates(HttpStatusCode status) => false;
 
-	public IReadOnlyList<CurrencyRateBank> Parse(string body, DateOnly day)
+	public IReadOnlyList<CurrencyRateBank> Parse(string body, DateOnly day, ICollection<string>? skipped = null)
 	{
 		var html = Html(body, day);
 		if (string.IsNullOrWhiteSpace(html))
@@ -42,7 +42,7 @@ public abstract class TableBankHistory : IBankHistory
 
 		var document = new HtmlParser().ParseDocument(html);
 		var cells = document.QuerySelectorAll(_cellSelector).Select(c => c.TextContent.Trim()).ToList();
-		return _table.ParseCells(cells, BankHistories.EndOfDay(day));
+		return _table.ParseCells(cells, BankHistories.EndOfDay(day), skipped);
 	}
 
 	/// <summary>The HTML holding the day's table, or null when the response says the bank has no rates that day.</summary>

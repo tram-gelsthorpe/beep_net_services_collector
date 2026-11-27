@@ -27,7 +27,7 @@ public sealed class VietcombankRateParser : IBankRateParser
 
 	public bool UsesCollectionTime => false;
 
-	IReadOnlyList<CurrencyRateBank> IBankRateParser.Parse(string extractedJson, DateTimeOffset collectedAt) =>
+	IReadOnlyList<CurrencyRateBank> IBankRateParser.Parse(string extractedJson, DateTimeOffset collectedAt, ICollection<string>? skipped) =>
 		Parse(extractedJson);
 
 	/// <summary>Vietcombank's BIC, as in <c>dbo.Bank.Bic</c>.</summary>

@@ -162,8 +162,15 @@ public class CurrencyRateController : ControllerBase
 		if (parser.UsesCollectionTime && request.CollectedAt == default)
 			return Task.FromResult<IActionResult>(BadRequest(new { error = "CollectedAt is required" }));
 
-		return RecordAsync(parser.Bic, json => parser.Parse(json, request.CollectedAt), parser.UsesCollectionTime,
-			request, cancellationToken);
+		return RecordAsync(parser.Bic, json =>
+		{
+			var skipped = new List<string>();
+			var rates = parser.Parse(json, request.CollectedAt, skipped);
+			foreach (var note in skipped)
+				_logger.LogWarning("Collected data {CollectedDataId}: a currency is left out: {Skipped}",
+					request.CollectedDataId, note);
+			return rates;
+		}, parser.UsesCollectionTime, request, cancellationToken);
 	}
 
 	private async Task<IActionResult> RecordAsync(

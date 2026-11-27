@@ -24,7 +24,7 @@ public sealed class SeABankRateParser : IBankRateParser
 
 	public bool UsesCollectionTime => false;
 
-	public IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt)
+	public IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt, ICollection<string>? skipped = null)
 	{
 		foreach (var script in ReadScripts(extractedJson))
 		{

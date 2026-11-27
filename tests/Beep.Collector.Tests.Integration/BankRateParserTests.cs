@@ -113,6 +113,19 @@ public sealed class BankRateParserTests
 		Assert.ThrowsExactly<FormatException>(() => BankRateParsers.ForName(bank)!.Parse(json, CollectedAt));
 
 	[TestMethod]
+	public void TableParser_LeavesOutACurrencyWithATypo_AndReadsTheOthers()
+	{
+		// Agribank wrote AUD's cash rate "15162.." on 10/11/2023.
+		var json = """{"ContentSelector":["USD","25,580","25,610","25,990","AUD","15162..","15,200","15,700","EUR","29,000","29,100","30,000"]}""";
+		var skipped = new List<string>();
+
+		var rates = BankRateTableParser.Agribank.Parse(json, CollectedAt, skipped);
+
+		CollectionAssert.AreEqual(new[] { "USD", "EUR" }, rates.Select(r => r.CurrencyCode).ToArray());
+		Assert.AreEqual("VBAAVNVX AUD BuyCash is not a number: '15162..'", skipped.Single());
+	}
+
+	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
 		Assert.HasCount(11, BankRateParsers.All);

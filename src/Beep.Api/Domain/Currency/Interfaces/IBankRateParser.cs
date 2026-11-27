@@ -20,6 +20,10 @@ public interface IBankRateParser
 
 	/// <param name="extractedJson">The collection result's ExtractedJson</param>
 	/// <param name="collectedAt">When the page was collected</param>
+	/// <param name="skipped">
+	/// Gets a note for each currency left out because the page wrote one of its rates wrongly (a typo such as
+	/// "15162.."); the bank's other currencies are still read. Only table parsers leave currencies out.
+	/// </param>
 	/// <exception cref="FormatException">The data is not this bank's rate table, or has no rates.</exception>
-	IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt);
+	IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt, ICollection<string>? skipped = null);
 }

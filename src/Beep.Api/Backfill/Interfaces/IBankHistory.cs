@@ -28,6 +28,7 @@ public interface IBankHistory
 	bool MeansNoRates(HttpStatusCode status);
 
 	/// <summary>The day's rates from a successful response; empty when the bank has none that day.</summary>
+	/// <param name="skipped">Gets a note for each currency left out because the bank wrote one of its rates wrongly</param>
 	/// <exception cref="FormatException">The response is not the bank's rates.</exception>
-	IReadOnlyList<CurrencyRateBank> Parse(string body, DateOnly day);
+	IReadOnlyList<CurrencyRateBank> Parse(string body, DateOnly day, ICollection<string>? skipped = null);
 }

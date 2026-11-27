@@ -75,19 +75,26 @@ public sealed partial class BankRateTableParser : IBankRateParser
 	/// <summary>The cells after a currency's code, in order.</summary>
 	public IReadOnlyList<RateColumn> Columns { get; }
 
-	public IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt)
+	public IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt, ICollection<string>? skipped = null)
 	{
-		var rates = ParseCells(ReadCells(extractedJson), collectedAt);
+		var notes = new List<string>();
+		var rates = ParseCells(ReadCells(extractedJson), collectedAt, notes);
 		if (rates.Count == 0)
-			throw new FormatException($"No {Bic} rates found in the collected data");
+			throw new FormatException(notes.Count == 0
+				? $"No {Bic} rates found in the collected data"
+				: $"No {Bic} rates could be read: {string.Join("; ", notes)}");
+		foreach (var note in notes)
+			skipped?.Add(note);
 		return rates;
 	}
 
 	/// <summary>
 	/// The rates in the table's cells (their text), timed <paramref name="at"/>; empty when no cell names a currency.
+	/// A currency with a rate cell that is not a number (a typo on the bank's page: "15162..") is left out, and the
+	/// others are read; <paramref name="skipped"/> gets a note for each currency left out.
 	/// </summary>
-	/// <exception cref="FormatException">A rate cell is not a number.</exception>
-	public IReadOnlyList<CurrencyRateBank> ParseCells(IReadOnlyList<string> cells, DateTimeOffset at)
+	public IReadOnlyList<CurrencyRateBank> ParseCells(
+		IReadOnlyList<string> cells, DateTimeOffset at, ICollection<string>? skipped = null)
 	{
 		// To the minute, as the banks write times.
 		var local = at.ToOffset(BankRateParsers.VietnamOffset);
@@ -113,9 +120,20 @@ public sealed partial class BankRateTableParser : IBankRateParser
 				return index < row.Count ? ParseRate(row[index], code, column) : null;
 			}
 
-			var buyCash = Rate(RateColumn.BuyCash);
-			var buyTransfer = Rate(RateColumn.BuyTransfer);
-			var sell = Rate(RateColumn.Sell) ?? Rate(RateColumn.SellTransfer) ?? Rate(RateColumn.SellCash);
+			// Recorded with a gap, the currency would read as not offered at that rate: it is left out instead.
+			decimal? buyCash, buyTransfer, sell;
+			try
+			{
+				buyCash = Rate(RateColumn.BuyCash);
+				buyTransfer = Rate(RateColumn.BuyTransfer);
+				sell = Rate(RateColumn.Sell) ?? Rate(RateColumn.SellTransfer) ?? Rate(RateColumn.SellCash);
+			}
+			catch (FormatException ex)
+			{
+				skipped?.Add(ex.Message);
+				continue;
+			}
+
 			if (buyCash is null && buyTransfer is null && sell is null)
 				continue;
 
