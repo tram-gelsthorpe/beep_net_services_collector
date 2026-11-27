@@ -1,7 +1,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Antiforgery;
 
-namespace Beep.Website.Currency.Services;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// What the Subscribe dialog (wwwroot/js/subscribe.js) calls: the choices it offers, and subscribing. Both go

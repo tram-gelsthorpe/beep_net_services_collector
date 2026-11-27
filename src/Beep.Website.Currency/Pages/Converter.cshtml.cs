@@ -1,10 +1,8 @@
 using System.Text.Json;
-using Beep.Website.Currency.Localization;
-using Beep.Website.Currency.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Beep.Website.Currency.Pages;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// Converter: converts between a foreign currency and the bank's currency (VND) at one bank's latest rates.

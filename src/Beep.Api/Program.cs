@@ -7,7 +7,6 @@ using Beep.Api.Repositories.Collector;
 using Beep.Api.Repositories.Country;
 using Beep.Api.Repositories.Currency;
 using Beep.Notification;
-using Beep.Notification.Subscriptions;
 
 // "backfill <bank> ..." fills past rates and exits instead of starting the web server.
 if (BackfillCommand.IsBackfill(args))

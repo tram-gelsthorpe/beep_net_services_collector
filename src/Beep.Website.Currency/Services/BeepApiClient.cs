@@ -1,26 +1,6 @@
 using System.Globalization;
-using System.Net.Http.Json;
 
-namespace Beep.Website.Currency.Services;
-
-public sealed record CountryItem(string Code, string Name);
-
-public sealed record BankItem(string Bic, string Name, string? CountryCode, string? CountryName, DateOnly LatestDate);
-
-public sealed record LatestRateItem(
-	string Bic,
-	string BankName,
-	string? CountryCode,
-	string? CountryName,
-	string CurrencyCode,
-	string CurrencyName,
-	DateOnly Date,
-	DateTimeOffset? RateTime,
-	decimal? BuyingRateCash,
-	decimal? BuyingRateTransfer,
-	decimal? SellingRate,
-	string? CurrencySymbol,
-	string? QuoteCurrencyCode);
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// Reads currency rates from Beep.Api's CurrencyRate endpoints. Calls are made from the server, so the

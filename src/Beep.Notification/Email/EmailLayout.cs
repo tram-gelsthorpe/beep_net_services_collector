@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Beep.Notification.Email;
+namespace Beep.Notification;
 
 /// <summary>
 /// The frame of every notification email: the website's name, the content, and a footer with the

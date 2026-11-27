@@ -3,17 +3,6 @@ using Microsoft.Data.SqlClient;
 
 namespace Beep.Api.Repositories.Country;
 
-/// <summary>A country of <c>dbo.Country</c> (A_1_Beep_Global_Country).</summary>
-/// <param name="CurrencyId">The country's currency in A_1_Beep_Global_Currency's <c>dbo.Currency</c>, if known</param>
-public sealed record CountryInfo(Guid Id, string Code, string Name, Guid? CurrencyId);
-
-/// <summary>Reads countries from the Country database (<c>ConnectionStrings:Country</c>).</summary>
-public interface ICountryRepository
-{
-	/// <summary>All countries, by Id. Cached: countries rarely change.</summary>
-	Task<IReadOnlyDictionary<Guid, CountryInfo>> GetCountriesAsync(CancellationToken cancellationToken);
-}
-
 public sealed class CountryRepository : ICountryRepository
 {
 	private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);

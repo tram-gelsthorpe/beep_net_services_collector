@@ -1,10 +1,8 @@
 using System.Globalization;
-using Beep.Website.Currency.Localization;
-using Beep.Website.Currency.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Beep.Website.Currency.Pages;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// Compare banks: one currency across the banks of the chosen countries, on or before a date.

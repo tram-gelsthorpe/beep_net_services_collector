@@ -1,7 +1,7 @@
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Html;
 
-namespace Beep.Website.Currency.Localization;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// A label made of two parts joined by a dot ("Bank buys · transfer"), as HTML that wraps only after the dot and

@@ -3,8 +3,6 @@ using Beep.Api.Notifications;
 using Beep.Api.Repositories.Country;
 using Beep.Api.Repositories.Currency;
 using Beep.Notification;
-using Beep.Notification.Email;
-using Beep.Notification.Subscriptions;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;

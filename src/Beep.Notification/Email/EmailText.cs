@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Beep.Notification.Email;
+namespace Beep.Notification;
 
 /// <summary>
 /// Texts of emails in the languages of the websites: en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl, ar. Each entry is keyed by its
@@ -44,15 +44,4 @@ public sealed class EmailText
 
 	public string Format(string english, string language, params object?[] args) =>
 		string.Format(CultureInfo.InvariantCulture, Get(english, language), args);
-}
-
-internal static class ListExtensions
-{
-	public static int IndexOf(this IReadOnlyList<string> list, string value)
-	{
-		for (var i = 0; i < list.Count; i++)
-			if (list[i] == value)
-				return i;
-		return -1;
-	}
 }

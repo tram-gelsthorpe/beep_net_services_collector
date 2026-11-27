@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Beep.Website.Currency.Localization;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// The site's texts in every language of <see cref="Languages"/>, looked up by their English text in the

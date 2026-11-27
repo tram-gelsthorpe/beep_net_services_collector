@@ -1,8 +1,7 @@
-using Beep.Website.Currency.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Beep.Website.Currency.Pages.Alerts;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// The unsubscribe link of every alert: <c>/alerts/unsubscribe?token=…</c> asks, and the button unsubscribes

@@ -1,7 +1,6 @@
 using System.Globalization;
 using Beep.Configuration;
-using Beep.Website.Currency.Localization;
-using Beep.Website.Currency.Services;
+using Beep.Website.Currency;
 using Microsoft.AspNetCore.Localization;
 
 var builder = WebApplication.CreateBuilder(args);

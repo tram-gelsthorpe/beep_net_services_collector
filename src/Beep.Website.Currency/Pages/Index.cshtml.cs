@@ -1,9 +1,7 @@
-using Beep.Website.Currency.Localization;
-using Beep.Website.Currency.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Beep.Website.Currency.Pages;
+namespace Beep.Website.Currency;
 
 /// <summary>
 /// Bank rates: pick a country, a date and/or a bank (name or BIC) and see each bank's latest rate per currency

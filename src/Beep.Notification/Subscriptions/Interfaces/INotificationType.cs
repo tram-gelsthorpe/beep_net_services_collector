@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Beep.Notification.Subscriptions;
+namespace Beep.Notification;
 
 /// <summary>
 /// One kind of alert of one website, e.g. (Currency, BankRates). The website's project registers it; it
@@ -25,15 +25,4 @@ public interface INotificationType
 	/// "when Vietcombank in Vietnam publishes new rates for USD, EUR".
 	/// </summary>
 	Task<string> DescribeAsync(string? filter, string language, CancellationToken cancellationToken);
-}
-
-/// <param name="Filter">The choices as stored, when valid</param>
-/// <param name="Errors">Field name → message, when not</param>
-public sealed record FilterResult(string? Filter, IReadOnlyDictionary<string, string> Errors)
-{
-	public static FilterResult Valid(string filter) => new(filter, new Dictionary<string, string>());
-
-	public static FilterResult Invalid(IReadOnlyDictionary<string, string> errors) => new(null, errors);
-
-	public bool IsValid => Errors.Count == 0;
 }

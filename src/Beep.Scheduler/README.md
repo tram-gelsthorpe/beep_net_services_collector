@@ -59,27 +59,33 @@ src/Beep.Scheduler/
 │   └── 0.sql                           (Database schema)
 │
 ├── Domain/
-│   ├── ScheduleFrequency.cs            (Enum: Daily, Weekly, Monthly)
+│   ├── ScheduleFrequency.cs            (Enum: Hourly, Daily, Weekly, Monthly, Yearly)
+│   ├── ScheduleTimeZone.cs             (Resolves the TimeZone setting)
 │   └── WorkerSchedule.cs               (Model)
 │
 ├── Handlers/
-│   └── IScheduleHandler.cs             (Interface for implementations)
+│   ├── Interfaces/
+│   │   └── IScheduleHandler.cs         (Interface for implementations)
+│   └── ScheduleHandlerResult.cs
 │
 ├── Services/
+│   ├── Interfaces/
+│   │   └── IScheduleService.cs
+│   ├── ScheduleInfo.cs
+│   ├── ScheduleManagementService.cs
 │   └── SchedulerService.cs             (Queues due schedules as ServiceBus work items)
 │
 ├── Workers/
 │   ├── SchedulerWorker.cs              (Claims and runs schedule work items)
 │   └── SchedulerWorkProcessor.cs
 │
-├── Infrastructure/
-│   ├── DependencyInjection.cs
-│   └── Database/
-│       └── SchedulerDatabase.cs        (Query builder)
-│
-└── Models/
-	├── ScheduleExecutionLog.cs
-	└── ScheduleStatus.cs
+└── Infrastructure/
+    ├── Interfaces/
+    │   └── ISchedulerOption.cs
+    ├── DependencyInjection.cs
+    ├── SchedulerOption.cs              (The Scheduler settings)
+    ├── SchedulerRepository.cs
+    └── SchedulerWorkerOptions.cs
 ```
 
 ## How It Works

@@ -1,4 +1,4 @@
-using Beep.Notification.Subscriptions;
+using Beep.Notification;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Beep.Api.Controllers.Notification;

@@ -14,8 +14,3 @@ namespace Beep.EventBus;
 /// <param name="TimeoutSeconds">HTTP timeout per attempt (clamped to 5-300).</param>
 /// <param name="MaxAttempts">Attempts before the delivery is abandoned (clamped to 1-10).</param>
 public sealed record EventBusEndpoint(Guid OwnerId, string? DeliveryUrl, int TimeoutSeconds = 30, int MaxAttempts = 3);
-
-/// <summary>Result of <see cref="IEventBusRepository.RegisterEndpointsAsync"/>.</summary>
-/// <param name="Changed">Endpoints added, re-enabled or whose settings changed.</param>
-/// <param name="Disabled">Endpoints disabled because their owner no longer lists them.</param>
-public sealed record EndpointRegistrationResult(int Changed, int Disabled);

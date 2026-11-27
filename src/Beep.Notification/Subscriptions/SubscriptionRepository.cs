@@ -3,68 +3,7 @@ using System.Security.Cryptography;
 using Dapper;
 using Microsoft.Data.SqlClient;
 
-namespace Beep.Notification.Subscriptions;
-
-/// <summary>A subscription and its subscriber.</summary>
-/// <param name="Id"><c>dbo.User_Notification.Id</c></param>
-/// <param name="UserId"><c>dbo.User.Id</c></param>
-/// <param name="Login">The user's 9-digit login</param>
-/// <param name="Email">The user's email address</param>
-/// <param name="Culture">The user's language (<c>CultureInfoUI</c>), e.g. vi</param>
-/// <param name="Website">e.g. Currency</param>
-/// <param name="NotificationType">e.g. BankRates</param>
-/// <param name="Filter">The website's choices, JSON</param>
-/// <param name="IsConfirmed">The email address was confirmed</param>
-/// <param name="Token">Secret of the confirmation and unsubscribe links</param>
-/// <param name="IsDeleted">Unsubscribed</param>
-/// <param name="LastSentAt">When the last email (confirmation or alert) was sent</param>
-public sealed record Subscription(
-	Guid Id,
-	Guid UserId,
-	string Login,
-	string Email,
-	string? Culture,
-	string Website,
-	string NotificationType,
-	string? Filter,
-	bool IsConfirmed,
-	string Token,
-	bool IsDeleted,
-	DateTimeOffset? LastSentAt);
-
-/// <param name="Subscription">The subscription as saved</param>
-/// <param name="IsNewUser">A <c>dbo.User</c> was created for the email address</param>
-public sealed record SaveSubscriptionResult(Subscription Subscription, bool IsNewUser);
-
-/// <summary>
-/// Subscribers (<c>dbo.User</c>) and their subscriptions (<c>dbo.User_Notification</c>) in
-/// A_1_Beep_Global_Default.
-/// </summary>
-public interface ISubscriptionRepository
-{
-	/// <summary>
-	/// Saves what <paramref name="email"/> subscribes to. A user of the licence with that address is reused;
-	/// otherwise one is created with a new 9-digit login. An existing subscription of the same website and type
-	/// gets the new filter and is active again (if it was unsubscribed); it stays confirmed if it was.
-	/// </summary>
-	Task<SaveSubscriptionResult> SaveAsync(
-		string email, string? culture, string website, string notificationType, string? filter,
-		CancellationToken cancellationToken);
-
-	Task<Subscription?> FindByTokenAsync(string token, CancellationToken cancellationToken);
-
-	/// <summary>Marks the subscription confirmed and active. Null when the token is unknown.</summary>
-	Task<Subscription?> ConfirmAsync(string token, CancellationToken cancellationToken);
-
-	/// <summary>Marks the subscription unsubscribed. Null when the token is unknown.</summary>
-	Task<Subscription?> UnsubscribeAsync(string token, CancellationToken cancellationToken);
-
-	/// <summary>Confirmed, not unsubscribed subscriptions of active users, for one website and type.</summary>
-	Task<IReadOnlyList<Subscription>> GetActiveAsync(string website, string notificationType, CancellationToken cancellationToken);
-
-	/// <summary>Records that an email was just sent for these subscriptions.</summary>
-	Task MarkSentAsync(IReadOnlyCollection<Guid> subscriptionIds, CancellationToken cancellationToken);
-}
+namespace Beep.Notification;
 
 public sealed class SubscriptionRepository : ISubscriptionRepository
 {

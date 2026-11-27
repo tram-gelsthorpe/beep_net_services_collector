@@ -1,33 +1,8 @@
-using System.Text.Json;
 using Beep.Email.Core;
-using Beep.Notification.Email;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Notification.Subscriptions;
-
-/// <param name="Email">Subscriber's email address</param>
-/// <param name="Website">e.g. Currency</param>
-/// <param name="NotificationType">e.g. BankRates</param>
-/// <param name="Filter">The website's choices, e.g. {"country":"VN","banks":["BFTVVNVX"],"currencies":["USD"]}</param>
-/// <param name="Culture">The website's language, e.g. vi</param>
-public sealed record SubscribeRequest(string? Email, string? Website, string? NotificationType, JsonElement Filter, string? Culture);
-
-public enum SubscribeStatus
-{
-	/// <summary>Saved; a confirmation email is on its way (or was sent in the last few minutes).</summary>
-	ConfirmationSent,
-
-	/// <summary>Saved; the address was already confirmed, so the new choices apply at once.</summary>
-	Updated,
-
-	/// <summary>Not saved: see the errors.</summary>
-	Invalid,
-}
-
-/// <param name="Status">What happened</param>
-/// <param name="Errors">Field name → message, when invalid (email, website, notificationType, or a filter field)</param>
-public sealed record SubscribeResult(SubscribeStatus Status, IReadOnlyDictionary<string, string> Errors);
+namespace Beep.Notification;
 
 /// <summary>
 /// Subscribing, confirming and unsubscribing, for every website. Emails are queued (<see cref="INotificationQueue"/>).

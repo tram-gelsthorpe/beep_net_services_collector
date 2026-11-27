@@ -1,8 +1,7 @@
-using Beep.Website.Currency.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Beep.Website.Currency.Pages.Alerts;
+namespace Beep.Website.Currency;
 
 /// <summary>The confirmation email's link: <c>/alerts/confirm?token=…</c> confirms the subscription.</summary>
 public sealed class ConfirmModel(BeepApiClient api, ILogger<ConfirmModel> logger) : PageModel
@@ -30,11 +29,4 @@ public sealed class ConfirmModel(BeepApiClient api, ILogger<ConfirmModel> logger
 			Outcome = AlertOutcome.Error;
 		}
 	}
-}
-
-public enum AlertOutcome
-{
-	Done,
-	UnknownLink,
-	Error,
 }

@@ -188,13 +188,3 @@ public sealed class BankBackfill
 	private static (string, decimal?, decimal?, decimal?) Key(CurrencyRateBank r) =>
 		(r.CurrencyCode.ToUpperInvariant(), r.BuyingRateCash, r.BuyingRateTransfer, r.SellingRate);
 }
-
-public sealed class BackfillResult
-{
-	public int DaysMissing { get; set; }
-	public int DaysRecorded { get; set; }
-	public int DaysWithoutRates { get; set; }
-	public int RatesInserted { get; set; }
-	public List<DateOnly> FailedDays { get; } = [];
-	public SortedSet<string> UnknownCurrencies { get; } = new(StringComparer.OrdinalIgnoreCase);
-}

@@ -3,13 +3,7 @@ using Beep.Email.Core;
 using Beep.Infrastructure.Email;
 using Microsoft.Extensions.Logging;
 
-namespace Beep.Notification.Email;
-
-/// <summary>Sends one email now.</summary>
-public interface INotificationEmailSender
-{
-	Task SendAsync(NotificationEmail email, CancellationToken cancellationToken);
-}
+namespace Beep.Notification;
 
 /// <summary>
 /// Sends with Beep.Email.Core over SMTP (<c>Mail:Smtp</c>). Without an SMTP host

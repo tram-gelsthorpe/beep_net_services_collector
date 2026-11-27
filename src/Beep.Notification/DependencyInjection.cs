@@ -1,7 +1,5 @@
 using Beep.Email.Core;
 using Beep.Infrastructure.Email;
-using Beep.Notification.Email;
-using Beep.Notification.Subscriptions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

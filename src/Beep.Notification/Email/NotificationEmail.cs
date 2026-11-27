@@ -1,6 +1,6 @@
 using Beep.Email.Core;
 
-namespace Beep.Notification.Email;
+namespace Beep.Notification;
 
 /// <summary>An HTML email to one recipient, as Beep.Email.Core sends it.</summary>
 public sealed class NotificationEmail : IEmail
