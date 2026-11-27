@@ -281,6 +281,14 @@ document.querySelectorAll('input[data-datepicker]').forEach(input => {
 	showValue();
 });
 
+// Compare: the "+ Add a bank" list closes on a click outside it or on Escape, like the other pop-ups.
+document.querySelectorAll('[data-add-bank]').forEach(details => {
+	document.addEventListener('click', e => { if (details.open && !details.contains(e.target)) details.open = false; });
+	details.addEventListener('keydown', e => {
+		if (e.key === 'Escape' && details.open) { details.open = false; details.querySelector('summary').focus(); }
+	});
+});
+
 // Search fields with suggestions (input[list] in a .field): the datalist's options shown in a list styled like the
 // dropdowns and exactly as wide as the field, instead of the browser's own pop-up (which CSS can't size). Each option
 // shows its value (a BIC) and its label (the bank's name); typing filters on both, ignoring case and accents.

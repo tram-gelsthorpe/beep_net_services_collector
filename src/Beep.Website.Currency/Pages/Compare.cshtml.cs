@@ -11,15 +11,22 @@ namespace Beep.Website.Currency;
 /// on price: cheapest bank to buy from (lowest sell rate), best bank to sell to (highest transfer buy rate),
 /// best vs. worst for the amount, and "you pay" = amount × sell rate.</item>
 /// <item><b>Two or more countries</b>: each bank quotes in its own currency, so banks are compared by spread:
-/// lowest spread anywhere, best country by average spread, and coverage.</item>
+/// lowest spread anywhere, best country by average spread, and coverage. Each bank's "you pay" for the amount is
+/// in its own currency.</item>
 /// </list>
+/// At most <see cref="DefaultBanks"/> banks are compared at first: the first ones in the table's order. The visitor
+/// removes a bank (×) or adds another ("+ Add a bank"); the compared banks are then in <c>banks</c>.
 /// Everything is in the query string: <c>/Compare?countries=VN&amp;currency=EUR&amp;amount=1000
-/// &amp;date=2026-11-26&amp;side=buy&amp;sort=sell</c>; with several <c>countries</c>, <c>only</c> filters the
-/// table by country and <c>sort</c> is spread or country. <c>scope=all</c> (older links) chooses every country.
+/// &amp;date=2026-11-26&amp;side=buy&amp;sort=sell&amp;banks=BFTVVNVX&amp;banks=VBAAVNVX</c>; with several
+/// <c>countries</c>, <c>only</c> filters the table by country and <c>sort</c> is spread or country.
+/// <c>scope=all</c> (older links) chooses every country.
 /// </summary>
 public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<CompareModel> logger) : PageModel
 {
 	public const decimal DefaultAmount = 1000m;
+
+	/// <summary>How many banks are compared until the visitor chooses them.</summary>
+	public const int DefaultBanks = 6;
 	private static readonly string[] PreferredCurrencies = ["USD", "EUR"];
 
 	/// <summary>Older links: <c>all</c> chooses every country.</summary>
@@ -56,6 +63,22 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	[BindProperty(SupportsGet = true)]
 	public string? Only { get; set; }
 
+	/// <summary>
+	/// The compared banks' BICs (<c>banks=BFTVVNVX&amp;banks=VBAAVNVX</c>), once the visitor has added or removed one.
+	/// Empty: the first <see cref="DefaultBanks"/> in the table's order. After loading: the BICs compared.
+	/// </summary>
+	[BindProperty(SupportsGet = true, Name = "banks")]
+	public List<string> ChosenBanks { get; set; } = [];
+
+	/// <summary>The visitor chose the compared banks (<c>banks</c> named at least one that quotes the currency).</summary>
+	public bool BanksChosen { get; private set; }
+
+	/// <summary>The banks that quote the currency but are not compared, in the table's order: "+ Add a bank" offers them.</summary>
+	public IReadOnlyList<(BankRates Bank, LatestRateItem Rate)> OtherBanks { get; private set; } = [];
+
+	/// <summary>Every bank that quotes the currency in the chosen countries: compared or not.</summary>
+	public int BanksQuoting { get; private set; }
+
 	public IReadOnlyList<CountryItem> Countries { get; private set; } = [];
 
 	/// <summary>Currencies quoted by the compared banks: code and name.</summary>
@@ -73,7 +96,7 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	/// <summary>Each bank and its rate for <see cref="Currency"/>, in <see cref="SortBy"/> order.</summary>
 	public IReadOnlyList<(BankRates Bank, LatestRateItem Rate)> Rows { get; private set; } = [];
 
-	/// <summary>All countries: every compared bank, before the <see cref="Only"/> filter.</summary>
+	/// <summary>All countries: the compared banks, before the <see cref="Only"/> filter.</summary>
 	public IReadOnlyList<(BankRates Bank, LatestRateItem Rate)> AllRows { get; private set; } = [];
 
 	/// <summary>Countries of <see cref="AllRows"/>, for the table's country filter: code and name.</summary>
@@ -185,12 +208,12 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 		SortBy = Sort?.ToLowerInvariant() is "sell" or "buy" or "spread" ? Sort.ToLowerInvariant() : Buying ? "sell" : "buy";
 
 		// Missing rates go last whatever the order.
-		Rows = SortBy switch
+		Rows = Compared(SortBy switch
 		{
 			"buy" => rows.OrderBy(r => r.Rate.BuyingRateTransfer is null).ThenByDescending(r => r.Rate.BuyingRateTransfer).ToList(),
 			"spread" => rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate)).ToList(),
 			_ => rows.OrderBy(r => r.Rate.SellingRate is null).ThenBy(r => r.Rate.SellingRate).ToList(),
-		};
+		});
 	}
 
 	private void SortAllCountries(List<(BankRates Bank, LatestRateItem Rate)> rows)
@@ -198,11 +221,11 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 		SortBy = string.Equals(Sort, "country", StringComparison.OrdinalIgnoreCase) ? "country" : "spread";
 
 		var bySpread = rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate));
-		AllRows = (SortBy == "country"
+		AllRows = Compared((SortBy == "country"
 				? rows.OrderBy(r => r.Rate.CountryName, StringComparer.CurrentCultureIgnoreCase)
 					.ThenBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate))
 				: bySpread)
-			.ToList();
+			.ToList());
 
 		RowCountries = AllRows
 			.Where(r => r.Rate.CountryCode is not null)
@@ -218,17 +241,48 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 			: AllRows.Where(r => string.Equals(r.Rate.CountryCode, Only, StringComparison.OrdinalIgnoreCase)).ToList();
 	}
 
-	/// <summary>This page with some of its query values changed.</summary>
+	/// <summary>
+	/// The banks of <paramref name="sorted"/> to compare, in its order: those of <see cref="ChosenBanks"/>, or the first
+	/// <see cref="DefaultBanks"/> when it names none of them. Sets <see cref="ChosenBanks"/> to the compared BICs and
+	/// <see cref="OtherBanks"/> to the rest.
+	/// </summary>
+	private List<(BankRates Bank, LatestRateItem Rate)> Compared(List<(BankRates Bank, LatestRateItem Rate)> sorted)
+	{
+		var chosen = sorted.Where(r => ChosenBanks.Contains(r.Bank.Bic, StringComparer.OrdinalIgnoreCase)).ToList();
+		BanksChosen = chosen.Count > 0;
+		if (!BanksChosen)
+			chosen = sorted.Take(DefaultBanks).ToList();
+
+		ChosenBanks = chosen.Select(r => r.Bank.Bic).ToList();
+		OtherBanks = sorted.Where(r => !ChosenBanks.Contains(r.Bank.Bic, StringComparer.OrdinalIgnoreCase)).ToList();
+		BanksQuoting = sorted.Count;
+		return chosen;
+	}
+
+	/// <summary>This page with some of its query values changed. The compared banks stay, once the visitor chose them.</summary>
 	public string PageUrl(string? sort = null, string? only = null, bool keepOnly = true) =>
+		BanksUrl(BanksChosen ? ChosenBanks : null, sort, only, keepOnly);
+
+	/// <summary>This page comparing one more bank.</summary>
+	public string AddBankUrl(string bic) => BanksUrl([.. ChosenBanks, bic]);
+
+	/// <summary>This page without the bank; null when it is the only one compared.</summary>
+	public string? RemoveBankUrl(string bic) =>
+		ChosenBanks.Count > 1
+			? BanksUrl(ChosenBanks.Where(b => !string.Equals(b, bic, StringComparison.OrdinalIgnoreCase)).ToList())
+			: null;
+
+	private string BanksUrl(List<string>? banks, string? sort = null, string? only = null, bool keepOnly = true) =>
 		Url.Page("/Compare", new
 		{
 			countries = ChosenCountries,
 			currency = Currency,
-			amount = AllCountries ? null : Amount.ToString("0.##", CultureInfo.InvariantCulture),
+			amount = Amount.ToString("0.##", CultureInfo.InvariantCulture),
 			date = Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
 			side = Buying ? "buy" : "sell",
 			sort = sort ?? SortBy,
 			only = only ?? (keepOnly ? Only : null),
+			banks,
 		})!;
 
 	public string AmountDisplay => Amount.ToString("#,##0.##", CultureInfo.InvariantCulture);

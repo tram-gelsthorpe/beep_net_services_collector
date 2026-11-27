@@ -75,17 +75,47 @@
 				</label>
 			</div>
 		</div>
-		@if (!all)
-		{
-			<label class="field f-amount">
-				<span>@T["Amount"]</span>
-				<input class="num" type="text" name="amount" inputmode="decimal" value="@Model.AmountDisplay" />
-			</label>
-		}
-		<div class="actions @(all ? "span-2" : "")">
+		<label class="field f-amount">
+			<span>@T["Amount"]</span>
+			<input class="num" type="text" name="amount" inputmode="decimal" value="@Model.AmountDisplay" />
+		</label>
+		<div class="actions">
 			<button type="submit" class="btn btn-primary">@T["Compare"]</button>
 		</div>
 	</form>
+
+	@* Below the table (and the cards on a phone): how many banks are compared, and "+ Add a bank" with the others. *@
+	@{
+		var refTag = T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."];
+		void BanksFoot(string note)
+		{
+			<span>@T.Format("Showing {0} of {1} bank(s)", Model.ChosenBanks.Count, Model.BanksQuoting) · @note</span>
+			if (Model.OtherBanks.Count > 0)
+			{
+				<details class="add-bank" data-add-bank>
+					<summary class="btn-ghost">@T["+ Add a bank"]</summary>
+					<ul class="add-bank-list">
+						@foreach (var (other, otherRate) in Model.OtherBanks)
+						{
+							<li>
+								<a href="@Model.AddBankUrl(other.Bic)">
+									<b>@other.DisplayName</b>
+									<small>@(other.FullName is null ? "" : other.FullName + " · ")<span class="num">@other.Bic</span>@(all && otherRate.CountryName is { } cn ? " · " + cn : "")</small>
+								</a>
+							</li>
+						}
+					</ul>
+				</details>
+			}
+		}
+		void RemoveBank(BankRates bank)
+		{
+			if (Model.RemoveBankUrl(bank.Bic) is { } removeUrl)
+			{
+				<a class="remove-bank" href="@removeUrl" aria-label="@T.Format("Remove {0}", bank.DisplayName)" title="@T.Format("Remove {0}", bank.DisplayName)">×</a>
+			}
+		}
+	}
 
 	@if (Model.Error is not null)
 	{
@@ -110,7 +140,7 @@
 				<small>@T.Format("Cheapest place to buy {0}", code)</small>
 				@if (cheapest is { } c)
 				{
-					<strong>@(c.Bank.DisplayName)@if (c.Bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</strong>
+					<strong>@(c.Bank.DisplayName)@if (c.Bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</strong>
 					@if (c.Bank.FullName is not null) { <small class="bank-full-name">@c.Bank.FullName</small> }
 					<p>
 						@T["Sells at"] <b class="num" style="color:#C2410C">@RateFormat.Format(c.Rate.SellingRate)</b>
@@ -126,7 +156,7 @@
 				<small>@T.Format("Best place to sell {0}", code)</small>
 				@if (best is { } b)
 				{
-					<strong>@(b.Bank.DisplayName)@if (b.Bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</strong>
+					<strong>@(b.Bank.DisplayName)@if (b.Bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</strong>
 					@if (b.Bank.FullName is not null) { <small class="bank-full-name">@b.Bank.FullName</small> }
 					<p>
 						@T["Buys at"] <b class="num" style="color:#0369A1">@RateFormat.Format(b.Rate.BuyingRateTransfer)</b>
@@ -174,6 +204,7 @@
 							<th>@T["Sell"]</th>
 							<th>@T["Spread"]</th>
 							<th>@T.Format("You pay for {0} {1}", Model.AmountDisplay, code)</th>
+							<th class="remove-col"><span class="sr-only">@T["Remove"]</span></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -186,7 +217,7 @@
 									<span class="bank-cell">
 										<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
 										<span>
-											<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
+											<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</b>
 											@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 											<small>
 												<span class="num">@bank.Bic</span>
@@ -203,13 +234,14 @@
 								<td class="num sell @(rate.SellingRate is null ? "na" : "")">@RateFormat.Format(rate.SellingRate)</td>
 								<td class="num muted-num">@RateFormat.FormatSpread(RateFormat.Spread(rate))</td>
 								<td class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount, quote)</td>
+								<td class="remove-col">@{ RemoveBank(bank); }</td>
 							</tr>
 						}
 					</tbody>
 				</table>
 			</div>
 			<div class="cmp-foot">
-				<span>@T.Format("Showing {0} bank(s)", Model.Rows.Count) · @T["“You pay” = amount × sell rate"]</span>
+				@{ BanksFoot(T["“You pay” = amount × sell rate"]); }
 			</div>
 		</section>
 
@@ -223,7 +255,7 @@
 						<span class="bank-cell">
 							<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
 							<span>
-								<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
+								<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</b>
 								@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 								<small>@bank.Bic@(rate.RateTime is { } t ? " · " + RateFormat.FormatPublished(t) : "")</small>
 							</span>
@@ -232,6 +264,7 @@
 							<small>@T["Sell"]</small>
 							<span class="num sell">@RateFormat.Format(rate.SellingRate)</span>
 						</span>
+						@{ RemoveBank(bank); }
 					</div>
 					<div class="grid">
 						<span><small>@DotLabel.BreakOnlyAfterDot(T["Buy · cash"])</small><span class="num">@RateFormat.Format(rate.BuyingRateCash)</span></span>
@@ -240,6 +273,9 @@
 					</div>
 				</section>
 			}
+			<div class="card cmp-foot cards-foot">
+				@{ BanksFoot(T["“You pay” = amount × sell rate"]); }
+			</div>
 		</div>
 	}
 	else
@@ -254,7 +290,7 @@
 				<small>@T.Format("Lowest {0} spread anywhere", code)</small>
 				@if (lowest is { } l)
 				{
-					<strong>@(l.Bank.DisplayName)@if (l.Bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</strong>
+					<strong>@(l.Bank.DisplayName)@if (l.Bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</strong>
 					@if (l.Bank.FullName is not null) { <small class="bank-full-name">@l.Bank.FullName</small> }
 					<p>@(l.Rate.CountryName ?? "—") · @T["spread"] <b class="num" style="color:#C2410C">@RateFormat.FormatSpread(l.Spread)</b></p>
 				}
@@ -302,6 +338,14 @@
 						<input type="hidden" name="date" value="@Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" />
 						<input type="hidden" name="side" value="@(Model.Buying ? "buy" : "sell")" />
 						<input type="hidden" name="sort" value="@Model.SortBy" />
+						<input type="hidden" name="amount" value="@Model.Amount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+						@if (Model.BanksChosen)
+						{
+							foreach (var bic in Model.ChosenBanks)
+							{
+								<input type="hidden" name="banks" value="@bic" />
+							}
+						}
 						<select class="pill-select" name="only" aria-label="@T["Filter by country"]" onchange="this.form.submit()">
 							<option value="">@T["All countries"]</option>
 							@foreach (var c in Model.RowCountries)
@@ -324,7 +368,9 @@
 							<th class="left">@T["Country"]</th>
 							<th>@T["Buy · transfer"]</th>
 							<th>@T["Sell"]</th>
-							<th class="left">@T["Spread"]</th>
+							<th class="left spread-col">@T["Spread"]</th>
+							<th>@T.Format("You pay for {0} {1}", Model.AmountDisplay, code)</th>
+							<th class="remove-col"><span class="sr-only">@T["Remove"]</span></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -337,7 +383,7 @@
 								<td>
 									<span class="bank-cell">
 										<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
-										<span><b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }<small class="num">@bank.Bic</small></span>
+										<span><b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</b>@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }<small class="num">@bank.Bic</small></span>
 									</span>
 								</td>
 								<td class="left">
@@ -351,13 +397,15 @@
 										<span class="num">@RateFormat.FormatSpread(spread)</span>
 									</span>
 								</td>
+								<td class="num strong-num nowrap">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount, rate.QuoteCurrencyCode)@if (rate.SellingRate is not null && rate.QuoteCurrencyCode is { } payIn) { <span class="pay-ccy">@payIn</span> }</td>
+								<td class="remove-col">@{ RemoveBank(bank); }</td>
 							</tr>
 						}
 					</tbody>
 				</table>
 			</div>
 			<div class="cmp-foot">
-				<span>@T["Rates are in each bank’s local currency, so banks in different countries are compared by spread."]</span>
+				@{ BanksFoot(T["Rates are in each bank’s local currency, so banks in different countries are compared by spread."]); }
 			</div>
 		</section>
 
@@ -371,7 +419,7 @@
 						<span class="bank-cell">
 							<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
 							<span>
-								<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
+								<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@refTag">@T["Reference rate"]</span> }</b>
 								@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 								<small>@(rate.CountryName ?? "—") @if (rate.QuoteCurrencyCode is { } q) { <span class="ccy">@q</span> }</small>
 							</span>
@@ -380,13 +428,18 @@
 							<small>@T["Spread"]</small>
 							<span class="num spread-big">@RateFormat.FormatSpread(RateFormat.Spread(rate))</span>
 						</span>
+						@{ RemoveBank(bank); }
 					</div>
-					<div class="grid grid-2">
+					<div class="grid">
 						<span><small>@DotLabel.BreakOnlyAfterDot(T["Buy · transfer"])</small><span class="num">@RateFormat.Format(rate.BuyingRateTransfer)</span></span>
-						<span class="end"><small>@T["Sell"]</small><span class="num kv-sell">@RateFormat.Format(rate.SellingRate)</span></span>
+						<span><small>@T["Sell"]</small><span class="num kv-sell">@RateFormat.Format(rate.SellingRate)</span></span>
+						<span class="end"><small>@T.Format("Pay for {0}", Model.AmountDisplay)</small><span class="num strong-num">@RateFormat.FormatAmount(rate.SellingRate * Model.Amount, rate.QuoteCurrencyCode)@if (rate.SellingRate is not null && rate.QuoteCurrencyCode is { } payIn) { <span class="pay-ccy">@payIn</span> }</span></span>
 					</div>
 				</section>
 			}
+			<div class="card cmp-foot cards-foot">
+				@{ BanksFoot(T["Rates are in each bank’s local currency, so banks in different countries are compared by spread."]); }
+			</div>
 		</div>
 	}
 
