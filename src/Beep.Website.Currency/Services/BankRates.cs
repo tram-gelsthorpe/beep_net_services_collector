@@ -14,6 +14,7 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 		["ICBVVNVX"] = "CTG",
 		["VNACVNVX"] = "VAB",
 		["SNSBNL2A"] = "SNS", // SNS Bank: its initials would be SB.
+		["GENODEFF"] = "DZ", // DZ BANK: its initials would be DB, as for Deutsche Bank.
 	};
 
 	/// <summary>Groups rates by bank, ordered by the name shown.</summary>

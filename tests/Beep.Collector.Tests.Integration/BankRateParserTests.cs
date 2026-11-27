@@ -4,7 +4,7 @@ namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
 /// Reading the banks' rate pages (<see cref="BankRateParsers"/>), from what the collector extracted from each page
-/// (BankRatePages/*.json): the Vietnamese banks' on 26/11/2026, the ECB's on 27/11/2026 and SNS's on 28/11/2026.
+/// (BankRatePages/*.json): the Vietnamese banks' on 26/11/2026, the ECB's and DZ BANK's on 27/11/2026 and SNS's on 28/11/2026.
 /// </summary>
 [TestClass]
 public sealed class BankRateParserTests
@@ -128,9 +128,9 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(13, BankRateParsers.All);
-		Assert.HasCount(13, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(13, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.HasCount(14, BankRateParsers.All);
+		Assert.HasCount(14, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(14, BankRateParsers.All.Select(p => p.Bic).Distinct());
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
@@ -244,6 +244,58 @@ public sealed class BankRateParserTests
 	{
 		Assert.ThrowsExactly<FormatException>(() =>
 			SnsRateParser.Instance.Parse("""{"ContentSelector":["Afkorting","Omschrijving"]}""", CollectedAt));
+	}
+
+	[TestMethod]
+	public void DzBank_ReadsTheFixing()
+	{
+		// DZ BANK's list D810 of 27/11/2026, as the collector extracted its rows: pair, name, Geld, Mitte, Brief, time.
+		var parser = BankRateParsers.ForName("dzbank")!;
+		var rates = parser.Parse(Page("dzbank"), CollectedAt);
+
+		Assert.AreSame(DzBankRateParser.Instance, parser);
+		Assert.AreEqual("GENODEFF", parser.Bic);
+		Assert.IsFalse(parser.UsesCollectionTime, "each row gives its time");
+		Assert.IsFalse(parser.IsReferenceRate, "DZ BANK's own prices");
+		Assert.HasCount(8, rates);
+		CollectionAssert.AreEquivalent(new[] { "USD", "GBP", "CAD", "CHF", "DKK", "NOK", "SEK", "JPY" }, rates.Select(r => r.CurrencyCode).ToArray());
+
+		// 13:07:15 in Frankfurt (winter time, UTC+1) on 27/11/2026, whenever it was collected.
+		var fixedAt = new DateTimeOffset(2026, 11, 27, 13, 7, 15, TimeSpan.FromHours(1));
+		Assert.IsTrue(rates.All(r => r.Date == new DateOnly(2026, 11, 27) && r.RateTime == fixedAt));
+
+		// "EURUSD 1,09300 1,09650 1,10000": DZ BANK sells a dollar at 1 / 1.093 euro and buys one at 1 / 1.1; no cash rate.
+		var usd = rates.Single(r => r.CurrencyCode == "USD");
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 27), fixedAt, null, 0.9090909091m, 0.9149130833m), usd);
+		Assert.AreEqual(0.0057308232m, rates.Single(r => r.CurrencyCode == "JPY").SellingRate);
+	}
+
+	[TestMethod]
+	public void DzBank_SummerTime_IsUtcPlusTwo()
+	{
+		var rates = DzBankRateParser.Instance.Parse(
+			"""{"ContentSelector":["EURUSD","US Dollar","1,16000","1,16350","1,16700","03.07.2026 13:05:00"]}""", CollectedAt);
+
+		Assert.AreEqual(new DateTimeOffset(2026, 7, 3, 13, 5, 0, TimeSpan.FromHours(2)), rates.Single().RateTime);
+	}
+
+	[TestMethod]
+	public void DzBank_BadRate_IsLeftOut()
+	{
+		var skipped = new List<string>();
+		var rates = DzBankRateParser.Instance.Parse(
+			"""{"ContentSelector":["EURGBP","Englisches Pfund","-","0,83520","0,83720","27.11.2026 13:07:15","EURUSD","US Dollar","1,09300","1,09650","1,10000","27.11.2026 13:07:15"]}""",
+			CollectedAt, skipped);
+
+		Assert.AreEqual("USD", rates.Single().CurrencyCode);
+		Assert.AreEqual("GENODEFF GBP is not a rate: '-' / '0,83720'", skipped.Single());
+	}
+
+	[TestMethod]
+	public void DzBank_NoRates_IsRefused()
+	{
+		Assert.ThrowsExactly<FormatException>(() =>
+			DzBankRateParser.Instance.Parse("""{"ContentSelector":["ISO-Code","Währung","Geld"]}""", CollectedAt));
 	}
 
 	private static string Page(string bank) =>
