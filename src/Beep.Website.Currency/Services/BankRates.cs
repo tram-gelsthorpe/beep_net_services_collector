@@ -13,6 +13,7 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 		// VietinBank and VietABank would both be VIE: their stock tickers.
 		["ICBVVNVX"] = "CTG",
 		["VNACVNVX"] = "VAB",
+		["SNSBNL2A"] = "SNS", // SNS Bank: its initials would be SB.
 	};
 
 	/// <summary>Groups rates by bank, ordered by the name shown.</summary>
