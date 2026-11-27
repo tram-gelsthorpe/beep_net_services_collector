@@ -64,7 +64,8 @@ from `Resource/0.sql` and applies newer upgrade scripts (`1.sql`, `2.sql`, ...),
 ## Configuration
 
 `src/Beep.Collector/appsettings.json` holds the non-secret settings: `WebsiteCollector` and
-`EventBus` (worker concurrency, poll interval, lease length), `Scheduler` (frequency, start time, time
+`EventBus` (worker concurrency, poll interval, lease length; `WebsiteCollector:UserAgent` is the User-Agent
+header sent with every page request, `Beep.Collector/1.0` by default), `Scheduler` (frequency, start time, time
 zone) and `BeepNLog`. Connection strings and API keys are **not** committed: their keys are there with
 empty values, and each environment supplies them.
 

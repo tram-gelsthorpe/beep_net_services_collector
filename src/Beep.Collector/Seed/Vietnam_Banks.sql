@@ -6,8 +6,9 @@
 -- holds its rates). Each DispatchUrl is the bank's Beep.Api endpoint, POST <ApiBaseUrl>/api/currencyrate/currency/<name>,
 -- which reads the cells with the bank's parser (Beep.Api/Domain/Currency/BankRateTable.cs, SeABankRateParser.cs).
 --
--- Switched off (IsEnabled = 0) until the collector sends a User-Agent header:
---   VietinBank refuses a request without one; Nam A Bank and NCB refuse any agent that is not a browser's.
+-- Switched off (IsEnabled = 0) for now: VietinBank refuses a request without a User-Agent (the collector now sends
+-- WebsiteCollector:UserAgent, Beep.Collector/1.0 by default); Nam A Bank and, at times, NCB refuse an agent that is
+-- not a browser's.
 --
 -- Not here: banks whose rates are drawn with JavaScript, block the collector, or whose link is gone or missing.
 -- Vietcombank (BFTVVNVX) is set up separately.

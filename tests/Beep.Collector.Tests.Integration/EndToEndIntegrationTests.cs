@@ -85,6 +85,8 @@ public sealed class EndToEndIntegrationTests
 		Assert.AreEqual(Selectors, Count(workItems, "WebsiteCollector", "SUCCEEDED"));
 		Assert.HasCount(Selectors, sites.Requests, "each site fetched once");
 		Assert.AreEqual(Selectors, sites.Requests.Select(r => r.Url).Distinct().Count());
+		Assert.IsTrue(sites.UserAgents.All(a => a == WebsiteCollectorOptions.DefaultUserAgent),
+			"pages are requested with the configured User-Agent");
 
 		await using var collector = TestDatabase.OpenCollector();
 		var collected = (await collector.QueryAsync<(Guid Id, Guid SelectorId, string Content)>("""
@@ -261,6 +263,8 @@ public sealed class EndToEndIntegrationTests
 	{
 		public ConcurrentQueue<(string Url, string Body)> Requests { get; } = new();
 
+		public ConcurrentQueue<string> UserAgents { get; } = new();
+
 		/// <summary>A handler for one HttpClient pipeline that forwards here (handlers cannot be reused).</summary>
 		public HttpMessageHandler Share() => new Forwarder(this);
 
@@ -268,6 +272,7 @@ public sealed class EndToEndIntegrationTests
 		{
 			var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct);
 			Requests.Enqueue((request.RequestUri!.ToString(), body));
+			UserAgents.Enqueue(request.Headers.UserAgent.ToString());
 			return respond(request);
 		}
 

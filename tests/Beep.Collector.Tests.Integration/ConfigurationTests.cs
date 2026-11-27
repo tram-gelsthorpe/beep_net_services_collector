@@ -17,6 +17,21 @@ public sealed class ConfigurationTests
 	private static readonly string StrongKey = new('k', RequiredSettings.MinimumSecretLength);
 
 	[TestMethod]
+	[DataRow("Beep.Collector/1.0")]
+	[DataRow("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36")]
+	public void WebsiteCollector_UserAgent_IsAHeaderValue(string userAgent) =>
+		new WebsiteCollectorOptions { UserAgent = userAgent }.Validate();
+
+	[TestMethod]
+	[DataRow("")]
+	[DataRow(" ")]
+	[DataRow("two\nlines")]
+	[DataRow("Beep Collector/")]
+	public void WebsiteCollector_UserAgent_OtherwiseIsRefused(string userAgent) =>
+		StringAssert.Contains(Assert.ThrowsExactly<ArgumentException>(
+			() => new WebsiteCollectorOptions { UserAgent = userAgent }.Validate()).Message, "UserAgent");
+
+	[TestMethod]
 	public void RequireConnectionStrings_ReportsEveryMissingOrEmptyName_WithoutValues()
 	{
 		var configuration = Build(new()
