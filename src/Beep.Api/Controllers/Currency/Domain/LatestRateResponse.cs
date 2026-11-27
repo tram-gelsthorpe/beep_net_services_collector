@@ -14,6 +14,7 @@ namespace Beep.Api.Controllers.Currency;
 /// <param name="CurrencySymbol">Symbol of the currency ($, €), if known</param>
 /// <param name="QuoteCurrencyCode">Currency the rates are in: the bank country's currency, if known</param>
 /// <param name="BankShortName">The bank's usual name ("Vietcombank"), if it has one</param>
+/// <param name="IsReferenceRate">A central bank's reference rate (the ECB's): one middle rate, not a bank's prices</param>
 public sealed record LatestRateResponse(
 	string Bic,
 	string BankName,
@@ -28,4 +29,5 @@ public sealed record LatestRateResponse(
 	decimal? SellingRate,
 	string? CurrencySymbol,
 	string? QuoteCurrencyCode,
-	string? BankShortName);
+	string? BankShortName,
+	bool IsReferenceRate);

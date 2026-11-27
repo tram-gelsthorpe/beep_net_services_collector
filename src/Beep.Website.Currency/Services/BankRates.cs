@@ -29,6 +29,12 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 	/// <summary>The full name to show under <see cref="DisplayName"/>: null when that is already the full name.</summary>
 	public string? FullName => ShortName is null ? null : Name;
 
+	/// <summary>
+	/// True when the rates are a central bank's reference rates (the ECB's for Belgium): one middle rate, published for
+	/// information, not the bank's buying and selling prices. The pages mark them "Reference rate".
+	/// </summary>
+	public bool IsReferenceRate => Rates.Any(r => r.IsReferenceRate);
+
 	/// <summary>Up to three letters for the round badge: the initials of <see cref="DisplayName"/>.</summary>
 	public string Badge
 	{

@@ -26,6 +26,12 @@ public static class BankRateParsers
 	private static readonly Dictionary<string, IBankRateParser> ByName =
 		All.ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
 
+	private static readonly HashSet<string> ReferenceRateBics =
+		All.Where(p => p.IsReferenceRate).Select(p => p.Bic).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+	/// <summary>True when the bank's rates are a central bank's reference rates (<see cref="IBankRateParser.IsReferenceRate"/>).</summary>
+	public static bool IsReferenceRate(string bic) => ReferenceRateBics.Contains(bic);
+
 	/// <summary>The parser of the bank with that endpoint name, or null when the API cannot read its page.</summary>
 	public static IBankRateParser? ForName(string name) => ByName.GetValueOrDefault(name.Trim());
 }

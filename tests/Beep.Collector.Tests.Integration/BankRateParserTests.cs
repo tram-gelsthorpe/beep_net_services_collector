@@ -148,6 +148,9 @@ public sealed class BankRateParserTests
 		Assert.AreSame(EcbRateParser.Instance, parser);
 		Assert.AreEqual("NBBEBEBB", parser.Bic);
 		Assert.IsFalse(parser.UsesCollectionTime, "the page gives its day");
+		Assert.IsTrue(parser.IsReferenceRate, "a central bank's middle rate, not a bank's prices");
+		Assert.IsTrue(BankRateParsers.IsReferenceRate("NBBEBEBB"));
+		Assert.IsFalse(BankRateParsers.IsReferenceRate("BFTVVNVX"), "Vietcombank's rates are its own prices");
 		Assert.HasCount(29, rates);
 		Assert.IsFalse(rates.Any(r => r.CurrencyCode == "EUR"));
 

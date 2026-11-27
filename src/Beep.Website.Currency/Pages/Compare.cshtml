@@ -110,7 +110,7 @@
 				<small>@T.Format("Cheapest place to buy {0}", code)</small>
 				@if (cheapest is { } c)
 				{
-					<strong>@c.Bank.DisplayName</strong>
+					<strong>@(c.Bank.DisplayName)@if (c.Bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</strong>
 					@if (c.Bank.FullName is not null) { <small class="bank-full-name">@c.Bank.FullName</small> }
 					<p>
 						@T["Sells at"] <b class="num" style="color:#C2410C">@RateFormat.Format(c.Rate.SellingRate)</b>
@@ -126,7 +126,7 @@
 				<small>@T.Format("Best place to sell {0}", code)</small>
 				@if (best is { } b)
 				{
-					<strong>@b.Bank.DisplayName</strong>
+					<strong>@(b.Bank.DisplayName)@if (b.Bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</strong>
 					@if (b.Bank.FullName is not null) { <small class="bank-full-name">@b.Bank.FullName</small> }
 					<p>
 						@T["Buys at"] <b class="num" style="color:#0369A1">@RateFormat.Format(b.Rate.BuyingRateTransfer)</b>
@@ -186,7 +186,7 @@
 									<span class="bank-cell">
 										<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
 										<span>
-											<b>@bank.DisplayName</b>
+											<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
 											@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 											<small>
 												<span class="num">@bank.Bic</span>
@@ -223,7 +223,7 @@
 						<span class="bank-cell">
 							<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
 							<span>
-								<b>@bank.DisplayName</b>
+								<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
 								@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 								<small>@bank.Bic@(rate.RateTime is { } t ? " · " + RateFormat.FormatPublished(t) : "")</small>
 							</span>
@@ -254,7 +254,7 @@
 				<small>@T.Format("Lowest {0} spread anywhere", code)</small>
 				@if (lowest is { } l)
 				{
-					<strong>@l.Bank.DisplayName</strong>
+					<strong>@(l.Bank.DisplayName)@if (l.Bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</strong>
 					@if (l.Bank.FullName is not null) { <small class="bank-full-name">@l.Bank.FullName</small> }
 					<p>@(l.Rate.CountryName ?? "—") · @T["spread"] <b class="num" style="color:#C2410C">@RateFormat.FormatSpread(l.Spread)</b></p>
 				}
@@ -337,7 +337,7 @@
 								<td>
 									<span class="bank-cell">
 										<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
-										<span><b>@bank.DisplayName</b>@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }<small class="num">@bank.Bic</small></span>
+										<span><b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }<small class="num">@bank.Bic</small></span>
 									</span>
 								</td>
 								<td class="left">
@@ -371,7 +371,7 @@
 						<span class="bank-cell">
 							<span class="bank-dot" style="background:@colour.Tint;color:@colour.Colour">@bank.Badge</span>
 							<span>
-								<b>@bank.DisplayName</b>
+								<b>@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
 								@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 								<small>@(rate.CountryName ?? "—") @if (rate.QuoteCurrencyCode is { } q) { <span class="ccy">@q</span> }</small>
 							</span>

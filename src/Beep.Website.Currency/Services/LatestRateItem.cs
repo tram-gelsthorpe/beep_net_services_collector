@@ -14,4 +14,5 @@ public sealed record LatestRateItem(
 	decimal? SellingRate,
 	string? CurrencySymbol,
 	string? QuoteCurrencyCode,
-	string? BankShortName = null);
+	string? BankShortName = null,
+	bool IsReferenceRate = false);

@@ -46,6 +46,8 @@ public sealed partial class EcbRateParser : IBankRateParser
 
 	public bool UsesCollectionTime => false;
 
+	public bool IsReferenceRate => true;
+
 	public IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt, ICollection<string>? skipped = null)
 	{
 		var cells = ReadCells(extractedJson);

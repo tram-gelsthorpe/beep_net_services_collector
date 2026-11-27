@@ -18,6 +18,12 @@ public interface IBankRateParser
 	/// </summary>
 	bool UsesCollectionTime { get; }
 
+	/// <summary>
+	/// True when the rates are a central bank's reference rates (the ECB's): one middle rate published for information,
+	/// not a bank's buying and selling prices. The pages mark them so.
+	/// </summary>
+	bool IsReferenceRate => false;
+
 	/// <param name="extractedJson">The collection result's ExtractedJson</param>
 	/// <param name="collectedAt">When the page was collected</param>
 	/// <param name="skipped">

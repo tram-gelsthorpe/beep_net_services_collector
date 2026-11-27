@@ -2,7 +2,9 @@ namespace Beep.Website.Currency;
 
 /// <param name="Name">The bank's full name</param>
 /// <param name="ShortName">Its usual name ("Vietcombank"), if it has one</param>
-public sealed record BankItem(string Bic, string Name, string? CountryCode, string? CountryName, DateOnly LatestDate, string? ShortName = null)
+/// <param name="IsReferenceRate">Its rates are a central bank's reference rates (the ECB's), not a bank's prices</param>
+public sealed record BankItem(string Bic, string Name, string? CountryCode, string? CountryName, DateOnly LatestDate, string? ShortName = null,
+	bool IsReferenceRate = false)
 {
 	/// <summary>The name to show first: the short name, else the full name.</summary>
 	public string DisplayName => ShortName ?? Name;

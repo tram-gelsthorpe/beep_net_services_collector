@@ -129,6 +129,10 @@ main > * { min-width: 0; }
 .chip { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #F2F4F7; color: var(--ink-2); }
 .chip.blue { background: var(--accent-tint); color: #1E3A8A; }
 .chip.orange { background: #FFEDD5; color: #9A3412; }
+/* A central bank's reference rate (the ECB's), not a bank's prices: its chip and the tag after its name. */
+.chip.amber { background: #FEF3C7; color: #92400E; cursor: help; }
+.ref-tag { display: inline-block; margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px; background: #FEF3C7; color: #92400E;
+	font: 600 11px/1.5 var(--font-body); letter-spacing: 0; vertical-align: 2px; white-space: nowrap; cursor: help; }
 .toolbar { padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .search { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 40px; border: 1px solid #D0D5DD; border-radius: 999px; flex: 0 1 300px; }
 .search:focus-within { border-color: var(--accent); }
