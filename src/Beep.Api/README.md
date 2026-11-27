@@ -98,7 +98,7 @@ Beep.Api hosts [Beep.Notification](../Beep.Notification/README.md). `POST /api/n
 It answers `200 { "status": "confirmationSent" }` for a new or unconfirmed address, or `"updated"` for a
 confirmed one. Invalid input gives `400 { "errors": { field: message } }`.
 
-For Beep Currency (`Currency`, `BankRates`, in `Notifications/BankRatesNotification.cs`):
+For Beep Currency (`Currency`, `BankRates`, in `Notifications/BankRates/BankRatesNotification.cs`):
 - **Filter:** the banks must be banks of the country that have rates, and the currencies must be ones those
   banks publish. Anything else is dropped.
 - **Alerts:** when a delivery records new rates of a bank (`inserted > 0`), every confirmed subscriber who
