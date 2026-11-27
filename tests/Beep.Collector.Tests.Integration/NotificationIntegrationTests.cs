@@ -59,7 +59,10 @@ public sealed class NotificationIntegrationTests
 			EmailAddress varchar(150) NULL,
 			CultureInfoUI char(5) NULL,
 			IsActivated bit NOT NULL CONSTRAINT DF_u_IsActivated DEFAULT 1,
-			IsDeleted bit NOT NULL CONSTRAINT DF_u_IsDeleted DEFAULT 0);
+			IsDeleted bit NOT NULL CONSTRAINT DF_u_IsDeleted DEFAULT 0,
+			User_Type tinyint NOT NULL CONSTRAINT DF_u_User_Type DEFAULT 0,
+			User_Level tinyint NOT NULL CONSTRAINT DF_u_User_Level DEFAULT 0,
+			AuthenticationMethod tinyint NOT NULL CONSTRAINT DF_u_AuthenticationMethod DEFAULT 0);
 		""";
 
 	[ClassInitialize]
@@ -132,12 +135,16 @@ public sealed class NotificationIntegrationTests
 		Assert.AreEqual(43, s.Token.Length);
 
 		await using var connection = new SqlConnection(_connectionString);
-		var user = await connection.QuerySingleAsync<(Guid LicenceId, string Password, string FullName, Guid CreatedBy)>(
-			"SELECT Licence_Id, Password, FullName, CreatedBy FROM dbo.[User] WHERE Id = @UserId", new { s.UserId });
+		var user = await connection.QuerySingleAsync<(Guid LicenceId, string Password, string FullName, Guid CreatedBy,
+			byte UserType, byte UserLevel, byte AuthenticationMethod)>(
+			"SELECT Licence_Id, Password, FullName, CreatedBy, User_Type, User_Level, AuthenticationMethod FROM dbo.[User] WHERE Id = @UserId",
+			new { s.UserId });
 		Assert.AreEqual(_licenceId, user.LicenceId);
 		Assert.AreEqual("ana@example.com", user.FullName, "the email address is the full name");
 		Assert.StartsWith("$2", user.Password, "a bcrypt hash");
 		Assert.AreEqual(CreatedBy, user.CreatedBy);
+		Assert.AreEqual((10, 0, 0), ((int)user.UserType, (int)user.UserLevel, (int)user.AuthenticationMethod),
+			"a subscriber: User_Type 10, User_Level 0, AuthenticationMethod 0");
 	}
 
 	[TestMethod]

@@ -112,9 +112,9 @@ public sealed class SubscriptionRepository : ISubscriptionRepository
 					RETURN;
 				END
 				DECLARE @inserted TABLE (Id uniqueidentifier);
-				INSERT INTO dbo.[User] (Version, Created, CreatedBy, Licence_Id, Login, Password, FullName, EmailAddress, CultureInfoUI)
+				INSERT INTO dbo.[User] (Version, Created, CreatedBy, Licence_Id, Login, Password, FullName, EmailAddress, CultureInfoUI, User_Type, User_Level, AuthenticationMethod)
 				OUTPUT INSERTED.Id INTO @inserted
-				VALUES (1, SYSDATETIMEOFFSET(), @createdBy, @licenceId, @login, @password, @email, @email, @culture);
+				VALUES (1, SYSDATETIMEOFFSET(), @createdBy, @licenceId, @login, @password, @email, @email, @culture, 10, 0, 0);
 				SELECT Id FROM @inserted;
 				""", new { login, password, email, culture, licenceId = _licenceId, createdBy = _createdBy },
 				transaction, cancellationToken: cancellationToken));
