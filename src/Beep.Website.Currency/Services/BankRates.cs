@@ -9,6 +9,7 @@ public sealed record BankRates(string Name, string Bic, string? CountryCode, str
 	private static readonly Dictionary<string, string> KnownBadges = new(StringComparer.OrdinalIgnoreCase)
 	{
 		["BFTVVNVX"] = "VCB",
+		["VCBCVNVX"] = "BVB", // Viet Capital Bank, now BVBank: its initials would be VCB, Vietcombank's badge.
 	};
 
 	/// <summary>Groups rates by bank, ordered by the name shown.</summary>
