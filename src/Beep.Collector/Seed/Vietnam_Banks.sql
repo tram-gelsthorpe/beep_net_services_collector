@@ -4,7 +4,7 @@
 -- Each ContentSelector picks out the rate table's cells, so a collection's ExtractedJson is
 -- {"ContentSelector": ["USD", "25,635", "25,640", "26,065", "26,060", "EUR", ...]} (SeABank's: the script that
 -- holds its rates). Each DispatchUrl is the bank's Beep.Api endpoint, POST <ApiBaseUrl>/api/currencyrate/currency/<name>,
--- which reads the cells with the bank's parser (Beep.Api/Domain/Currency/BankRateTable.cs, SeABankRateParser.cs).
+-- which reads the cells with the bank's parser (Beep.Api/Domain/Currency/Parsers/BankRateTableParser.cs, SeABankRateParser.cs).
 --
 -- Switched off (IsEnabled = 0) for now: VietinBank refuses a request without a User-Agent (the collector now sends
 -- WebsiteCollector:UserAgent, Beep.Collector/1.0 by default); Nam A Bank and, at times, NCB refuse an agent that is

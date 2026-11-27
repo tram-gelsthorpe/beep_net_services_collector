@@ -14,7 +14,7 @@ namespace Beep.Api.Domain.Currency;
 /// The pages give no publication time, so rates are recorded at the time they were collected
 /// (<see cref="UsesCollectionTime"/>).
 /// </summary>
-public sealed partial class BankRateTable : IBankRateParser
+public sealed partial class BankRateTableParser : IBankRateParser
 {
 	/// <summary>How the bank writes numbers.</summary>
 	public enum NumberFormat
@@ -39,34 +39,34 @@ public sealed partial class BankRateTable : IBankRateParser
 		SellTransfer,
 	}
 
-	public static readonly BankRateTable Hsbc = new("hsbc", "HSBCVNVX", NumberFormat.Dot,
+	public static readonly BankRateTableParser Hsbc = new("hsbc", "HSBCVNVX", NumberFormat.Dot,
 		[Column.BuyCash, Column.BuyTransfer, Column.SellCash, Column.SellTransfer]);
 
 	/// <summary>Woori quotes JPY and KRW per 100.</summary>
-	public static readonly BankRateTable Woori = new("woori", "HVBKVNVX", NumberFormat.Comma,
+	public static readonly BankRateTableParser Woori = new("woori", "HVBKVNVX", NumberFormat.Comma,
 		[Column.BuyCash, Column.BuyTransfer, Column.SellCash, Column.SellTransfer], per100: ["JPY", "KRW"]);
 
-	public static readonly BankRateTable Ocb = new("ocb", "ORCOVNVX", NumberFormat.Comma,
+	public static readonly BankRateTableParser Ocb = new("ocb", "ORCOVNVX", NumberFormat.Comma,
 		[Column.Skip, Column.BuyCash, Column.BuyTransfer, Column.SellCash, Column.SellTransfer]);
 
-	public static readonly BankRateTable Agribank = new("agribank", "VBAAVNVX", NumberFormat.Comma,
+	public static readonly BankRateTableParser Agribank = new("agribank", "VBAAVNVX", NumberFormat.Comma,
 		[Column.BuyCash, Column.BuyTransfer, Column.Sell]);
 
-	public static readonly BankRateTable BvBank = new("bvbank", "VCBCVNVX", NumberFormat.Comma,
+	public static readonly BankRateTableParser BvBank = new("bvbank", "VCBCVNVX", NumberFormat.Comma,
 		[Column.BuyCash, Column.BuyTransfer, Column.SellCash, Column.SellTransfer]);
 
-	public static readonly BankRateTable VietABank = new("vietabank", "VNACVNVX", NumberFormat.Comma,
+	public static readonly BankRateTableParser VietABank = new("vietabank", "VNACVNVX", NumberFormat.Comma,
 		[Column.Skip, Column.BuyCash, Column.BuyTransfer, Column.SellCash, Column.SellTransfer]);
 
 	/// <summary>VietinBank marks its cash rates "# 25.470" (large notes) and "&amp; 24.730" (small notes, a row of their own).</summary>
-	public static readonly BankRateTable VietinBank = new("vietinbank", "ICBVVNVX", NumberFormat.Dot,
+	public static readonly BankRateTableParser VietinBank = new("vietinbank", "ICBVVNVX", NumberFormat.Dot,
 		[Column.BuyCash, Column.BuyTransfer, Column.Sell]);
 
-	public static readonly BankRateTable NamABank = new("namabank", "NAMAVNVX", NumberFormat.Dot,
+	public static readonly BankRateTableParser NamABank = new("namabank", "NAMAVNVX", NumberFormat.Dot,
 		[Column.BuyCash, Column.BuyTransfer, Column.Sell]);
 
 	/// <summary>NCB's name cell comes before the code, and its selling columns are transfer, then cash.</summary>
-	public static readonly BankRateTable Ncb = new("ncb", "NVBAVNVX", NumberFormat.Comma,
+	public static readonly BankRateTableParser Ncb = new("ncb", "NVBAVNVX", NumberFormat.Comma,
 		[Column.BuyCash, Column.BuyTransfer, Column.SellTransfer, Column.SellCash]);
 
 	// Not currencies: gold, and the dong itself.
@@ -75,7 +75,7 @@ public sealed partial class BankRateTable : IBankRateParser
 	private readonly NumberFormat _format;
 	private readonly HashSet<string> _per100;
 
-	public BankRateTable(string name, string bic, NumberFormat format, IReadOnlyList<Column> columns, IEnumerable<string>? per100 = null)
+	public BankRateTableParser(string name, string bic, NumberFormat format, IReadOnlyList<Column> columns, IEnumerable<string>? per100 = null)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentException.ThrowIfNullOrWhiteSpace(bic);

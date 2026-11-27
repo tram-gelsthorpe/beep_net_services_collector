@@ -7,7 +7,7 @@ namespace Beep.Api.Backfill;
 /// <c>POST https://bvbank.net.vn/wp-admin/admin-ajax.php</c> with <c>action=exchange_rate_by_date&amp;date=yyyy-MM-dd</c>:
 /// <c>{"success":true,"data":{"html":"&lt;tr&gt;..."}}</c>. A day without rates gets the previous day's (from 14/11/2022).
 /// </summary>
-public sealed class BvBankHistory() : TableBankHistory(BankRateTable.BvBank, "td", new DateOnly(2022, 11, 14))
+public sealed class BvBankHistory() : TableBankHistory(BankRateTableParser.BvBank, "td", new DateOnly(2022, 11, 14))
 {
 	public override bool RepeatsPreviousRates => true;
 

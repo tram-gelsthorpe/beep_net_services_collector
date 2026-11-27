@@ -7,15 +7,15 @@ namespace Beep.Api.Backfill;
 
 /// <summary>
 /// A bank whose past day is an HTML table like its rate page: its cells are read with the bank's
-/// <see cref="BankRateTable"/>, timed at <see cref="BankHistories.EndOfDay"/>.
+/// <see cref="BankRateTableParser"/>, timed at <see cref="BankHistories.EndOfDay"/>.
 /// </summary>
 public abstract class TableBankHistory : IBankHistory
 {
-	private readonly BankRateTable _table;
+	private readonly BankRateTableParser _table;
 	private readonly string _cellSelector;
 
 	/// <param name="cellSelector">CSS selector of the table's cells in <see cref="Html"/></param>
-	protected TableBankHistory(BankRateTable table, string cellSelector, DateOnly firstAvailableDate)
+	protected TableBankHistory(BankRateTableParser table, string cellSelector, DateOnly firstAvailableDate)
 	{
 		_table = table;
 		_cellSelector = cellSelector;

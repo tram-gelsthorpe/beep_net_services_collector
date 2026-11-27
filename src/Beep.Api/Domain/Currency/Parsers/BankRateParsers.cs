@@ -9,15 +9,15 @@ public static class BankRateParsers
 	public static IReadOnlyList<IBankRateParser> All { get; } =
 	[
 		VietcombankRateParser.Instance,
-		BankRateTable.Hsbc,
-		BankRateTable.Woori,
-		BankRateTable.Ocb,
-		BankRateTable.Agribank,
-		BankRateTable.BvBank,
-		BankRateTable.VietABank,
-		BankRateTable.VietinBank,
-		BankRateTable.NamABank,
-		BankRateTable.Ncb,
+		BankRateTableParser.Hsbc,
+		BankRateTableParser.Woori,
+		BankRateTableParser.Ocb,
+		BankRateTableParser.Agribank,
+		BankRateTableParser.BvBank,
+		BankRateTableParser.VietABank,
+		BankRateTableParser.VietinBank,
+		BankRateTableParser.NamABank,
+		BankRateTableParser.Ncb,
 		new SeABankRateParser(),
 	];
 

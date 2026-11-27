@@ -71,7 +71,7 @@ public sealed class BankRateParserTests
 	public void Table_Date_IsTheDayInVietnam()
 	{
 		// 26/11 18:30 UTC is 27/11 01:30 in Vietnam.
-		var rates = BankRateTable.Woori.Parse(Page("woori"), new DateTimeOffset(2026, 11, 26, 18, 30, 0, TimeSpan.Zero));
+		var rates = BankRateTableParser.Woori.Parse(Page("woori"), new DateTimeOffset(2026, 11, 26, 18, 30, 0, TimeSpan.Zero));
 		Assert.AreEqual(new DateOnly(2026, 11, 27), rates[0].Date);
 		Assert.AreEqual(new DateTimeOffset(2026, 11, 27, 1, 30, 0, TimeSpan.FromHours(7)), rates[0].RateTime);
 	}
@@ -121,7 +121,7 @@ public sealed class BankRateParserTests
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
-		Assert.AreSame(BankRateTable.Hsbc, BankRateParsers.ForName("HSBC"));
+		Assert.AreSame(BankRateTableParser.Hsbc, BankRateParsers.ForName("HSBC"));
 		Assert.IsNull(BankRateParsers.ForName("notabank"));
 	}
 

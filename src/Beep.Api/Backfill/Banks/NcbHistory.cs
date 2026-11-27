@@ -9,7 +9,7 @@ namespace Beep.Api.Backfill;
 /// "Hiệu lực từ: Ngày dd-MM-yyyy", the day the rates apply from. A day without rates gets the previous day's
 /// table, with that day's date, so it is taken as having none.
 /// </summary>
-public sealed partial class NcbHistory() : TableBankHistory(BankRateTable.Ncb, "table.tb-content td", new DateOnly(2020, 2, 1))
+public sealed partial class NcbHistory() : TableBankHistory(BankRateTableParser.Ncb, "table.tb-content td", new DateOnly(2020, 2, 1))
 {
 	public override HttpRequestMessage CreateRequest(DateOnly day) =>
 		new(HttpMethod.Post, "https://www.ncb-bank.vn/vi/ty-gia-tien-te")
