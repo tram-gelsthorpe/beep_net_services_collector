@@ -59,6 +59,4 @@ public static class AlertEndpoints
 
 		return app;
 	}
-
-	public sealed record SubscribeBody(string? Email, string? Country, List<string>? Banks, List<string>? Currencies);
 }

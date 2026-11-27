@@ -46,11 +46,11 @@ public sealed class BeepApiClient(HttpClient http)
 
 		if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
 		{
-			var body = await response.Content.ReadFromJsonAsync<SubscribeErrors>(cancellationToken);
+			var body = await response.Content.ReadFromJsonAsync<SubscribeErrorsResponse>(cancellationToken);
 			return (null, body?.Errors ?? new Dictionary<string, string>());
 		}
 		response.EnsureSuccessStatusCode();
-		var ok = await response.Content.ReadFromJsonAsync<SubscribeStatus>(cancellationToken);
+		var ok = await response.Content.ReadFromJsonAsync<SubscribeStatusResponse>(cancellationToken);
 		return (ok?.Status, null);
 	}
 
@@ -70,10 +70,6 @@ public sealed class BeepApiClient(HttpClient http)
 		response.EnsureSuccessStatusCode();
 		return true;
 	}
-
-	private sealed record SubscribeStatus(string? Status);
-
-	private sealed record SubscribeErrors(Dictionary<string, string>? Errors);
 
 	private static string Url(string path, params (string Name, string? Value)[] query)
 	{
