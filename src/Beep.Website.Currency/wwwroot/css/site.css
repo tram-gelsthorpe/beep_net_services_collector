@@ -133,6 +133,20 @@ main > * { min-width: 0; }
 .chip.amber { background: #FEF3C7; color: #92400E; cursor: help; }
 .ref-tag { display: inline-block; margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px; background: #FEF3C7; color: #92400E;
 	font: 600 11px/1.5 var(--font-body); letter-spacing: 0; vertical-align: 2px; white-space: nowrap; cursor: help; }
+.ref-tag:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 1px; }
+
+/* The pop-up of a [data-tip] (the "Reference rate" tag): drawn like the site's other pop-ups, placed by site.js. */
+.tip { position: fixed; z-index: 60; max-width: 280px; padding: 10px 14px; background: #fff; border-radius: 12px;
+	box-shadow: 0 16px 40px rgba(15, 23, 42, .22), 0 0 0 1px #E4E7EC; color: var(--ink);
+	font: 500 13px/1.45 var(--font-body); letter-spacing: 0; text-align: start; white-space: normal; pointer-events: none;
+	opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .12s; }
+.tip.below { transform: translateY(-4px); }
+.tip.show { opacity: 1; transform: none; }
+/* Its arrow, pointing at the tag: a white square turned 45°, with the outline on its two outer sides. */
+.tip::after { content: ""; position: absolute; left: var(--arrow-x, 50%); bottom: -5px; width: 10px; height: 10px; margin-left: -5px;
+	background: #fff; transform: rotate(45deg); box-shadow: 1px 1px 0 #E4E7EC; }
+.tip.below::after { bottom: auto; top: -5px; box-shadow: -1px -1px 0 #E4E7EC; }
+@media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
 .toolbar { padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .search { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 40px; border: 1px solid #D0D5DD; border-radius: 999px; flex: 0 1 300px; }
 .search:focus-within { border-color: var(--accent); }

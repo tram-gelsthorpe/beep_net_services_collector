@@ -93,7 +93,7 @@
 					<div class="bank-cell">
 						<span class="bank-dot bank-dot-lg">@bank.Badge</span>
 						<span>
-							<b class="conv-bank-name">@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
+							<b class="conv-bank-name">@(bank.DisplayName)@if (bank.IsReferenceRate) { <span class="ref-tag" tabindex="0" data-tip="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</b>
 							@if (bank.FullName is not null) { <small class="bank-full-name">@bank.FullName</small> }
 							<small class="conv-bank-meta">
 								@* A line each, so the time never breaks off on its own ("published 25/11" / "23:00"). *@

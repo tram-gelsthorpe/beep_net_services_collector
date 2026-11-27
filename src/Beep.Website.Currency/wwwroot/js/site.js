@@ -17,6 +17,56 @@ document.querySelectorAll('[data-rates]').forEach(section => {
 	});
 });
 
+// Tooltips: an element with data-tip shows its text in a pop-up above it (below when there is no room above), on hover,
+// on keyboard focus, or on a tap (phones have no hover). One pop-up for the page, placed in the window so a card's
+// overflow never clips it. Escape, a scroll or a tap elsewhere closes it.
+(() => {
+	let tip = null, owner = null;
+	const hide = () => {
+		if (!owner) return;
+		owner.removeAttribute('aria-describedby');
+		owner = null;
+		tip.classList.remove('show');
+	};
+	const show = el => {
+		if (!tip) {
+			tip = document.createElement('div');
+			tip.className = 'tip';
+			tip.id = 'tip';
+			tip.setAttribute('role', 'tooltip');
+			document.body.append(tip);
+		}
+		owner = el;
+		el.setAttribute('aria-describedby', 'tip');
+		tip.textContent = el.dataset.tip;
+		tip.classList.remove('show', 'below');
+		const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect(), gap = 10, edge = 8;
+		const below = r.top - t.height - gap < edge;
+		const left = Math.min(Math.max(r.left + r.width / 2 - t.width / 2, edge), document.documentElement.clientWidth - t.width - edge);
+		tip.classList.toggle('below', below);
+		tip.style.left = left + 'px';
+		tip.style.top = (below ? r.bottom + gap : r.top - t.height - gap) + 'px';
+		tip.style.setProperty('--arrow-x', Math.min(Math.max(r.left + r.width / 2 - left, 14), t.width - 14) + 'px');
+		requestAnimationFrame(() => tip.classList.add('show'));
+	};
+	const tipOf = target => target instanceof Element ? target.closest('[data-tip]') : null;
+
+	document.addEventListener('mouseover', e => { const el = tipOf(e.target); if (el && el !== owner) show(el); });
+	document.addEventListener('mouseout', e => { if (owner && tipOf(e.target) === owner && !owner.contains(e.relatedTarget)) hide(); });
+	document.addEventListener('focusin', e => { const el = tipOf(e.target); if (el) show(el); });
+	document.addEventListener('focusout', e => { if (tipOf(e.target) === owner) hide(); });
+	// A tap opens or closes it; in a link (a bank to choose), the tap on the tag doesn't follow the link.
+	document.addEventListener('click', e => {
+		const el = tipOf(e.target);
+		if (!el) { hide(); return; }
+		e.preventDefault();
+		if (el === owner && e.pointerType !== 'mouse') hide(); else show(el);
+	});
+	document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+	window.addEventListener('scroll', hide, { passive: true, capture: true });
+	window.addEventListener('resize', hide);
+})();
+
 // Header pop-ups: the language menu and, on mobile, the page menu. One is open at a time; a click outside,
 // the backdrop or Escape closes it. On mobile the page dims behind the language menu.
 (() => {

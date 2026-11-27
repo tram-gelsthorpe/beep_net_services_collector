@@ -54,7 +54,7 @@
 				{
 					<li>
 						<a asp-page="/Index" asp-route-country="@Model.Country" asp-route-date="@date" asp-route-bank="@b.Bic">
-							<span class="bank-choice-name">@b.DisplayName <span class="chip blue num">@b.Bic</span>@if (b.IsReferenceRate) { <span class="ref-tag" title="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</span>
+							<span class="bank-choice-name">@b.DisplayName <span class="chip blue num">@b.Bic</span>@if (b.IsReferenceRate) { <span class="ref-tag" tabindex="0" data-tip="@T["A central bank’s reference rate: one middle rate, published for information, not a bank’s buying and selling prices."]">@T["Reference rate"]</span> }</span>
 							@if (b.FullName is not null)
 							{
 								<span class="bank-choice-legal">@b.FullName</span>
