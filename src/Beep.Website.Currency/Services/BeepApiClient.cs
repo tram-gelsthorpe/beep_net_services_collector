@@ -13,8 +13,10 @@ public sealed class BeepApiClient(HttpClient http)
 	public async Task<IReadOnlyList<CountryItem>> GetCountriesAsync(CancellationToken cancellationToken) =>
 		await http.GetFromJsonAsync<List<CountryItem>>("api/CurrencyRate/countries", cancellationToken) ?? [];
 
-	public async Task<IReadOnlyList<BankItem>> GetBanksAsync(string? country, CancellationToken cancellationToken) =>
-		await http.GetFromJsonAsync<List<BankItem>>(Url("api/CurrencyRate/banks", ("country", country)), cancellationToken) ?? [];
+	/// <summary>The banks with rates, of a country and matching <paramref name="bank"/> (a BIC or part of a name) when given.</summary>
+	public async Task<IReadOnlyList<BankItem>> GetBanksAsync(string? country, CancellationToken cancellationToken, string? bank = null) =>
+		await http.GetFromJsonAsync<List<BankItem>>(
+			Url("api/CurrencyRate/banks", ("country", country), ("bank", bank)), cancellationToken) ?? [];
 
 	public async Task<IReadOnlyList<LatestRateItem>> GetLatestRatesAsync(
 		DateOnly? date, string? country, string? bank, CancellationToken cancellationToken) =>

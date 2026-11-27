@@ -44,10 +44,34 @@
 	{
 		<p class="notice error">@Model.Error</p>
 	}
+	else if (Model.Matches.Count > 0)
+	{
+		var date = Model.Date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+		<div class="notice bank-choices">
+			<p>@T.Format("{0} banks match “{1}”. Choose one:", Model.Matches.Count, Model.Bank?.Trim())</p>
+			<ul>
+				@foreach (var b in Model.Matches)
+				{
+					// The full name under the short one, when it says more ("Ngân hàng TMCP … – Vietcombank").
+					var shortName = BankRates.ShortNameOf(b.Name);
+					var details = string.Join(" · ", new[] { shortName == b.Name ? null : b.Name, b.CountryName }.OfType<string>());
+					<li>
+						<a asp-page="/Index" asp-route-country="@Model.Country" asp-route-date="@date" asp-route-bank="@b.Bic">
+							<span class="bank-choice-name">@shortName <span class="chip blue num">@b.Bic</span></span>
+							@if (details.Length > 0)
+							{
+								<span class="bank-choice-legal">@details</span>
+							}
+						</a>
+					</li>
+				}
+			</ul>
+		</div>
+	}
 	else if (Model.Results is null)
 	{
 		<p class="notice">
-			@T["Choose a country, a date or a bank to see the latest rates."]
+			@T["Choose a bank to see its rates."]
 			@if (Model.Banks.Count > 0)
 			{
 				<span>@T.Format("{0} bank(s) have rates.", Model.Banks.Count)</span>
