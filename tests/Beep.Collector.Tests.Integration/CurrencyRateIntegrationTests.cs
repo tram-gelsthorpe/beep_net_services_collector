@@ -356,8 +356,8 @@ public sealed class CurrencyRateIntegrationTests
 			4 => (HttpStatusCode.InternalServerError, ""),
 			_ => (HttpStatusCode.OK, RateListJson(date, ("USD", date.Day), ("EUR", date.Day + 0.5m))),
 		});
-		var backfill = new VietcombankBackfill(new HttpClient(api), _repository,
-			NullLogger<VietcombankBackfill>.Instance, retryDelays: [TimeSpan.Zero]);
+		var backfill = new BankBackfill(new HttpClient(api), _repository, BankHistories.ForName("vietcombank")!,
+			NullLogger<BankBackfill>.Instance, retryDelays: [TimeSpan.Zero]);
 
 		var result = await backfill.RunAsync(day, day.AddDays(4), TimeSpan.Zero, CancellationToken.None);
 
@@ -385,9 +385,9 @@ public sealed class CurrencyRateIntegrationTests
 	{
 		// 26/11 00:30 in Vietnam is still 25/11 in UTC.
 		Assert.AreEqual(new DateOnly(2026, 11, 25),
-			VietcombankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 17, 30, 0, TimeSpan.Zero)));
+			BankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 17, 30, 0, TimeSpan.Zero)));
 		Assert.AreEqual(new DateOnly(2026, 11, 24),
-			VietcombankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 16, 30, 0, TimeSpan.Zero)));
+			BankBackfill.LastCompleteDay(new DateTimeOffset(2026, 11, 25, 16, 30, 0, TimeSpan.Zero)));
 	}
 
 	// ---------------------------------------------------------------- reading the latest rates

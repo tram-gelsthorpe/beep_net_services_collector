@@ -107,27 +107,43 @@ For Beep Currency (`Currency`, `BankRates`, in `Notifications/BankRatesNotificat
 
 Swagger UI is available at `/swagger` in the Development environment.
 
-## Backfill past Vietcombank rates
+## Backfill past rates
 
-Vietcombank publishes each day's end-of-day rates (from 2020-02-01) at
-`https://www.vietcombank.com.vn/api/exchangerates?date=yyyy-MM-dd`. The backfill command records the days that
-have no Vietcombank rate in `dbo.Currency_Rate_Bank` yet, with the same rules as deliveries:
+The backfill command records a bank's past end-of-day rates, for the days that have no rate of that bank in
+`dbo.Currency_Rate_Bank` yet, with the same rules as deliveries:
 
 ```bash
-dotnet run --project src/Beep.Api -- backfill vietcombank [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--delay-ms 1000]
+dotnet run --project src/Beep.Api -- backfill <bank>|all [--from yyyy-MM-dd] [--to yyyy-MM-dd] [--delay-ms 1000]
 ```
+
+| `<bank>` | Past days from | Where they come from |
+| --- | --- | --- |
+| `vietcombank` | 2020-02-01 | `GET https://www.vietcombank.com.vn/api/exchangerates?date=yyyy-MM-dd` |
+| `agribank` | 2020-02-01 | `GET https://www.agribank.com.vn/wcm/connect/ttkhac/ty-gia/yyyy/dd-MM-yyyy?...` (404: no rates that day) |
+| `woori` | 2020-02-01 | `POST https://woori.com.vn/wp-admin/admin-ajax.php`, `action=exchange_rate&date_search=yyyyMMdd` |
+| `bvbank` | 2022-11-14 | `POST https://bvbank.net.vn/wp-admin/admin-ajax.php`, `action=exchange_rate_by_date&date=yyyy-MM-dd` |
+| `ncb` | 2020-02-01 | `POST https://www.ncb-bank.vn/vi/ty-gia-tien-te`, `op=ajax&date=dd-MM-yyyy` |
+
+`all` runs each bank in turn. These are what the banks' rate pages request when a date is picked. The other banks'
+pages show only today's rates (HSBC, VietABank, VietinBank, SeABank), need a sign-in token (OCB) or a page
+postback (Nam A Bank), so they have no backfill.
+
+A past day's rates are recorded at 23:00 Vietnam time, read with the bank's [parser](#other-banks). A day the bank
+has no rates for (a weekend, a holiday) is skipped: Agribank answers 404, Woori nothing, NCB the table of the last
+day with rates (with that day's date), and BVBank the last day's table without a date, so a BVBank day whose rates
+are the same as the day before's is taken as having none.
 
 | Option | Default |
 | --- | --- |
-| `--from` | 2020-02-01 (the earliest available) |
+| `--from` | the bank's first day above (also the earliest) |
 | `--to` | yesterday in Vietnam (today's rates are not final) |
-| `--delay-ms` | 1000: pause between requests to Vietcombank |
+| `--delay-ms` | 1000: pause between requests to the bank |
 
 It uses the Api's settings (`ConnectionStrings:Currency`, `Audit:CreatedBy`) and does not start the web server.
 A failed request is retried twice; a day that still fails is listed at the end. Ctrl+C stops after the current
 day. Running it again only fetches days that are still missing, so it can be stopped and resumed. Exit code: 0
-when every missing day was filled, 1 when some failed, 2 for a usage error. The full history (about 2,500 days)
-takes about 45 minutes.
+when every missing day was filled, 1 when some failed, 2 for a usage error. A bank's full history (about 2,500
+days from 2020) takes about 45 minutes.
 
 ## Authentication
 

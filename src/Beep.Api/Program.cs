@@ -9,7 +9,7 @@ using Beep.Api.Repositories.Currency;
 using Beep.Notification;
 using Beep.Notification.Subscriptions;
 
-// "backfill vietcombank ..." fills past rates and exits instead of starting the web server.
+// "backfill <bank> ..." fills past rates and exits instead of starting the web server.
 if (BackfillCommand.IsBackfill(args))
 	return await BackfillCommand.RunAsync(args);
 

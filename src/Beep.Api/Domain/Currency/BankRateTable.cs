@@ -100,10 +100,20 @@ public sealed partial class BankRateTable : IBankRateParser
 
 	public IReadOnlyList<CurrencyRateBank> Parse(string extractedJson, DateTimeOffset collectedAt)
 	{
-		var cells = ReadCells(extractedJson);
+		var rates = ParseCells(ReadCells(extractedJson), collectedAt);
+		if (rates.Count == 0)
+			throw new FormatException($"No {Bic} rates found in the collected data");
+		return rates;
+	}
 
+	/// <summary>
+	/// The rates in the table's cells (their text), timed <paramref name="at"/>; empty when no cell names a currency.
+	/// </summary>
+	/// <exception cref="FormatException">A rate cell is not a number.</exception>
+	public IReadOnlyList<CurrencyRateBank> ParseCells(IReadOnlyList<string> cells, DateTimeOffset at)
+	{
 		// To the minute, as the banks write times.
-		var local = collectedAt.ToOffset(BankRateParsers.VietnamOffset);
+		var local = at.ToOffset(BankRateParsers.VietnamOffset);
 		local = local.AddTicks(-(local.Ticks % TimeSpan.TicksPerMinute));
 		var date = DateOnly.FromDateTime(local.DateTime);
 
@@ -134,9 +144,6 @@ public sealed partial class BankRateTable : IBankRateParser
 
 			rates.Add(new CurrencyRateBank(code, date, local, buyCash, buyTransfer, sell));
 		}
-
-		if (rates.Count == 0)
-			throw new FormatException($"No {Bic} rates found in the collected data");
 
 		return rates;
 	}
