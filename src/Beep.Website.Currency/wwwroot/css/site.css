@@ -4,7 +4,7 @@
 :root {
 	--ink: #0F172A; --ink-2: #344054; --muted: #475467; --muted-2: #98A2B3;
 	--line: #EEF0F3; --field: #F4F6FB; --card: #FFFFFF; --page-fallback: #1E2A78;
-	--accent: #2547D0; --accent-tint: #E0E7FF; --cta: #F97316; --sell: #1E3A8A;
+	--accent: #2547D0; --accent-tint: #E0E7FF; --accent-light: #6B8AF7; --cta: #F97316; --sell: #1E3A8A;
 	--radius-card: 16px; --radius-field: 10px;
 	--font-body: Inter, system-ui, sans-serif;
 	--font-display: 'Space Grotesk', sans-serif;
@@ -333,7 +333,7 @@ select.cur-pill {
 	.lang-menu { width: 250px; box-shadow: 0 16px 40px rgba(15, 23, 42, .28); }
 	.lang-open .lang-backdrop { display: block; position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 15; }
 	.lang-open .lang { z-index: 21; }
-	.lang-open .lang-btn { position: relative; background: #fff; box-shadow: 0 0 0 2px var(--accent); }
+	.lang-open .lang-btn { position: relative; background: #fff; box-shadow: 0 0 0 2px var(--accent-light); }
 
 	/* The page menu opens as a white list under the header. */
 	.nav.open {
@@ -522,7 +522,22 @@ select.cur-pill {
 .cl-item:has(input:checked) { background: #F5F8FF; }
 .cl-item .muted { color: var(--muted); font-weight: 400; }
 .cl-item b { display: inline-block; width: 36px; font-weight: 500; }
-.checklist input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); flex: none; }
+/* Drawn, not the browser's: a light grey border, and --accent-light when ticked (or partly, for "All"). */
+.checklist input[type=checkbox] {
+	appearance: none; -webkit-appearance: none; width: 18px; height: 18px; margin: 0; flex: none; cursor: pointer;
+	border: 1.5px solid #D0D5DD; border-radius: 5px; background: #fff center / 12px 12px no-repeat;
+	transition: background-color .12s, border-color .12s;
+}
+.checklist input[type=checkbox]:hover { border-color: #A4BCFD; }
+.checklist input[type=checkbox]:focus-visible { outline: 2px solid #C7D7FE; outline-offset: 1px; }
+.checklist input[type=checkbox]:checked {
+	border-color: var(--accent-light); background-color: var(--accent-light);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m2.5 6.2 2.3 2.3 4.7-5'/%3E%3C/svg%3E");
+}
+.checklist input[type=checkbox]:indeterminate {
+	border-color: var(--accent-light); background-color: var(--accent-light);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 6h6'/%3E%3C/svg%3E");
+}
 .cl-empty { padding: 12px 8px; font-size: 13px; color: var(--muted); }
 /* Inside a .field, the shared field label style must not shrink the checklist's texts. */
 .checklist span { font-size: 14px; font-weight: inherit; color: var(--ink); }
@@ -538,7 +553,7 @@ select.cur-pill {
 .ms { position: relative; z-index: 10; padding: 0; }
 .ms-trigger { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; height: 100%; padding: 8px 14px; border: 0; border-radius: var(--radius-field); background: transparent; text-align: start; cursor: pointer; font: inherit; color: inherit; }
 .ms .ms-trigger > span:first-child { font-size: 12px; font-weight: 500; color: var(--muted); }
-.ms-trigger[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.ms-trigger[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--accent-light); }
 .ms-value { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ms .ms-value .ms-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 15px var(--font-body); color: var(--ink); }
 .ms .ms-value .ms-count { flex: none; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-tint); color: var(--accent); font: 500 12px var(--font-num); display: flex; align-items: center; justify-content: center; }
@@ -605,8 +620,8 @@ select.cur-pill {
 	select option::checkmark { order: 1; margin-inline-start: auto; color: var(--accent); }
 	select option:disabled { color: var(--muted-2); cursor: default; }
 
-	select:open { box-shadow: 0 0 0 2px var(--accent); }
-	.field:has(> select:open) { box-shadow: 0 0 0 2px var(--accent); }
+	select:open { box-shadow: 0 0 0 2px var(--accent-light); }
+	.field:has(> select:open) { box-shadow: 0 0 0 2px var(--accent-light); }
 	.field > select:open { box-shadow: none; }
 
 	/* The converter's currency pill: wide enough for "SGD · Singapore Dollar" on one line. */
@@ -639,7 +654,7 @@ select.cur-pill {
 .date-trigger .date-value { font-size: 15px; font-weight: 500; color: var(--ink); }
 .date-trigger.empty .date-value { color: var(--muted); }
 .date-trigger svg { width: 17px; height: 17px; flex: none; color: var(--muted); }
-.field:has(> .date-trigger[aria-expanded="true"]) { box-shadow: 0 0 0 2px var(--accent); }
+.field:has(> .date-trigger[aria-expanded="true"]) { box-shadow: 0 0 0 2px var(--accent-light); }
 
 .date-pop {
 	position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40; box-sizing: border-box; padding: 6px;
