@@ -129,16 +129,16 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 
 	// ---------------------------------------------------------------- all countries
 
-	/// <summary>The bank with the lowest spread, of all countries.</summary>
+	/// <summary>The bank with the lowest spread, of all countries. Reference rates don't count (see <see cref="RankedSpread"/>).</summary>
 	public (BankRates Bank, LatestRateItem Rate, decimal Spread)? LowestSpread =>
-		AllRows.Select(r => (r.Bank, r.Rate, Spread: RateFormat.Spread(r.Rate)))
+		AllRows.Select(r => (r.Bank, r.Rate, Spread: RankedSpread(r.Rate)))
 			.Where(r => r.Spread is not null)
 			.Select(r => (r.Bank, r.Rate, Spread: r.Spread!.Value))
 			.MinBy(r => r.Spread) is { Bank: not null } best ? best : null;
 
-	/// <summary>The country whose banks have the lowest average spread.</summary>
+	/// <summary>The country whose banks have the lowest average spread. Reference rates don't count: a country with only those has none.</summary>
 	public (string Country, decimal AverageSpread, int Banks)? BestCountry =>
-		AllRows.Select(r => (Country: r.Rate.CountryName ?? r.Rate.CountryCode ?? "—", Spread: RateFormat.Spread(r.Rate)))
+		AllRows.Select(r => (Country: r.Rate.CountryName ?? r.Rate.CountryCode ?? "—", Spread: RankedSpread(r.Rate)))
 			.Where(r => r.Spread is not null)
 			.GroupBy(r => r.Country)
 			.Select(g => (Country: g.Key, AverageSpread: g.Average(r => r.Spread!.Value), Banks: g.Count()))
@@ -147,6 +147,17 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 			.FirstOrDefault();
 
 	public int CoverageCountries => AllRows.Select(r => r.Rate.CountryCode).Distinct().Count();
+
+	/// <summary>
+	/// The spread a bank is ranked by: null for a central bank's reference rate (the ECB's, for Belgium). That is one
+	/// middle rate recorded as both buying and selling rate, so its spread is always 0: no bank's real price could beat
+	/// it, but no one can exchange at it.
+	/// </summary>
+	private static decimal? RankedSpread(LatestRateItem rate) => rate.IsReferenceRate ? null : RateFormat.Spread(rate);
+
+	/// <summary>Where a row goes when sorted by spread: banks' real spreads first, then reference rates, then no spread.</summary>
+	private static int SpreadGroup(LatestRateItem rate) =>
+		RateFormat.Spread(rate) is null ? 2 : rate.IsReferenceRate ? 1 : 0;
 
 	public async Task OnGetAsync(CancellationToken cancellationToken)
 	{
@@ -211,7 +222,7 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 		Rows = Compared(SortBy switch
 		{
 			"buy" => rows.OrderBy(r => r.Rate.BuyingRateTransfer is null).ThenByDescending(r => r.Rate.BuyingRateTransfer).ToList(),
-			"spread" => rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate)).ToList(),
+			"spread" => rows.OrderBy(r => SpreadGroup(r.Rate)).ThenBy(r => RateFormat.Spread(r.Rate)).ToList(),
 			_ => rows.OrderBy(r => r.Rate.SellingRate is null).ThenBy(r => r.Rate.SellingRate).ToList(),
 		});
 	}
@@ -220,10 +231,10 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	{
 		SortBy = string.Equals(Sort, "country", StringComparison.OrdinalIgnoreCase) ? "country" : "spread";
 
-		var bySpread = rows.OrderBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate));
+		var bySpread = rows.OrderBy(r => SpreadGroup(r.Rate)).ThenBy(r => RateFormat.Spread(r.Rate));
 		AllRows = Compared((SortBy == "country"
 				? rows.OrderBy(r => r.Rate.CountryName, StringComparer.CurrentCultureIgnoreCase)
-					.ThenBy(r => RateFormat.Spread(r.Rate) is null).ThenBy(r => RateFormat.Spread(r.Rate))
+					.ThenBy(r => SpreadGroup(r.Rate)).ThenBy(r => RateFormat.Spread(r.Rate))
 				: bySpread)
 			.ToList());
 
@@ -242,16 +253,21 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 	}
 
 	/// <summary>
-	/// The banks of <paramref name="sorted"/> to compare, in its order: those of <see cref="ChosenBanks"/>, or the first
-	/// <see cref="DefaultBanks"/> when it names none of them. Sets <see cref="ChosenBanks"/> to the compared BICs and
-	/// <see cref="OtherBanks"/> to the rest.
+	/// The banks of <paramref name="sorted"/> to compare, in its order: those of <see cref="ChosenBanks"/>, or, when it
+	/// names none of them, <see cref="DefaultBanks"/> banks: the first of each country (so no chosen country is left out,
+	/// as Belgium would be with its reference rate sorted last), then the next ones in order. Sets
+	/// <see cref="ChosenBanks"/> to the compared BICs and <see cref="OtherBanks"/> to the rest.
 	/// </summary>
 	private List<(BankRates Bank, LatestRateItem Rate)> Compared(List<(BankRates Bank, LatestRateItem Rate)> sorted)
 	{
 		var chosen = sorted.Where(r => ChosenBanks.Contains(r.Bank.Bic, StringComparer.OrdinalIgnoreCase)).ToList();
 		BanksChosen = chosen.Count > 0;
 		if (!BanksChosen)
-			chosen = sorted.Take(DefaultBanks).ToList();
+		{
+			var picked = sorted.DistinctBy(r => r.Rate.CountryCode).Take(DefaultBanks).ToHashSet();
+			picked.UnionWith(sorted.Where(r => !picked.Contains(r)).Take(DefaultBanks - picked.Count));
+			chosen = sorted.Where(picked.Contains).ToList();
+		}
 
 		ChosenBanks = chosen.Select(r => r.Bank.Bic).ToList();
 		OtherBanks = sorted.Where(r => !ChosenBanks.Contains(r.Bank.Bic, StringComparer.OrdinalIgnoreCase)).ToList();
