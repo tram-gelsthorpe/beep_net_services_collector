@@ -41,9 +41,4 @@ public sealed class WorkItemLeaseManager : ILeaseManager<IClaimedWorkItem>
 		item is IClaimedWorkItem workItem
 			? _workItems.ReleaseLeaseAsync(workItem.WorkItemId, leaseToken, ct)
 			: Task.CompletedTask;
-
-	private sealed record ClaimedWorkItemLease(IClaimedWorkItem Item) : IClaimedItem<IClaimedWorkItem>
-	{
-		public Guid LeaseToken => Item.LeaseToken;
-	}
 }
