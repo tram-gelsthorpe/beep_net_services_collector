@@ -1,7 +1,6 @@
 using Beep.Api.Domain.Currency;
 using System.Globalization;
 using Beep.Api.Notifications;
-using Beep.Notification;
 using Beep.Api.Repositories.Collector;
 using Beep.Api.Repositories.Country;
 using Beep.Api.Repositories.Currency;
@@ -20,18 +19,18 @@ public class CurrencyRateController : ControllerBase
 {
 	private readonly ICollectedDataRepository _collectedData;
 	private readonly ICurrencyRateRepository _currencyRates;
-	private readonly INotificationQueue _notifications;
+	private readonly IBankRatesAlerts _alerts;
 	private readonly ILogger<CurrencyRateController> _logger;
 
 	public CurrencyRateController(
 		ICollectedDataRepository collectedData,
 		ICurrencyRateRepository currencyRates,
-		INotificationQueue notifications,
+		IBankRatesAlerts alerts,
 		ILogger<CurrencyRateController> logger)
 	{
 		_collectedData = collectedData;
 		_currencyRates = currencyRates;
-		_notifications = notifications;
+		_alerts = alerts;
 		_logger = logger;
 	}
 
@@ -216,10 +215,19 @@ public class CurrencyRateController : ControllerBase
 				bankBic, request.CollectedDataId, result.Inserted, result.Duplicates,
 				result.UnknownCurrencies.Count == 0 ? "none" : string.Join(", ", result.UnknownCurrencies));
 
-			// New rates: email the bank's subscribers after answering (redeliveries insert nothing).
+			// New rates: queue the bank's subscribers' alerts (redeliveries insert nothing). The rates are recorded
+			// whatever happens here, so a failure is logged instead of failing the delivery.
 			if (result.Inserted > 0)
-				_notifications.Enqueue($"{bankBic} rate alerts", (services, ct) =>
-					services.GetRequiredService<BankRatesAlerts>().SendAsync(bankBic, ct));
+			{
+				try
+				{
+					await _alerts.QueueAsync(bankBic, CancellationToken.None);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "{BankBic} rate alerts not queued", bankBic);
+				}
+			}
 
 			return Ok(result);
 		}

@@ -1,17 +1,17 @@
 using Beep.Email.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Beep.Notification;
 
 /// <summary>
-/// Subscribing, confirming and unsubscribing, for every website. Emails are queued (<see cref="INotificationQueue"/>).
+/// Subscribing, confirming and unsubscribing, for every website. The confirmation email is queued
+/// (<see cref="INotificationEmailQueue"/>) and sent, and retried, by a ServiceBus work item.
 /// </summary>
 public sealed class SubscriptionService(
 	ISubscriptionRepository repository,
 	IEnumerable<INotificationType> types,
 	NotificationOptions options,
-	INotificationQueue queue,
+	INotificationEmailQueue emails,
 	ILogger<SubscriptionService> logger)
 {
 	/// <summary>A confirmation email is not sent again within this time (repeated clicks, abuse).</summary>
@@ -70,14 +70,9 @@ public sealed class SubscriptionService(
 		if (subscription.LastSentAt is { } last && DateTimeOffset.UtcNow - last < ConfirmationResendDelay)
 			return new SubscribeResult(SubscribeStatus.ConfirmationSent, errors);
 
-		// Mark first, so quick repeats do not queue several emails.
+		// Mark first, so quick repeats do not queue several emails (the email's sending marks it again).
 		await repository.MarkSentAsync([subscription.Id], cancellationToken);
-		queue.Enqueue($"confirmation email of subscription {subscription.Id}", async (services, ct) =>
-		{
-			var description = await type.DescribeAsync(subscription.Filter, language, ct);
-			await services.GetRequiredService<INotificationEmailSender>()
-				.SendAsync(ConfirmationEmail(subscription, website, description, language), ct);
-		});
+		await emails.EnqueueAsync([subscription.Id], NotificationEmailKind.Confirmation, null, cancellationToken);
 		return new SubscribeResult(SubscribeStatus.ConfirmationSent, errors);
 	}
 

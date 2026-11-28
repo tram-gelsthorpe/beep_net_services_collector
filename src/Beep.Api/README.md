@@ -101,8 +101,9 @@ confirmed one. Invalid input gives `400 { "errors": { field: message } }`.
 For Beep Currency (`Currency`, `BankRates`, in `Notifications/BankRates/BankRatesNotification.cs`):
 - **Filter:** the banks must be banks of the country that have rates, and the currencies must be ones those
   banks publish. Anything else is dropped.
-- **Alerts:** when a delivery records new rates of a bank (`inserted > 0`), every confirmed subscriber who
-  chose that bank gets one email after the response. It has the bank's latest rates of the currencies they
+- **Alerts:** when a delivery records new rates of a bank (`inserted > 0`), an email is queued for every
+  confirmed subscriber who chose that bank (`BankRatesAlerts`, `Data` `{"bank":"<BIC>"}`). A ServiceBus work
+  item sends it, and retries it if sending fails. It has the bank's latest rates of the currencies they
   chose, in their language. Redeliveries and the backfill send nothing.
 
 Swagger UI is available at `/swagger` in the Development environment.
@@ -157,7 +158,8 @@ Every endpoint except `/swagger`, `/api-docs` and `/health` requires an `X-API-K
 | `ConnectionStrings:Currency` | A_1_Beep_Global_Currency, where rates are recorded |
 | `ConnectionStrings:Collector` | Beep.Collector's database, where collection results are read |
 | `ConnectionStrings:Country` | A_1_Beep_Global_Country, for country codes and names (cached for an hour) |
-| `ConnectionStrings:Default` | A_1_Beep_Global_Default: alert subscribers (`dbo.User`) and subscriptions (`dbo.User_Notification`) |
+| `ConnectionStrings:Default` | A_1_Beep_Global_Default: alert subscribers (`dbo.User`), subscriptions (`dbo.User_Notification`) and queued emails (`dbo.User_Notification_Email`) |
+| `ConnectionStrings:ServiceBus` | Beep.Collector's ServiceBus database: the work items that send queued emails (schema `ServiceBus`) |
 | `Notification:LicenceId` | `dbo.Licence.Id` that new subscribers are created under |
 | `Notification:Websites:Currency:Url` | Beep Currency's address; links in emails start with it (`appsettings.Development.json`: `https://localhost:55291`) |
 | `Notification:PickupDirectory` | Optional, local: without an SMTP host, emails are written here as .html files |

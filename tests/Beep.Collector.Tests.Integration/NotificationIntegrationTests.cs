@@ -1,19 +1,21 @@
+using System.Net.Mail;
 using System.Text.Json;
 using Beep.Api.Notifications;
 using Beep.Api.Repositories.Country;
 using Beep.Api.Repositories.Currency;
 using Beep.Notification;
+using Beep.ServiceBus;
 using Dapper;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
-/// Beep.Notification's subscriptions (dbo.User and dbo.User_Notification) and Beep.Api's currency rate alerts.
-/// Runs against its own LocalDB database with copies of A_1_Beep_Global_Default's Licence, User and User_Notification
-/// tables (User_Notification as Beep.Database.Processor creates it, in Create/Global.sql).
+/// Beep.Notification's subscriptions (dbo.User and dbo.User_Notification), queued emails (dbo.User_Notification_Email)
+/// and Beep.Api's currency rate alerts. Runs against its own LocalDB database with copies of A_1_Beep_Global_Default's
+/// Licence, User, User_Notification and User_Notification_Email tables (the last two as Beep.Database.Processor creates
+/// them, in Create/Global.sql). The ServiceBus is a recording fake: RunQueuedAsync processes what was queued.
 /// </summary>
 [TestClass]
 [DoNotParallelize]
@@ -30,11 +32,14 @@ public sealed class NotificationIntegrationTests
 	private static Guid _licenceId;
 
 	private SubscriptionRepository _repository = null!;
-	private ImmediateQueue _queue = null!;
+	private NotificationEmailRepository _emails = null!;
+	private RecordingWorkItems _workItems = null!;
+	private NotificationEmailQueue _queue = null!;
 	private RecordingSender _sender = null!;
 	private NotificationOptions _options = null!;
 
-	// Same columns, defaults and keys as A_1_Beep_Global_Default (the columns subscriptions use; all of User_Notification).
+	// Same columns, defaults and keys as A_1_Beep_Global_Default (the columns subscriptions use; all of User_Notification
+	// and User_Notification_Email).
 	private const string SchemaSql = """
 		CREATE TABLE dbo.Licence (
 			Id uniqueidentifier NOT NULL CONSTRAINT DF_li_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_li_Id PRIMARY KEY,
@@ -89,6 +94,22 @@ public sealed class NotificationIntegrationTests
 		CREATE UNIQUE INDEX AK_uno_User_Token ON dbo.User_Notification (Token);
 		CREATE INDEX IDX_uno_Website_NotificationType ON dbo.User_Notification (Website, NotificationType)
 			INCLUDE (User_Id, IsConfirmed, IsDeleted);
+
+		CREATE TABLE dbo.User_Notification_Email (
+			Id uniqueidentifier NOT NULL CONSTRAINT DF_unoe_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_unoe_Id PRIMARY KEY,
+			Version int NOT NULL CONSTRAINT DF_unoe_Version DEFAULT 1,
+			Modified datetimeoffset NULL,
+			ModifiedBy uniqueidentifier NULL,
+			Created datetimeoffset NOT NULL,
+			CreatedBy uniqueidentifier NOT NULL,
+			User_Notification_Id uniqueidentifier NOT NULL CONSTRAINT FK_unoe_User_Notification REFERENCES dbo.User_Notification (Id),
+			Kind tinyint NOT NULL,
+			Data nvarchar(max) NULL
+				CONSTRAINT CHK_unoe_Data CHECK (Data IS NULL OR LTRIM(RTRIM(Data)) LIKE '{%}' OR LTRIM(RTRIM(Data)) LIKE '[[]%]'),
+			SentAt datetimeoffset NULL,
+			IsSynchronized bit NOT NULL CONSTRAINT DF_unoe_IsSynchronized DEFAULT 0);
+
+		CREATE INDEX IDX_unoe_User_Notification ON dbo.User_Notification_Email (User_Notification_Id);
 		""";
 
 	[ClassInitialize]
@@ -120,10 +141,12 @@ public sealed class NotificationIntegrationTests
 	public async Task TestInitializeAsync()
 	{
 		await using var connection = new SqlConnection(_connectionString);
-		await connection.ExecuteAsync("DELETE FROM dbo.User_Notification; DELETE FROM dbo.[User];");
+		await connection.ExecuteAsync("DELETE FROM dbo.User_Notification_Email; DELETE FROM dbo.User_Notification; DELETE FROM dbo.[User];");
 		_repository = new SubscriptionRepository(_connectionString, _licenceId, CreatedBy);
 		_sender = new RecordingSender();
-		_queue = new ImmediateQueue(new ServiceCollection().AddSingleton<INotificationEmailSender>(_sender).BuildServiceProvider());
+		_emails = new NotificationEmailRepository(_connectionString, CreatedBy);
+		_workItems = new RecordingWorkItems();
+		_queue = new NotificationEmailQueue(_emails, _workItems, new NotificationEmailOptions(), NullLogger<NotificationEmailQueue>.Instance);
 		_options = new NotificationOptions
 		{
 			LicenceId = _licenceId,
@@ -222,7 +245,7 @@ public sealed class NotificationIntegrationTests
 		var service = Service();
 
 		var result = await service.SubscribeAsync(Request("Ana@Example.com "), default);
-		await _queue.RunAsync();
+		await RunQueuedAsync();
 
 		Assert.AreEqual(SubscribeStatus.ConfirmationSent, result.Status);
 		var email = _sender.Emails.Single();
@@ -232,7 +255,7 @@ public sealed class NotificationIntegrationTests
 
 		// Asking again at once does not send another one.
 		Assert.AreEqual(SubscribeStatus.ConfirmationSent, (await service.SubscribeAsync(Request("ana@example.com"), default)).Status);
-		await _queue.RunAsync();
+		await RunQueuedAsync();
 		Assert.HasCount(1, _sender.Emails);
 	}
 
@@ -241,11 +264,11 @@ public sealed class NotificationIntegrationTests
 	{
 		var service = Service();
 		await service.SubscribeAsync(Request("ana@example.com"), default);
-		await _queue.RunAsync();
+		await RunQueuedAsync();
 		await service.ConfirmAsync(await TokenOfAsync("ana@example.com"), default);
 
 		var result = await service.SubscribeAsync(Request("ana@example.com"), default);
-		await _queue.RunAsync();
+		await RunQueuedAsync();
 
 		Assert.AreEqual(SubscribeStatus.Updated, result.Status);
 		Assert.HasCount(1, _sender.Emails, "only the first confirmation email");
@@ -295,8 +318,8 @@ public sealed class NotificationIntegrationTests
 		await _repository.SaveAsync("cat@example.com", "en", "Currency", "BankRates",
 			new BankRatesFilter("VN", [Bic], ["USD"]).ToJson(), default); // not confirmed
 
-		var alerts = new BankRatesAlerts(_repository, new FakeRates(), new FakeCountries(), _sender, _options, NullLogger<BankRatesAlerts>.Instance);
-		await alerts.SendAsync(Bic, default);
+		Assert.AreEqual(1, await Alerts().QueueAsync(Bic, default), "one alert: the confirmed subscriber of the bank");
+		await RunQueuedAsync();
 
 		var email = _sender.Emails.Single();
 		Assert.AreEqual("ana@example.com", email.To.Single());
@@ -307,6 +330,61 @@ public sealed class NotificationIntegrationTests
 
 		await using var connection = new SqlConnection(_connectionString);
 		Assert.AreEqual(1, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.User_Notification WHERE LastSentAt IS NOT NULL AND Filter LIKE '%BFTVVNVX%'"));
+		Assert.AreEqual("""{"bank":"BFTVVNVX"}""", await connection.ExecuteScalarAsync<string>(
+			"SELECT Data FROM dbo.User_Notification_Email WHERE Kind = 2 AND SentAt IS NOT NULL"));
+	}
+
+	// ---------------------------------------------------------------- queued emails
+
+	[TestMethod]
+	public async Task Email_SendFails_IsRetried_AndSentOnce()
+	{
+		_sender.Failures.Enqueue(new SmtpException(SmtpStatusCode.ServiceNotAvailable, "try again later"));
+		await Service().SubscribeAsync(Request("ana@example.com"), default);
+		var emailId = _workItems.Queued.Single();
+
+		var first = (await RunQueuedAsync()).Single();
+		Assert.IsFalse(first.Success, "a failed send goes back to the ServiceBus, which retries it");
+		Assert.Contains("try again later", first.ErrorMessage!);
+		Assert.IsNull(await SentAtAsync(emailId));
+
+		// The ServiceBus's retry, then a redelivery of the same work item: one email.
+		_workItems.Queued.Add(emailId);
+		Assert.IsTrue((await RunQueuedAsync()).Single().Success);
+		Assert.IsNotNull(await SentAtAsync(emailId));
+		_workItems.Queued.Add(emailId);
+		Assert.IsTrue((await RunQueuedAsync()).Single().Success);
+		Assert.HasCount(1, _sender.Emails);
+		Assert.HasCount(3, _workItems.Completed, "each attempt completes its work item");
+	}
+
+	[TestMethod]
+	public async Task Email_RefusedAddress_IsNotRetried()
+	{
+		_sender.Failures.Enqueue(new SmtpFailedRecipientException(SmtpStatusCode.MailboxUnavailable, "ana@example.com"));
+		await Service().SubscribeAsync(Request("ana@example.com"), default);
+		var emailId = _workItems.Queued.Single();
+
+		var result = (await RunQueuedAsync()).Single();
+		Assert.IsTrue(result.Success, "finished: sending again would be refused again");
+		Assert.StartsWith("Address refused", result.ErrorMessage!);
+		Assert.IsNull(await SentAtAsync(emailId));
+		Assert.IsEmpty(_sender.Emails);
+	}
+
+	[TestMethod]
+	public async Task Email_OfConfirmedOrUnsubscribedSubscription_IsNotSent()
+	{
+		var service = Service();
+		await service.SubscribeAsync(Request("ana@example.com"), default);
+		await service.ConfirmAsync(await TokenOfAsync("ana@example.com"), default);
+		Assert.IsTrue((await RunQueuedAsync()).Single().Success);
+		Assert.IsEmpty(_sender.Emails, "confirmed before the confirmation email went: not sent");
+
+		Assert.AreEqual(1, await Alerts().QueueAsync(Bic, default));
+		await service.UnsubscribeAsync(await TokenOfAsync("ana@example.com"), default);
+		Assert.IsTrue((await RunQueuedAsync()).Single().Success);
+		Assert.IsEmpty(_sender.Emails, "unsubscribed before the alert went: not sent");
 	}
 
 	[TestMethod]
@@ -314,14 +392,14 @@ public sealed class NotificationIntegrationTests
 	{
 		await Service().SubscribeAsync(new SubscribeRequest("dana@example.com", "Currency", "BankRates",
 			Json("""{"country":"VN","banks":["BFTVVNVX"],"currencies":["USD"]}"""), "ar"), default);
-		await _queue.RunAsync();
+		await RunQueuedAsync();
 		var confirmation = _sender.Emails.Single();
 		Assert.Contains("<html lang=\"ar\" dir=\"rtl\">", confirmation.Body);
 		Assert.Contains("أكّد تنبيهات", confirmation.Subject);
 
 		await Service().ConfirmAsync(await TokenOfAsync("dana@example.com"), default);
-		var alerts = new BankRatesAlerts(_repository, new FakeRates(), new FakeCountries(), _sender, _options, NullLogger<BankRatesAlerts>.Instance);
-		await alerts.SendAsync(Bic, default);
+		Assert.AreEqual(1, await Alerts().QueueAsync(Bic, default), "one alert: the confirmed subscriber of the bank");
+		await RunQueuedAsync();
 
 		var alert = _sender.Emails.Last();
 		Assert.AreEqual("Vietcombank: أسعار جديدة", alert.Subject);
@@ -333,7 +411,35 @@ public sealed class NotificationIntegrationTests
 	// ---------------------------------------------------------------- helpers
 
 	private SubscriptionService Service() =>
-		new(_repository, [new BankRatesNotification(new FakeRates(), new FakeCountries())], _options, _queue, NullLogger<SubscriptionService>.Instance);
+		new(_repository, Types(), _options, _queue, NullLogger<SubscriptionService>.Instance);
+
+	private BankRatesAlerts Alerts() => new(_repository, _queue, _options, NullLogger<BankRatesAlerts>.Instance);
+
+	private static INotificationType[] Types() => [new BankRatesNotification(new FakeRates(), new FakeCountries())];
+
+	/// <summary>Processes the queued work items as the ServiceBus worker does, once each.</summary>
+	private async Task<List<ProcessingResult>> RunQueuedAsync()
+	{
+		var processor = new NotificationEmailWorkProcessor(_emails, Types(), _sender, _options, _workItems,
+			new NotificationEmailOptions(), NullLogger<NotificationEmailWorkProcessor>.Instance);
+		var results = new List<ProcessingResult>();
+		foreach (var emailId in _workItems.Queued.ToList())
+		{
+			var item = new ClaimedWorkItem(Guid.NewGuid(), emailId, NotificationEmailQueue.DomainType, Guid.NewGuid(), 1, 6);
+			var result = await processor.ProcessAsync(item, item.LeaseToken, default);
+			await processor.CompleteAsync(item, item.LeaseToken, result, default);
+			results.Add(result);
+		}
+		_workItems.Queued.Clear();
+		return results;
+	}
+
+	private async Task<DateTimeOffset?> SentAtAsync(Guid emailId)
+	{
+		await using var connection = new SqlConnection(_connectionString);
+		return await connection.ExecuteScalarAsync<DateTimeOffset?>(
+			"SELECT SentAt FROM dbo.User_Notification_Email WHERE Id = @emailId", new { emailId });
+	}
 
 	private static SubscribeRequest Request(string email) =>
 		new(email, "Currency", "BankRates", Json("""{"country":"VN","banks":["BFTVVNVX"],"currencies":["USD"]}"""), "en");
@@ -359,25 +465,44 @@ public sealed class NotificationIntegrationTests
 	{
 		public List<NotificationEmail> Emails { get; } = [];
 
+		/// <summary>Thrown by the next sends, one each.</summary>
+		public Queue<Exception> Failures { get; } = new();
+
 		public Task SendAsync(NotificationEmail email, CancellationToken cancellationToken)
 		{
+			if (Failures.TryDequeue(out var failure))
+				throw failure;
 			Emails.Add(email);
 			return Task.CompletedTask;
 		}
 	}
 
-	private sealed class ImmediateQueue(IServiceProvider services) : INotificationQueue
+	/// <summary>The ServiceBus calls emails use: enqueued DomainIds, and completions.</summary>
+	private sealed class RecordingWorkItems : IWorkItemRepository
 	{
-		private readonly List<Func<IServiceProvider, CancellationToken, Task>> _work = [];
+		public List<Guid> Queued { get; } = [];
+		public List<(Guid WorkItemId, bool Succeeded, string? Error)> Completed { get; } = [];
 
-		public void Enqueue(string description, Func<IServiceProvider, CancellationToken, Task> work) => _work.Add(work);
-
-		public async Task RunAsync()
+		public Task<int> EnqueueBatchAsync(string workerType, string domainType, IReadOnlyCollection<WorkItemRequest> items, CancellationToken cancellationToken = default)
 		{
-			foreach (var work in _work.ToList())
-				await work(services, default);
-			_work.Clear();
+			Assert.AreEqual(NotificationEmailOptions.Name, workerType);
+			Assert.AreEqual(NotificationEmailQueue.DomainType, domainType);
+			Queued.AddRange(items.Select(i => i.DomainId));
+			return Task.FromResult(items.Count);
 		}
+
+		public Task<bool> CompleteAsync(Guid workItemId, Guid leaseToken, bool succeeded, string? error = null, string? resultData = null,
+			string backoffStrategy = "exponential", CancellationToken cancellationToken = default)
+		{
+			Completed.Add((workItemId, succeeded, error));
+			return Task.FromResult(true);
+		}
+
+		public Task<IReadOnlyList<IClaimedWorkItem>> ClaimAsync(string workerType, Guid workerId, int batchSize, int leaseSeconds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+		public Task<bool> RenewLeaseAsync(Guid workItemId, Guid leaseToken, int leaseSeconds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+		public Task<bool> ReleaseLeaseAsync(Guid workItemId, Guid leaseToken, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+		public Task RecordAttemptAsync(Guid workItemId, int attemptNumber, string statusSnapshot, string? errorMessage = null, string? resultData = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+		public Task<WorkItemDetail?> GetDetailAsync(Guid workItemId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 	}
 
 	private sealed class FakeCountries : ICountryRepository

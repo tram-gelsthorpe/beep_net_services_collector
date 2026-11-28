@@ -1,5 +1,6 @@
 using Beep.Email.Core;
 using Beep.Infrastructure.Email;
+using Beep.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,8 +10,10 @@ public static class DependencyInjection
 {
 	/// <summary>
 	/// Subscriptions and emails for every website: <see cref="SubscriptionService"/>, the
-	/// <see cref="INotificationQueue"/> and its worker, and sending with Beep.Email.Core (<c>Mail</c> section).
+	/// <see cref="INotificationEmailQueue"/> and its worker, and sending with Beep.Email.Core (<c>Mail</c> section).
 	/// Each website's project adds its <see cref="INotificationType"/>s.
+	/// The host must also register <see cref="IWorkItemRepository"/>: emails are queued, claimed and retried
+	/// through the ServiceBus (<c>Notification:Email</c> section).
 	/// </summary>
 	/// <param name="services">Services</param>
 	/// <param name="configuration">With the <c>Notification</c> and <c>Mail</c> sections</param>
@@ -31,9 +34,14 @@ public static class DependencyInjection
 		services.AddSingleton<ISubscriptionRepository>(new SubscriptionRepository(connectionString, options.LicenceId, createdBy));
 		services.AddSingleton<SubscriptionService>();
 
-		services.AddSingleton<NotificationQueue>();
-		services.AddSingleton<INotificationQueue>(sp => sp.GetRequiredService<NotificationQueue>());
-		services.AddHostedService<NotificationWorker>();
+		var emailOptions = new NotificationEmailOptions();
+		configuration.GetSection(NotificationEmailOptions.Section).Bind(emailOptions);
+		emailOptions.Validate();
+		services.AddSingleton(emailOptions);
+		services.AddSingleton<INotificationEmailRepository>(new NotificationEmailRepository(connectionString, createdBy));
+		services.AddSingleton<INotificationEmailQueue, NotificationEmailQueue>();
+		services.AddSingleton<NotificationEmailWorkProcessor>();
+		services.AddHostedService<NotificationEmailWorker>();
 		return services;
 	}
 }

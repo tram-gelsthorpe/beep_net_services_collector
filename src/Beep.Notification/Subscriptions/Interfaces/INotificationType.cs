@@ -25,4 +25,12 @@ public interface INotificationType
 	/// "when Vietcombank in Vietnam publishes new rates for USD, EUR".
 	/// </summary>
 	Task<string> DescribeAsync(string? filter, string language, CancellationToken cancellationToken);
+
+	/// <summary>
+	/// The alert email of a confirmed subscription, written when it is sent (also on a retry), in the subscriber's
+	/// language. <paramref name="data"/> is what the alert was queued with (<see cref="INotificationEmailQueue"/>),
+	/// e.g. <c>{"bank":"BFTVVNVX"}</c>. Null when there is nothing to send, e.g. none of the chosen currencies has rates.
+	/// </summary>
+	Task<NotificationEmail?> AlertEmailAsync(
+		Subscription subscription, NotificationWebsite website, string? data, CancellationToken cancellationToken);
 }

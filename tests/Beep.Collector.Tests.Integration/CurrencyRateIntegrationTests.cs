@@ -235,17 +235,17 @@ public sealed class CurrencyRateIntegrationTests
 	{
 		var collectedDataId = Guid.NewGuid();
 		var collected = new StubCollectedData { [collectedDataId] = VietcombankJson(At(10), ("USD", 1m), ("EUR", 1.1m)) };
-		var alerts = new RecordingQueue();
+		var alerts = new RecordingAlerts();
 		var controller = new CurrencyRateController(collected, _repository, alerts, NullLogger<CurrencyRateController>.Instance);
 
 		var ok = await controller.RecordBankCurrencyRate("vietcombank", Request(collectedDataId), CancellationToken.None);
 		var result = (CurrencyRateSaveResult)((OkObjectResult)ok).Value!;
 		Assert.AreEqual(new CurrencyRateSaveResult(2, 0, []), result, CurrencyRateSaveResultComparer.Instance);
-		Assert.AreEqual("BFTVVNVX rate alerts", alerts.Descriptions.Single(), "new rates: subscribers are emailed");
+		Assert.AreEqual("BFTVVNVX", alerts.Banks.Single(), "new rates: the subscribers' alerts are queued");
 
 		var again = await controller.RecordBankCurrencyRate("vietcombank", Request(collectedDataId), CancellationToken.None);
 		Assert.AreEqual(2, ((CurrencyRateSaveResult)((OkObjectResult)again).Value!).Duplicates, "a redelivery is accepted");
-		Assert.HasCount(1, alerts.Descriptions, "a redelivery sends no alert");
+		Assert.HasCount(1, alerts.Banks, "a redelivery queues no alert");
 
 		Assert.IsInstanceOfType<NotFoundObjectResult>(
 			await controller.RecordBankCurrencyRate("vietcombank", Request(Guid.NewGuid()), CancellationToken.None));
@@ -270,7 +270,7 @@ public sealed class CurrencyRateIntegrationTests
 
 		var page = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "BankRatePages", "woori.json"));
 		var collected = new StubCollectedData();
-		var alerts = new RecordingQueue();
+		var alerts = new RecordingAlerts();
 		var controller = new CurrencyRateController(collected, _repository, alerts, NullLogger<CurrencyRateController>.Instance);
 		var morning = new DateTimeOffset(2026, 11, 26, 2, 15, 30, TimeSpan.Zero); // 09:15:30 in Vietnam
 
@@ -287,12 +287,12 @@ public sealed class CurrencyRateIntegrationTests
 		var first = await Deliver(page, morning);
 		Assert.AreEqual(2, first.Inserted);
 		Assert.HasCount(6, first.UnknownCurrencies);
-		Assert.AreEqual("HVBKVNVX rate alerts", alerts.Descriptions.Single());
+		Assert.AreEqual("HVBKVNVX", alerts.Banks.Single());
 
 		var unchanged = await Deliver(page, morning.AddHours(3));
 		Assert.AreEqual(new CurrencyRateSaveResult(0, 2, unchanged.UnknownCurrencies), unchanged, CurrencyRateSaveResultComparer.Instance,
 			"collected again with the same rates: nothing recorded");
-		Assert.HasCount(1, alerts.Descriptions, "and no alert");
+		Assert.HasCount(1, alerts.Banks, "and no alert");
 
 		var usdChanged = await Deliver(page.Replace("\"26,060\"", "\"26,070\""), morning.AddHours(6));
 		Assert.AreEqual(1, usdChanged.Inserted, "USD changed at 15:15");
@@ -534,11 +534,15 @@ public sealed class CurrencyRateIntegrationTests
 			""", new { code, bankId = _bankId, day = day.ToDateTime(TimeOnly.MinValue) });
 	}
 
-	private sealed class RecordingQueue : Beep.Notification.INotificationQueue
+	private sealed class RecordingAlerts : Beep.Api.Notifications.IBankRatesAlerts
 	{
-		public List<string> Descriptions { get; } = [];
+		public List<string> Banks { get; } = [];
 
-		public void Enqueue(string description, Func<IServiceProvider, CancellationToken, Task> work) => Descriptions.Add(description);
+		public Task<int> QueueAsync(string bankBic, CancellationToken cancellationToken)
+		{
+			Banks.Add(bankBic);
+			return Task.FromResult(1);
+		}
 	}
 
 	private sealed record RateRow(

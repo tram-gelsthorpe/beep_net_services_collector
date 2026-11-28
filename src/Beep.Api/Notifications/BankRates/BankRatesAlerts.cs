@@ -1,66 +1,61 @@
 using System.Globalization;
-using Beep.Api.Repositories.Country;
+using System.Text.Json;
 using Beep.Api.Repositories.Currency;
 using Beep.Notification;
 
 namespace Beep.Api.Notifications;
 
 /// <summary>
-/// After a bank's new rates are recorded: emails every confirmed subscriber who chose that bank, with the
-/// latest rates of the currencies they chose.
+/// After a bank's new rates are recorded: queues an alert for every confirmed subscriber who chose that bank.
+/// Each is sent, and retried, by a ServiceBus work item, which writes it with the latest rates of the currencies
+/// the subscriber chose (<see cref="BankRatesNotification.AlertEmailAsync"/>).
 /// </summary>
 public sealed class BankRatesAlerts(
 	ISubscriptionRepository subscriptions,
-	ICurrencyRateQueries queries,
-	ICountryRepository countries,
-	INotificationEmailSender sender,
+	INotificationEmailQueue emails,
 	NotificationOptions options,
-	ILogger<BankRatesAlerts> logger)
+	ILogger<BankRatesAlerts> logger) : IBankRatesAlerts
 {
 	private static EmailText Text => BankRatesNotification.Text;
 
-	public async Task SendAsync(string bankBic, CancellationToken cancellationToken)
+	public async Task<int> QueueAsync(string bankBic, CancellationToken cancellationToken)
 	{
 		var website = options.FindWebsite(BankRatesNotification.WebsiteName);
 		if (website is null)
-			return;
+			return 0;
 
 		var matching = (await subscriptions.GetActiveAsync(website.Name, BankRatesNotification.TypeName, cancellationToken))
-			.Select(s => (Subscription: s, Filter: BankRatesFilter.Parse(s.Filter)))
-			.Where(s => s.Filter is not null && s.Filter.Banks.Contains(bankBic, StringComparer.OrdinalIgnoreCase))
+			.Where(s => BankRatesFilter.Parse(s.Filter)?.Banks.Contains(bankBic, StringComparer.OrdinalIgnoreCase) == true)
+			.Select(s => s.Id)
 			.ToList();
 		if (matching.Count == 0)
-			return;
+			return 0;
 
-		var rates = await queries.GetLatestRatesAsync(null, null, bankBic, cancellationToken);
-		if (rates.Count == 0)
-			return;
-		var all = await countries.GetCountriesAsync(cancellationToken);
-		var country = all.GetValueOrDefault(rates[0].CountryId);
-		var quote = country?.CurrencyId is { } currencyId
-			? (await queries.GetCurrencyCodesAsync([currencyId], cancellationToken)).GetValueOrDefault(currencyId)
-			: null;
+		var queued = await emails.EnqueueAsync(matching, NotificationEmailKind.Alert, AlertData(bankBic), cancellationToken);
+		logger.LogInformation("Queued {Queued} {BankBic} rate alert(s)", queued, bankBic);
+		return queued;
+	}
 
-		var sent = new List<Guid>();
-		foreach (var (subscription, filter) in matching)
+	/// <summary>What an alert is queued with: <c>{"bank":"BFTVVNVX"}</c>.</summary>
+	public static string AlertData(string bankBic) => JsonSerializer.Serialize(new { bank = bankBic });
+
+	/// <summary>The BIC in <see cref="AlertData"/>; null when it is not there.</summary>
+	public static string? BankOf(string? data)
+	{
+		if (string.IsNullOrWhiteSpace(data))
+			return null;
+		try
 		{
-			var chosen = rates.Where(r => filter!.Currencies.Contains(r.CurrencyCode, StringComparer.OrdinalIgnoreCase))
-				.OrderBy(r => r.CurrencyCode, StringComparer.Ordinal).ToList();
-			if (chosen.Count == 0)
-				continue;
-			try
-			{
-				await sender.SendAsync(AlertEmail(subscription, website, chosen, quote ?? string.Empty), cancellationToken);
-				sent.Add(subscription.Id);
-			}
-			catch (Exception ex) when (ex is not OperationCanceledException)
-			{
-				logger.LogError(ex, "Rate alert of subscription {SubscriptionId} not sent", subscription.Id);
-			}
+			using var json = JsonDocument.Parse(data);
+			return json.RootElement.ValueKind == JsonValueKind.Object
+				&& json.RootElement.TryGetProperty("bank", out var bank) && bank.ValueKind == JsonValueKind.String
+				? bank.GetString()
+				: null;
 		}
-
-		await subscriptions.MarkSentAsync(sent, cancellationToken);
-		logger.LogInformation("Sent {Sent} {BankBic} rate alert(s) of {Matching} subscription(s)", sent.Count, bankBic, matching.Count);
+		catch (JsonException)
+		{
+			return null;
+		}
 	}
 
 	/// <summary>The alert: the bank's latest rates of the chosen currencies, and links to the site and to unsubscribe.</summary>

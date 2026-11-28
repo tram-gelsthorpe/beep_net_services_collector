@@ -83,6 +83,32 @@ public sealed class BankRatesNotification(ICurrencyRateQueries queries, ICountry
 			string.Join(", ", bankNames), country?.Name ?? choices.Country, string.Join(", ", choices.Currencies));
 	}
 
+	/// <summary>
+	/// The alert of the bank in <paramref name="data"/> (<see cref="BankRatesAlerts.AlertData"/>): its latest rates of
+	/// the currencies the subscriber chose. Null when the subscription no longer has that bank, or none of the
+	/// chosen currencies has rates.
+	/// </summary>
+	public async Task<NotificationEmail?> AlertEmailAsync(
+		Subscription subscription, NotificationWebsite website, string? data, CancellationToken cancellationToken)
+	{
+		var bankBic = BankRatesAlerts.BankOf(data);
+		var filter = BankRatesFilter.Parse(subscription.Filter);
+		if (bankBic is null || filter is null || !filter.Banks.Contains(bankBic, StringComparer.OrdinalIgnoreCase))
+			return null;
+
+		var rates = await queries.GetLatestRatesAsync(null, null, bankBic, cancellationToken);
+		var chosen = rates.Where(r => filter.Currencies.Contains(r.CurrencyCode, StringComparer.OrdinalIgnoreCase))
+			.OrderBy(r => r.CurrencyCode, StringComparer.Ordinal).ToList();
+		if (chosen.Count == 0)
+			return null;
+
+		var country = (await countries.GetCountriesAsync(cancellationToken)).GetValueOrDefault(chosen[0].CountryId);
+		var quote = country?.CurrencyId is { } currencyId
+			? (await queries.GetCurrencyCodesAsync([currencyId], cancellationToken)).GetValueOrDefault(currencyId)
+			: null;
+		return BankRatesAlerts.AlertEmail(subscription, website, chosen, quote ?? string.Empty);
+	}
+
 	/// <summary>"Vietcombank" from "Ngân hàng TMCP Ngoại thương Việt Nam – Vietcombank".</summary>
 	public static string ShortName(string name)
 	{

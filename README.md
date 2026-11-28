@@ -13,7 +13,7 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | `src/Beep.Collector` | The host: website selectors, collection worker, schedule handler, subscriber. |
 | `src/Beep.Api` | ASP.NET Core API (API-key protected): records the bank rates the Collector delivers and serves them. |
 | `src/Beep.Website.Currency` | Razor Pages website: latest bank rates by country, date and bank name or BIC, read through Beep.Api. |
-| `src/Beep.Notification` | Email alerts for every website: subscribers (`dbo.User`) and subscriptions (`dbo.User_Notification`) in A_1_Beep_Global_Default, sent with Beep.Email.Core. Hosted by Beep.Api. |
+| `src/Beep.Notification` | Email alerts for every website: subscribers (`dbo.User`), subscriptions (`dbo.User_Notification`) and queued emails (`dbo.User_Notification_Email`) in A_1_Beep_Global_Default, sent with Beep.Email.Core through ServiceBus work items (retried when sending fails). Hosted by Beep.Api. |
 | `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |
 | `src/Beep.Configuration` | Optional Azure Key Vault source and startup checks for required settings and secrets. |
 
@@ -79,7 +79,7 @@ Settings are read in this order, later ones winning: `appsettings.json` → `app
 | --- | --- | --- | --- |
 | Worker | `ConnectionStrings:Scheduler` / `ServiceBus` / `EventBus` / `Collector` | `ConnectionStrings__Collector`, ... | `ConnectionStrings--Collector`, ... |
 | Worker | `BeepNLog:DatabaseConnection` | `BeepNLog__DatabaseConnection` | `BeepNLog--DatabaseConnection` |
-| Api | `ConnectionStrings:Currency` / `Collector` / `Country` / `Default` | `ConnectionStrings__Currency`, ... | `ConnectionStrings--Currency`, ... |
+| Api | `ConnectionStrings:Currency` / `Collector` / `Country` / `Default` / `ServiceBus` | `ConnectionStrings__Currency`, ... | `ConnectionStrings--Currency`, ... |
 | Api | `Notification:LicenceId`, `Notification:Websites:Currency:Url` | `Notification__LicenceId`, ... | `Notification--LicenceId`, ... |
 | Api | `Audit:CreatedBy` | `Audit__CreatedBy` | `Audit--CreatedBy` |
 | Api | `Authentication:ApiKeys` (one or more) | `Authentication__ApiKeys__0`, `__1`, ... | `Authentication--ApiKeys--0`, ... |
@@ -110,7 +110,9 @@ dotnet user-secrets set --project src/Beep.Api "Authentication:ApiKeys:0" "dev-a
 # (without an SMTP host, emails are written there instead of being sent)
 dotnet user-secrets set --project src/Beep.Api "ConnectionStrings:Default" "Server=.\SQLEXPRESS;Database=A_1_Beep_Global_Default;Integrated Security=true;Encrypt=false;TrustServerCertificate=true;"
 dotnet user-secrets set --project src/Beep.Api "Notification:LicenceId" "<dbo.Licence.Id>"
-dotnet user-secrets set --project src/Beep.Api "Notification:PickupDirectory" "C:\Tempeep-mail"
+dotnet user-secrets set --project src/Beep.Api "Notification:PickupDirectory" "C:\Temp\beep-mail"
+# Queued emails are sent by ServiceBus work items: the same ServiceBus database as the Worker
+dotnet user-secrets set --project src/Beep.Api "ConnectionStrings:ServiceBus" "<the Worker's ConnectionStrings:ServiceBus>"
 # Let the Worker's deliveries reach the local Api
 dotnet user-secrets set --project src/Beep.Collector "EventBus:ApiKey" "dev-api-key-12345"
 dotnet user-secrets set --project src/Beep.Collector "EventBus:ApiKeyOrigins:0" "https://localhost:55281"
