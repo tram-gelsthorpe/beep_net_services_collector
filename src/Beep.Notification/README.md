@@ -13,8 +13,8 @@ Beep.Api hosts it and exposes it at `/api/notification/*`; each website adds its
   - `Licence_Id`: `Notification:LicenceId`.
 
   A user of that licence with the same email address is reused.
-- **Subscriptions are `dbo.User_Notification` rows**, created by
-  [`Resource/User_Notification.sql`](Resource/User_Notification.sql). There is one row per user, website and
+- **Subscriptions are `dbo.User_Notification` rows**. Beep.Database.Processor creates the table
+  (`Create/Global.sql`, and upgrade 6.4 for an older database). There is one row per user, website and
   type, such as (`Currency`, `BankRates`):
   - `Filter`: the website's choices, as JSON.
   - `Token`: a secret used in the confirmation and unsubscribe links.

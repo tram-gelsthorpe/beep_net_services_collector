@@ -12,8 +12,8 @@ namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
 /// Beep.Notification's subscriptions (dbo.User and dbo.User_Notification) and Beep.Api's currency rate alerts.
-/// Runs against its own LocalDB database with copies of A_1_Beep_Global_Default's Licence and User tables, plus
-/// Beep.Notification's User_Notification.sql script.
+/// Runs against its own LocalDB database with copies of A_1_Beep_Global_Default's Licence, User and User_Notification
+/// tables (User_Notification as Beep.Database.Processor creates it, in Create/Global.sql).
 /// </summary>
 [TestClass]
 [DoNotParallelize]
@@ -34,7 +34,7 @@ public sealed class NotificationIntegrationTests
 	private RecordingSender _sender = null!;
 	private NotificationOptions _options = null!;
 
-	// Same columns, defaults and keys as A_1_Beep_Global_Default (the columns subscriptions use).
+	// Same columns, defaults and keys as A_1_Beep_Global_Default (the columns subscriptions use; all of User_Notification).
 	private const string SchemaSql = """
 		CREATE TABLE dbo.Licence (
 			Id uniqueidentifier NOT NULL CONSTRAINT DF_li_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_li_Id PRIMARY KEY,
@@ -63,6 +63,32 @@ public sealed class NotificationIntegrationTests
 			User_Type tinyint NOT NULL CONSTRAINT DF_u_User_Type DEFAULT 0,
 			User_Level tinyint NOT NULL CONSTRAINT DF_u_User_Level DEFAULT 0,
 			AuthenticationMethod tinyint NOT NULL CONSTRAINT DF_u_AuthenticationMethod DEFAULT 0);
+
+		CREATE TABLE dbo.User_Notification (
+			Id uniqueidentifier NOT NULL CONSTRAINT DF_uno_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_uno_Id PRIMARY KEY,
+			Version int NOT NULL CONSTRAINT DF_uno_Version DEFAULT 1,
+			Modified datetimeoffset NULL,
+			ModifiedBy uniqueidentifier NULL,
+			Created datetimeoffset NOT NULL,
+			CreatedBy uniqueidentifier NOT NULL,
+			User_Id uniqueidentifier NOT NULL CONSTRAINT FK_uno_User REFERENCES dbo.[User] (Id),
+			Licence_Id uniqueidentifier NOT NULL CONSTRAINT FK_uno_Licence REFERENCES dbo.Licence (Id),
+			Website varchar(100) NOT NULL,
+			NotificationType varchar(100) NOT NULL,
+			Channel tinyint NOT NULL CONSTRAINT DF_uno_Channel DEFAULT 1,
+			Filter nvarchar(max) NULL
+				CONSTRAINT CHK_uno_Filter CHECK (Filter IS NULL OR LTRIM(RTRIM(Filter)) LIKE '{%}' OR LTRIM(RTRIM(Filter)) LIKE '[[]%]'),
+			IsConfirmed bit NOT NULL CONSTRAINT DF_uno_IsConfirmed DEFAULT 0,
+			ConfirmedAt datetimeoffset NULL,
+			Token varchar(64) NOT NULL,
+			LastSentAt datetimeoffset NULL,
+			IsDeleted bit NOT NULL CONSTRAINT DF_uno_IsDeleted DEFAULT 0,
+			IsSynchronized bit NOT NULL CONSTRAINT DF_uno_IsSynchronized DEFAULT 0);
+
+		CREATE UNIQUE INDEX AK_uno_User_Website_NotificationType ON dbo.User_Notification (User_Id, Website, NotificationType);
+		CREATE UNIQUE INDEX AK_uno_User_Token ON dbo.User_Notification (Token);
+		CREATE INDEX IDX_uno_Website_NotificationType ON dbo.User_Notification (Website, NotificationType)
+			INCLUDE (User_Id, IsConfirmed, IsDeleted);
 		""";
 
 	[ClassInitialize]
@@ -80,15 +106,6 @@ public sealed class NotificationIntegrationTests
 
 		await using var connection = new SqlConnection(_connectionString);
 		await connection.ExecuteAsync(SchemaSql);
-
-		// The script must be safe to run again.
-		var script = await File.ReadAllTextAsync(
-			Path.Combine(AppContext.BaseDirectory, "NotificationResource", "User_Notification.sql"));
-		for (var run = 0; run < 2; run++)
-			foreach (var batch in System.Text.RegularExpressions.Regex.Split(script, @"^\s*GO\s*$",
-				System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-				if (!string.IsNullOrWhiteSpace(batch))
-					await connection.ExecuteAsync(batch);
 
 		_licenceId = await connection.ExecuteScalarAsync<Guid>("""
 			INSERT INTO dbo.Licence (Created, CreatedBy, Code, Name) OUTPUT INSERTED.Id
