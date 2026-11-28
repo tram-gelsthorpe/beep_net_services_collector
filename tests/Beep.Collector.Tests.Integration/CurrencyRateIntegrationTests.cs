@@ -14,8 +14,8 @@ namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
 /// Beep.Api recording Vietcombank rates in Currency_Rate_Bank. Runs against its own LocalDB database with
-/// copies of A_1_Beep_Global_Currency's Bank, Currency and Currency_Rate_Bank tables, plus the Api's
-/// Currency_Rate_Bank_RateTime.sql script.
+/// copies of A_1_Beep_Global_Currency's Bank, Currency and Currency_Rate_Bank tables, as Beep.Database.Processor
+/// creates them (Create/Global_Currency.sql).
 /// </summary>
 [TestClass]
 [DoNotParallelize]
@@ -32,7 +32,7 @@ public sealed class CurrencyRateIntegrationTests
 	private static Guid _bankId;
 	private CurrencyRateRepository _repository = null!;
 
-	// Same columns, defaults and keys as A_1_Beep_Global_Currency (RateTime comes from the Api's script).
+	// Same columns, defaults, keys and indexes as A_1_Beep_Global_Currency.
 	private const string SchemaSql = """
 		CREATE TABLE dbo.Bank (
 			Id uniqueidentifier NOT NULL CONSTRAINT DF_b_Id DEFAULT NEWSEQUENTIALID() CONSTRAINT PK_b_Id PRIMARY KEY,
@@ -63,7 +63,11 @@ public sealed class CurrencyRateIntegrationTests
 			BuyingRateCash decimal(28, 18) NULL,
 			BuyingRateTransfer decimal(28, 18) NULL,
 			SellingRate decimal(28, 18) NULL,
+			RateTime datetimeoffset NULL,
 			IsSynchronized bit NOT NULL CONSTRAINT DF_currb_IsSynchronized DEFAULT 0);
+
+		CREATE NONCLUSTERED INDEX IDX_currb_Bank_Currency_Date_RateTime
+			ON dbo.Currency_Rate_Bank (Bank_Id, Currency_Id, [Date], RateTime);
 		""";
 
 	[ClassInitialize]
@@ -81,13 +85,6 @@ public sealed class CurrencyRateIntegrationTests
 
 		await using var connection = new SqlConnection(_connectionString);
 		await connection.ExecuteAsync(SchemaSql);
-
-		// The script must be safe to run again.
-		var script = await File.ReadAllTextAsync(
-			Path.Combine(AppContext.BaseDirectory, "ApiResource", "Currency_Rate_Bank_RateTime.sql"));
-		for (var run = 0; run < 2; run++)
-			foreach (var batch in SplitBatches(script))
-				await connection.ExecuteAsync(batch);
 
 		_bankId = await connection.ExecuteScalarAsync<Guid>(
 			"INSERT INTO dbo.Bank (Country_Id, Bic, LongName) OUTPUT INSERTED.Id VALUES (NEWID(), @Bic, N'Vietcombank')",
@@ -536,11 +533,6 @@ public sealed class CurrencyRateIntegrationTests
 			ORDER BY r.RateTime DESC
 			""", new { code, bankId = _bankId, day = day.ToDateTime(TimeOnly.MinValue) });
 	}
-
-	private static IEnumerable<string> SplitBatches(string script) =>
-		System.Text.RegularExpressions.Regex.Split(script, @"^\s*GO\s*$",
-				System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase)
-			.Where(b => !string.IsNullOrWhiteSpace(b));
 
 	private sealed class RecordingQueue : Beep.Notification.INotificationQueue
 	{

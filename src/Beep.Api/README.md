@@ -83,8 +83,8 @@ SeABank's page lists each of the day's updates with its `updateTime`, which is u
 
 Each bank must be in A_1_Beep_Global_Currency's `dbo.Bank` with its BIC, or the endpoint answers `500`.
 
-Before the first run, apply [`Resource/Currency_Rate_Bank_RateTime.sql`](Resource/Currency_Rate_Bank_RateTime.sql)
-to A_1_Beep_Global_Currency: it adds `RateTime` and an index on `(Bank_Id, Currency_Id, Date, RateTime)`.
+A_1_Beep_Global_Currency's `RateTime` column and its index on `(Bank_Id, Currency_Id, Date, RateTime)` come from
+Beep.Database.Processor (`Create/Global_Currency.sql`, and upgrade 6.4 for an older database).
 
 ## Rate alerts
 
