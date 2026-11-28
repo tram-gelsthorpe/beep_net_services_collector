@@ -4,7 +4,7 @@ namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
 /// Reading the banks' rate pages (<see cref="BankRateParsers"/>), from what the collector extracted from each page
-/// (BankRatePages/*.json): the Vietnamese banks' on 26/11/2026, the ECB's and DZ BANK's on 27/11/2026 and SNS's on 28/11/2026.
+/// (BankRatePages/*.json): the Vietnamese banks' on 26/11/2026, the ECB's, DZ BANK's and Raiffeisen's on 27/11/2026 and SNS's on 28/11/2026.
 /// </summary>
 [TestClass]
 public sealed class BankRateParserTests
@@ -128,9 +128,9 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(14, BankRateParsers.All);
-		Assert.HasCount(14, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(14, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.HasCount(15, BankRateParsers.All);
+		Assert.HasCount(15, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(15, BankRateParsers.All.Select(p => p.Bic).Distinct());
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
@@ -296,6 +296,60 @@ public sealed class BankRateParserTests
 	{
 		Assert.ThrowsExactly<FormatException>(() =>
 			DzBankRateParser.Instance.Parse("""{"ContentSelector":["ISO-Code","Währung","Geld"]}""", CollectedAt));
+	}
+
+	[TestMethod]
+	public void RaiffeisenLu_ReadsTheTable()
+	{
+		// Raiffeisen's page of 27/11/2026 07:15, as the collector extracted it: day, time, then code, transfer Achat and
+		// Vente, banknote Achat and Vente per euro (empty for a currency without notes).
+		var parser = BankRateParsers.ForName("raiffeisenlu")!;
+		var rates = parser.Parse(Page("raiffeisenlu"), CollectedAt);
+
+		Assert.AreSame(RaiffeisenLuRateParser.Instance, parser);
+		Assert.AreEqual("CCRALULL", parser.Bic);
+		Assert.IsFalse(parser.UsesCollectionTime, "the table gives its time");
+		Assert.HasCount(15, rates);
+		CollectionAssert.AreEquivalent(new[] { "CAD", "CHF", "DKK", "GBP", "NOK", "SEK", "USD" },
+			rates.Where(r => r.BuyingRateCash is not null).Select(r => r.CurrencyCode).ToArray(), "banknotes of 7 currencies");
+
+		// 07:15 in Luxembourg (winter time, UTC+1), whenever it was collected.
+		var published = new DateTimeOffset(2026, 11, 27, 7, 15, 0, TimeSpan.FromHours(1));
+		Assert.IsTrue(rates.All(r => r.Date == new DateOnly(2026, 11, 27) && r.RateTime == published));
+
+		// "USD 1,103500 1,092000 1,124500 1,069600": bought at 1 / 1,103500 (transfer) and 1 / 1,124500 (notes), sold at 1 / 1,092000.
+		var usd = rates.Single(r => r.CurrencyCode == "USD");
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 27), published, 0.8892841263m, 0.9062075215m, 0.9157509158m), usd);
+		Assert.IsNull(rates.Single(r => r.CurrencyCode == "AUD").BuyingRateCash, "no Australian notes");
+	}
+
+	[TestMethod]
+	public void RaiffeisenLu_SummerTime_IsUtcPlusTwo()
+	{
+		var rates = RaiffeisenLuRateParser.Instance.Parse(
+			"""{"ContentSelector":["03/07/2026","07:15","USD","1,170000","1,158000","",""]}""", CollectedAt);
+
+		Assert.AreEqual(new DateTimeOffset(2026, 7, 3, 7, 15, 0, TimeSpan.FromHours(2)), rates.Single().RateTime);
+		Assert.IsNull(rates.Single().BuyingRateCash);
+	}
+
+	[TestMethod]
+	public void RaiffeisenLu_BadRate_IsLeftOut()
+	{
+		var skipped = new List<string>();
+		var rates = RaiffeisenLuRateParser.Instance.Parse(
+			"""{"ContentSelector":["27/11/2026","07:15","GBP","-","0,832100","","","USD","1,103500","1,092000","",""]}""",
+			CollectedAt, skipped);
+
+		Assert.AreEqual("USD", rates.Single().CurrencyCode);
+		Assert.AreEqual("CCRALULL GBP is not a rate: '-' / '0,832100'", skipped.Single());
+	}
+
+	[TestMethod]
+	public void RaiffeisenLu_NoDay_IsRefused()
+	{
+		Assert.ThrowsExactly<FormatException>(() =>
+			RaiffeisenLuRateParser.Instance.Parse("""{"ContentSelector":["USD","1,103500","1,092000","",""]}""", CollectedAt));
 	}
 
 	private static string Page(string bank) =>
