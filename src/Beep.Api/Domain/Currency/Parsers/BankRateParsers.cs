@@ -1,7 +1,7 @@
 namespace Beep.Api.Domain.Currency;
 
 /// <summary>The banks whose collected rate pages the API can read, by BIC: Vietnam's banks, the ECB's reference
-/// rates for Belgium, SNS Bank in the Netherlands, DZ BANK in Germany and Banque Raiffeisen in Luxembourg.</summary>
+/// rates for Belgium, SNS Bank in the Netherlands, DZ BANK in Germany, Banque Raiffeisen in Luxembourg, and the Bank of England's reference rates for the United Kingdom.</summary>
 public static class BankRateParsers
 {
 	/// <summary>Vietnam's time: the rate pages' days and times are local to it.</summary>
@@ -24,6 +24,7 @@ public static class BankRateParsers
 		SnsRateParser.Instance,
 		DzBankRateParser.Instance,
 		RaiffeisenLuRateParser.Instance,
+		BankOfEnglandRateParser.Instance,
 	];
 
 	private static readonly Dictionary<string, IBankRateParser> ByName =

@@ -128,9 +128,9 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(15, BankRateParsers.All);
-		Assert.HasCount(15, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(15, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.HasCount(16, BankRateParsers.All);
+		Assert.HasCount(16, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(16, BankRateParsers.All.Select(p => p.Bic).Distinct());
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
@@ -350,6 +350,59 @@ public sealed class BankRateParserTests
 	{
 		Assert.ThrowsExactly<FormatException>(() =>
 			RaiffeisenLuRateParser.Instance.Parse("""{"ContentSelector":["USD","1,103500","1,092000","",""]}""", CollectedAt));
+	}
+
+	[TestMethod]
+	public void BankOfEngland_ReadsTheSpotRates()
+	{
+		// The Bank of England's table of 26 Nov 2026, as the collector extracted it: the day's heading, then currency name,
+		// spot rate per pound, 52-week high and low (1 currency without a rate that day).
+		var parser = BankRateParsers.ForName("boe")!;
+		var rates = parser.Parse(Page("boe"), CollectedAt);
+
+		Assert.AreSame(BankOfEnglandRateParser.Instance, parser);
+		Assert.AreEqual("BKENGB2L", parser.Bic);
+		Assert.IsTrue(parser.IsReferenceRate);
+		Assert.IsTrue(BankRateParsers.IsReferenceRate("BKENGB2L"));
+		Assert.HasCount(26, rates);
+		Assert.IsFalse(rates.Any(r => r.CurrencyCode == "BGN"), "no lev rate");
+
+		// 16:00 in London (winter time, UTC+0).
+		var published = new DateTimeOffset(2026, 11, 26, 16, 0, 0, TimeSpan.Zero);
+		Assert.IsTrue(rates.All(r => r.Date == new DateOnly(2026, 11, 26) && r.RateTime == published && r.BuyingRateCash is null));
+
+		// "US Dollar 1.3110": 1 USD = 1 / 1.3110 GBP, as both the buying and the selling rate.
+		Assert.AreEqual(new CurrencyRateBank("USD", new DateOnly(2026, 11, 26), published, null, 0.7627765065m, 0.7627765065m),
+			rates.Single(r => r.CurrencyCode == "USD"));
+		Assert.AreEqual(0.8370302168m, rates.Single(r => r.CurrencyCode == "EUR").SellingRate);
+	}
+
+	[TestMethod]
+	public void BankOfEngland_SummerTime_IsUtcPlusOne()
+	{
+		var rates = BankOfEnglandRateParser.Instance.Parse(
+			"""{"ContentSelector":["£1 3 Jul 2026","US Dollar",1.3500,1.3790,1.3025]}""", CollectedAt);
+
+		Assert.AreEqual(new DateTimeOffset(2026, 7, 3, 16, 0, 0, TimeSpan.FromHours(1)), rates.Single().RateTime);
+	}
+
+	[TestMethod]
+	public void BankOfEngland_BadRate_IsLeftOut()
+	{
+		var skipped = new List<string>();
+		var rates = BankOfEnglandRateParser.Instance.Parse(
+			"""{"ContentSelector":["£1 26 Nov 2026","Euro","n/a","","","Bulgarian Lev","","","","US Dollar",1.3110,1.3790,1.3025]}""",
+			CollectedAt, skipped);
+
+		Assert.AreEqual("USD", rates.Single().CurrencyCode);
+		Assert.AreEqual("BKENGB2L EUR is not a rate: 'n/a'", skipped.Single());
+	}
+
+	[TestMethod]
+	public void BankOfEngland_NoDay_IsRefused()
+	{
+		Assert.ThrowsExactly<FormatException>(() =>
+			BankOfEnglandRateParser.Instance.Parse("""{"ContentSelector":["US Dollar",1.3110,1.3790,1.3025]}""", CollectedAt));
 	}
 
 	private static string Page(string bank) =>
