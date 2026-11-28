@@ -4,8 +4,8 @@ namespace Beep.Website.Currency;
 
 /// <summary>
 /// Reads currency rates from Beep.Api's CurrencyRate endpoints. Calls are made from the server, so the
-/// API key (<c>BeepApi:ApiKey</c>) never reaches the browser. Country names are given in the current UI culture's
-/// language (<see cref="CountryNames"/>).
+/// API key (<c>BeepApi:ApiKey</c>) never reaches the browser. Country and currency names are given in the current
+/// UI culture's language (<see cref="CountryNames"/>, <see cref="CurrencyNames"/>).
 /// </summary>
 public sealed class BeepApiClient(HttpClient http)
 {
@@ -31,7 +31,11 @@ public sealed class BeepApiClient(HttpClient http)
 				("country", country),
 				("bank", bank)),
 			cancellationToken) ?? [])
-			.Select(r => r with { CountryName = CountryNames.Name(r.CountryCode, r.CountryName) })];
+			.Select(r => r with
+			{
+				CountryName = CountryNames.Name(r.CountryCode, r.CountryName),
+				CurrencyName = CurrencyNames.Name(r.CurrencyCode, r.CurrencyName),
+			})];
 
 	// ---------------------------------------------------------------- rate alerts (api/Notification)
 
