@@ -233,7 +233,7 @@ public sealed class CompareModel(BeepApiClient api, UiText text, ILogger<Compare
 
 		var bySpread = rows.OrderBy(r => SpreadGroup(r.Rate)).ThenBy(r => RateFormat.Spread(r.Rate));
 		AllRows = Compared((SortBy == "country"
-				? rows.OrderBy(r => r.Rate.CountryName, StringComparer.CurrentCultureIgnoreCase)
+				? rows.OrderBy(r => r.Rate.CountryName, CountryNames.Order)
 					.ThenBy(r => SpreadGroup(r.Rate)).ThenBy(r => RateFormat.Spread(r.Rate))
 				: bySpread)
 			.ToList());
