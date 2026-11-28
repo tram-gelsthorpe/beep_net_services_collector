@@ -128,9 +128,9 @@ public sealed class BankRateParserTests
 	[TestMethod]
 	public void Parsers_HaveOneNameAndBicEach()
 	{
-		Assert.HasCount(16, BankRateParsers.All);
-		Assert.HasCount(16, BankRateParsers.All.Select(p => p.Name).Distinct());
-		Assert.HasCount(16, BankRateParsers.All.Select(p => p.Bic).Distinct());
+		Assert.HasCount(17, BankRateParsers.All);
+		Assert.HasCount(17, BankRateParsers.All.Select(p => p.Name).Distinct());
+		Assert.HasCount(17, BankRateParsers.All.Select(p => p.Bic).Distinct());
 		Assert.AreSame(VietcombankRateParser.Instance, BankRateParsers.ForName("vietcombank"));
 		Assert.AreEqual(VietcombankRateParser.BankBic, VietcombankRateParser.Instance.Bic);
 		Assert.IsFalse(VietcombankRateParser.Instance.UsesCollectionTime, "Vietcombank's page gives its time");
@@ -189,6 +189,24 @@ public sealed class BankRateParserTests
 	{
 		Assert.ThrowsExactly<FormatException>(() =>
 			EcbRateParser.Instance.Parse("""{"ContentSelector":["USD",1.0957]}""", CollectedAt));
+	}
+
+	[TestMethod]
+	public void EcbFrance_ReadsTheReferenceRates_AsTheBanqueDeFrance()
+	{
+		// France collects the ECB's French page (index.fr.html), which gives the same day and table as the English one.
+		var parser = BankRateParsers.ForName("ecbfr")!;
+		var rates = parser.Parse(Page("ecb"), CollectedAt);
+
+		Assert.AreSame(EcbRateParser.France, parser);
+		Assert.AreEqual("BDFEFRPP", parser.Bic);
+		Assert.IsTrue(BankRateParsers.IsReferenceRate("BDFEFRPP"));
+		Assert.IsFalse(parser.UsesCollectionTime);
+		CollectionAssert.AreEqual(EcbRateParser.Instance.Parse(Page("ecb"), CollectedAt).ToList(), rates.ToList(), "Belgium's rates");
+
+		var skipped = new List<string>();
+		parser.Parse("""{"ContentSelector":["27 November 2026","USD","n/a","JPY",174.81]}""", CollectedAt, skipped);
+		Assert.AreEqual("BDFEFRPP USD is not a rate: 'n/a'", skipped.Single());
 	}
 
 	[TestMethod]

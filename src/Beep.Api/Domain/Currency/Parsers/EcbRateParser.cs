@@ -5,9 +5,12 @@ using System.Text.RegularExpressions;
 namespace Beep.Api.Domain.Currency;
 
 /// <summary>
-/// Reads the euro reference rates of the European Central Bank, recorded as Belgium's rates under the National Bank
-/// of Belgium (NBBEBEBB), which publishes the same rates. The collector extracts the day and the table of the ECB's
-/// rates page (https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html):
+/// Reads the euro reference rates of the European Central Bank, recorded as a euro country's rates under its central
+/// bank, which publishes the same rates: Belgium's under the National Bank of Belgium (NBBEBEBB, <see cref="Instance"/>)
+/// and France's under the Banque de France (BDFEFRPP, <see cref="France"/>). No bank in either country publishes its own
+/// rates. The collector extracts the day and the table of the ECB's rates page, in English for Belgium
+/// (https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html) and in
+/// French for France (the same page, index.fr.html, which gives the same day and table):
 /// <code>{"ContentSelector": ["27 November 2026", "USD", 1.0957, "JPY", 174.81, ...]}</code>
 /// <para>
 /// The ECB quotes each currency per euro (1 EUR = 1.0957 USD). The site writes rates as the bank country's currency per
@@ -17,17 +20,23 @@ namespace Beep.Api.Domain.Currency;
 /// </para>
 /// <para>
 /// The ECB publishes the rates on its working days at about 16:00 Central European Time, so they are recorded at 16:00
-/// in Brussels on the day the page gives. On other days the page still shows the last day's rates, which are then
+/// in Brussels (or Paris: the same time) on the day the page gives. On other days the page still shows the last day's rates, which are then
 /// already recorded.
 /// </para>
 /// </summary>
 public sealed partial class EcbRateParser : IBankRateParser
 {
-	/// <summary>The one instance, in <see cref="BankRateParsers.All"/>.</summary>
-	public static readonly EcbRateParser Instance = new();
+	/// <summary>The ECB's rates as Belgium's, under the National Bank of Belgium, in <see cref="BankRateParsers.All"/>.</summary>
+	public static readonly EcbRateParser Instance = new("ecb", BankBic);
+
+	/// <summary>The ECB's rates as France's, under the Banque de France, in <see cref="BankRateParsers.All"/>.</summary>
+	public static readonly EcbRateParser France = new("ecbfr", FranceBic);
 
 	/// <summary>The National Bank of Belgium's BIC, as in <c>dbo.Bank.Bic</c>.</summary>
 	public const string BankBic = "NBBEBEBB";
+
+	/// <summary>The Banque de France's BIC, as in <c>dbo.Bank.Bic</c>.</summary>
+	public const string FranceBic = "BDFEFRPP";
 
 	/// <summary>Digits kept after the point when a rate is turned round.</summary>
 	public const int Decimals = 10;
@@ -36,13 +45,15 @@ public sealed partial class EcbRateParser : IBankRateParser
 	private static readonly TimeOnly PublishedAt = new(16, 0);
 	private static readonly TimeZoneInfo Brussels = TimeZoneInfo.FindSystemTimeZoneById("Europe/Brussels");
 
-	private EcbRateParser()
+	private EcbRateParser(string name, string bic)
 	{
+		Name = name;
+		Bic = bic;
 	}
 
-	public string Name => "ecb";
+	public string Name { get; }
 
-	public string Bic => BankBic;
+	public string Bic { get; }
 
 	public bool UsesCollectionTime => false;
 
@@ -82,7 +93,7 @@ public sealed partial class EcbRateParser : IBankRateParser
 			i++;
 			if (!decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var perEuro) || perEuro <= 0)
 			{
-				skipped?.Add($"{BankBic} {code} is not a rate: '{text}'");
+				skipped?.Add($"{Bic} {code} is not a rate: '{text}'");
 				continue;
 			}
 			if (!seen.Add(code))
