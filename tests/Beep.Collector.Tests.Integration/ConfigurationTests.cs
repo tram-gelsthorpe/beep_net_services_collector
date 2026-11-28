@@ -2,7 +2,7 @@ using Beep.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using Beep.Platform.Api.Infrastructure.Authentication;
+using Beep.Platform.Api.Shared.Infrastructure.Authentication;
 
 namespace Beep.Collector.Tests.Integration;
 

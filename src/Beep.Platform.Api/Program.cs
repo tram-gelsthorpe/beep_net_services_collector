@@ -1,12 +1,10 @@
-using Beep.Platform.Api.Backfill;
 using Beep.Configuration;
-using Beep.Platform.Api.Infrastructure.Audit;
-using Beep.Platform.Api.Infrastructure.Authentication;
-using Beep.Platform.Api.Notifications;
-using Beep.Platform.Api.Repositories.Collector;
-using Beep.Platform.Api.Repositories.Country;
-using Beep.Platform.Api.Repositories.Currency;
 using Beep.Notification;
+using Beep.Platform.Api.Shared.Infrastructure.Audit;
+using Beep.Platform.Api.Shared.Infrastructure.Authentication;
+using Beep.Platform.Api.Shared.Infrastructure.Websites;
+using Beep.Platform.Api.Websites.Currency;
+using Beep.Platform.Api.Websites.Currency.Backfill;
 using Beep.ServiceBus;
 
 // "backfill <bank> ..." fills past rates and exits instead of starting the web server.
@@ -18,11 +16,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Settings: appsettings.json (no secrets), then user secrets (Development only), environment
 // variables, command line, and Azure Key Vault when KeyVault:Uri is set.
 builder.Configuration.AddKeyVaultIfConfigured();
-// Currency: A_1_Beep_Global_Currency (rates are written and read here). Collector: Beep.Collector's database
-// (collection results are read from here). Country: A_1_Beep_Global_Country (country names). Default:
-// A_1_Beep_Global_Default (alert subscribers, their subscriptions and queued emails). ServiceBus: Beep.Collector's
-// ServiceBus database (the work items that send queued emails, and retry them).
-builder.Configuration.RequireConnectionStrings("Currency", "Collector", "Country", "Default", "ServiceBus");
+// Shared by every website: Default, A_1_Beep_Global_Default (alert subscribers, their subscriptions and queued
+// emails), and ServiceBus, Beep.Collector's ServiceBus database (the work items that send queued emails, and retry
+// them). Each website requires its own settings when it is registered (below).
+builder.Configuration.RequireConnectionStrings("Default", "ServiceBus");
 builder.Configuration.Require("Audit:CreatedBy");
 
 // Audit values (CreatedBy) shared by everything this API records.
@@ -33,8 +30,13 @@ builder.Services.AddSingleton(audit);
 builder.Services.AddSingleton(new ApiKeyValidator(
 	builder.Configuration.GetRequiredSecrets("Authentication:ApiKeys", builder.Environment)));
 
+// The websites this API serves (Websites/<Name>). One that is off (Websites:<Name>:Enabled = false) is left out:
+// its services, its settings and its controllers.
+var websites = new PlatformWebsites(builder.Configuration);
+
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+	.ConfigureApplicationPartManager(websites.LeaveOutDisabledControllers);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -49,24 +51,16 @@ builder.Services.AddCors(options =>
 	});
 });
 
-// API repositories
-builder.Services.AddSingleton<ICollectedDataRepository>(
-	new CollectedDataRepository(builder.Configuration.GetConnectionString("Collector")!));
-builder.Services.AddSingleton<ICurrencyRateQueries>(
-	new CurrencyRateQueries(builder.Configuration.GetConnectionString("Currency")!));
-builder.Services.AddSingleton<ICountryRepository>(
-	new CountryRepository(builder.Configuration.GetConnectionString("Country")!));
-builder.Services.AddSingleton<ICurrencyRateRepository>(
-	new CurrencyRateRepository(builder.Configuration.GetConnectionString("Currency")!, audit.CreatedBy));
-
-// Alerts (Beep.Notification): subscriptions in A_1_Beep_Global_Default, emails with Beep.Email.Core (Mail
-// section) sent by ServiceBus work items (Notification:Email section), and each website's alert types.
-// The ServiceBus tables are in the "ServiceBus" schema, as Beep.Collector creates them.
+// Alerts (Beep.Notification), for every website: subscriptions in A_1_Beep_Global_Default, emails with
+// Beep.Email.Core (Mail section) sent by ServiceBus work items (Notification:Email section). Each website adds
+// its alert types. The ServiceBus tables are in the "ServiceBus" schema, as Beep.Collector creates them.
 builder.Services.AddSingleton<IWorkItemRepository>(p => new WorkItemRepository(
 	builder.Configuration.GetConnectionString("ServiceBus")!, "ServiceBus", p.GetRequiredService<ILogger<WorkItemRepository>>()));
 builder.Services.AddBeepNotification(builder.Configuration, builder.Configuration.GetConnectionString("Default")!, audit.CreatedBy);
-builder.Services.AddSingleton<INotificationType, BankRatesNotification>();
-builder.Services.AddSingleton<IBankRatesAlerts, BankRatesAlerts>();
+
+// Websites
+if (websites.IsEnabled(CurrencyWebsite.Name))
+	builder.Services.AddCurrencyWebsite(builder.Configuration, audit);
 
 
 var app = builder.Build();

@@ -1,8 +1,8 @@
 using System.Net.Mail;
 using System.Text.Json;
-using Beep.Platform.Api.Notifications;
-using Beep.Platform.Api.Repositories.Country;
-using Beep.Platform.Api.Repositories.Currency;
+using Beep.Platform.Api.Websites.Currency.Notifications;
+using Beep.Platform.Api.Websites.Currency.Repositories.Country;
+using Beep.Platform.Api.Websites.Currency.Repositories.Currency;
 using Beep.Notification;
 using Beep.ServiceBus;
 using Dapper;

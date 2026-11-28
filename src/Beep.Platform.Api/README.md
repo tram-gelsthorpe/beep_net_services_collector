@@ -1,8 +1,42 @@
 # Beep.Platform.Api
 
-ASP.NET Core Web API for the Beep collector system. It receives collection results from the Beep.Collector
-EventBus and records bank currency rates, and serves the recorded rates (to Beep.Website.Currency); see the
-[solution README](../../README.md) for the overall architecture.
+ASP.NET Core Web API for every Beep website. For Beep Currency, it receives collection results from the
+Beep.Collector EventBus, records bank currency rates and serves them (to Beep.Website.Currency). For every
+website, it hosts the email alerts (Beep.Notification). See the [solution README](../../README.md) for the
+overall architecture.
+
+## Websites
+
+Each website the API serves has its own folder, with everything that is only its own:
+
+```
+Beep.Platform.Api/
+  Websites/
+    Currency/                 Beep Currency (namespace Beep.Platform.Api.Websites.Currency)
+      Controllers/            CurrencyRateController and its requests and responses
+      Parsers/                the banks' rate page parsers
+      Repositories/           Currency, Country and Collector
+      Notifications/BankRates the rate alerts
+      Backfill/               the backfill command
+      CurrencyWebsite.cs      AddCurrencyWebsite(): the website's services and required settings
+  Shared/                     used by every website
+    Controllers/              NotificationController (/api/notification/*)
+    Infrastructure/           API keys, audit, and PlatformWebsites
+  Program.cs                  shared services, then each website's Add<Name>Website()
+```
+
+A website is on unless `Websites:<Name>:Enabled` is `false`. When it is off, its services are not registered,
+its settings are not required and its controllers are not mapped, so an instance can serve only some websites.
+Any number of instances can run: queued emails are claimed through the ServiceBus, so none is sent twice.
+
+To add a website, for example Jobs:
+
+1. Create `Websites/Jobs/`, with its code in namespaces under `Beep.Platform.Api.Websites.Jobs`.
+2. Give its controllers their own routes, e.g. `[Route("api/jobs/[controller]")]`.
+3. Add `JobsWebsite.AddJobsWebsite(services, configuration, ...)`. It requires the website's settings
+   (`RequireConnectionStrings(...)`) and registers its services, and its `INotificationType`s for alerts.
+4. In `Program.cs`: `if (websites.IsEnabled(JobsWebsite.Name)) builder.Services.AddJobsWebsite(...);`
+5. For alerts, add `Notification:Websites:Jobs` (`DisplayName`, `Url`).
 
 ## Endpoints
 
@@ -98,7 +132,7 @@ Beep.Platform.Api hosts [Beep.Notification](../Beep.Notification/README.md). `PO
 It answers `200 { "status": "confirmationSent" }` for a new or unconfirmed address, or `"updated"` for a
 confirmed one. Invalid input gives `400 { "errors": { field: message } }`.
 
-For Beep Currency (`Currency`, `BankRates`, in `Notifications/BankRates/BankRatesNotification.cs`):
+For Beep Currency (`Currency`, `BankRates`, in `Websites/Currency/Notifications/BankRates/BankRatesNotification.cs`):
 - **Filter:** the banks must be banks of the country that have rates, and the currencies must be ones those
   banks publish. Anything else is dropped.
 - **Alerts:** when a delivery records new rates of a bank (`inserted > 0`), an email is queued for every
@@ -155,9 +189,10 @@ Every endpoint except `/swagger`, `/api-docs` and `/health` requires an `X-API-K
 
 | Key | Purpose |
 | --- | --- |
-| `ConnectionStrings:Currency` | A_1_Beep_Global_Currency, where rates are recorded |
-| `ConnectionStrings:Collector` | Beep.Collector's database, where collection results are read |
-| `ConnectionStrings:Country` | A_1_Beep_Global_Country, for country codes and names (cached for an hour) |
+| `Websites:<Name>:Enabled` | Optional: `false` leaves the website out (default `true`) |
+| `ConnectionStrings:Currency` | Currency: A_1_Beep_Global_Currency, where rates are recorded |
+| `ConnectionStrings:Collector` | Currency: Beep.Collector's database, where collection results are read |
+| `ConnectionStrings:Country` | Currency: A_1_Beep_Global_Country, for country codes and names (cached for an hour) |
 | `ConnectionStrings:Default` | A_1_Beep_Global_Default: alert subscribers (`dbo.User`), subscriptions (`dbo.User_Notification`) and queued emails (`dbo.User_Notification_Email`) |
 | `ConnectionStrings:ServiceBus` | Beep.Collector's ServiceBus database: the work items that send queued emails (schema `ServiceBus`) |
 | `Notification:LicenceId` | `dbo.Licence.Id` that new subscribers are created under |

@@ -1,7 +1,7 @@
 using System.Net;
-using Beep.Platform.Api.Backfill;
-using Beep.Platform.Api.Domain.Currency;
-using Beep.Platform.Api.Repositories.Currency;
+using Beep.Platform.Api.Websites.Currency.Backfill;
+using Beep.Platform.Api.Websites.Currency.Parsers;
+using Beep.Platform.Api.Websites.Currency.Repositories.Currency;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Beep.Collector.Tests.Integration;

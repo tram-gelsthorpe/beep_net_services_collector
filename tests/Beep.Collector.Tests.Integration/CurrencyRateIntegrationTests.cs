@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text.Json;
-using Beep.Platform.Api.Backfill;
-using Beep.Platform.Api.Controllers.Currency;
-using Beep.Platform.Api.Domain.Currency;
-using Beep.Platform.Api.Repositories.Collector;
-using Beep.Platform.Api.Repositories.Currency;
+using Beep.Platform.Api.Websites.Currency.Backfill;
+using Beep.Platform.Api.Websites.Currency.Controllers;
+using Beep.Platform.Api.Websites.Currency.Parsers;
+using Beep.Platform.Api.Websites.Currency.Repositories.Collector;
+using Beep.Platform.Api.Websites.Currency.Repositories.Currency;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -534,7 +534,7 @@ public sealed class CurrencyRateIntegrationTests
 			""", new { code, bankId = _bankId, day = day.ToDateTime(TimeOnly.MinValue) });
 	}
 
-	private sealed class RecordingAlerts : Beep.Platform.Api.Notifications.IBankRatesAlerts
+	private sealed class RecordingAlerts : Beep.Platform.Api.Websites.Currency.Notifications.IBankRatesAlerts
 	{
 		public List<string> Banks { get; } = [];
 

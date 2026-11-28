@@ -75,7 +75,7 @@ answer) or a malformed address is not retried: the work item is finished with th
    `INotificationEmailQueue.EnqueueAsync(ids, NotificationEmailKind.Alert, data)`. `data` is given back to
    `AlertEmailAsync`.
 
-Beep.Platform.Api's `Notifications/BankRates/BankRatesNotification.cs` is the example: Beep Currency's bank rate alerts.
+Beep.Platform.Api's `Websites/Currency/Notifications/BankRates/BankRatesNotification.cs` is the example: Beep Currency's bank rate alerts.
 
 Email texts are in the websites' thirteen languages (en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl, ar) through
 `EmailText`, in each subscriber's language. Arabic emails are laid out right to left.

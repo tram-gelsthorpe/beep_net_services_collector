@@ -11,7 +11,7 @@ and notifies subscribers. No message broker: queuing, leasing and scheduling are
 | `src/Beep.Scheduler` | Recurring schedules (`Schedules`) that call an `IScheduleHandler` to enqueue work. |
 | `src/Beep.EventBus` | Publisher for HTTP POST deliveries to registered endpoints, delivered through ServiceBus work items; plus an in-process event aggregator. |
 | `src/Beep.Collector` | The host: website selectors, collection worker, schedule handler, subscriber. |
-| `src/Beep.Platform.Api` | ASP.NET Core API (API-key protected): records the bank rates the Collector delivers and serves them. |
+| `src/Beep.Platform.Api` | ASP.NET Core API (API-key protected) for every Beep website, each in its own `Websites/<Name>` folder: for Beep Currency, records the bank rates the Collector delivers and serves them; for every website, the email alerts. |
 | `src/Beep.Website.Currency` | Razor Pages website: latest bank rates by country, date and bank name or BIC, read through Beep.Platform.Api. |
 | `src/Beep.Notification` | Email alerts for every website: subscribers (`dbo.User`), subscriptions (`dbo.User_Notification`) and queued emails (`dbo.User_Notification_Email`) in A_1_Beep_Global_Default, sent with Beep.Email.Core through ServiceBus work items (retried when sending fails). Hosted by Beep.Platform.Api. |
 | `src/Beep.Database` | `SqlDatabaseInitializer`: creates/upgrades a database from the SQL scripts embedded in an assembly. |

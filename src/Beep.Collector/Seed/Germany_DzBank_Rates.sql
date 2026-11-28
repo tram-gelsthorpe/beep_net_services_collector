@@ -6,7 +6,7 @@
 -- picks out the cells of the list's rows, so a collection's ExtractedJson is
 -- {"ContentSelector": ["EURUSD", "US Dollar", "1,09300", "1,09650", "1,10000", "27.11.2026 13:07:15", ...]}. The
 -- DispatchUrl is POST <ApiBaseUrl>/api/currencyrate/currency/dzbank, which reads them with
--- Beep.Platform.Api/Domain/Currency/Parsers/DzBankRateParser.cs. Each row gives the time of its rates.
+-- Beep.Platform.Api/Websites/Currency/Parsers/DzBankRateParser.cs. Each row gives the time of its rates.
 --
 -- Run against the WebsiteCollector database, with the Api's address (no trailing slash) in the ApiBaseUrl
 -- scripting variable. sqlcmd reads it from the environment (its -v option refuses a value with "/"):
