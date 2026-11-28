@@ -6,7 +6,7 @@
 -- ContentSelector picks out the rate column's heading, with the day, then the table's cells, so a collection's
 -- ExtractedJson is {"ContentSelector": ["£1 26 Nov 2026", "Australian Dollar", 1.9776, 2.0282, 1.8620, ...]}. The
 -- DispatchUrl is POST <ApiBaseUrl>/api/currencyrate/currency/boe, which reads them with
--- Beep.Api/Domain/Currency/Parsers/BankOfEnglandRateParser.cs.
+-- Beep.Platform.Api/Domain/Currency/Parsers/BankOfEnglandRateParser.cs.
 --
 -- Run against the WebsiteCollector database, with the Api's address (no trailing slash) in the ApiBaseUrl
 -- scripting variable. sqlcmd reads it from the environment (its -v option refuses a value with "/"):

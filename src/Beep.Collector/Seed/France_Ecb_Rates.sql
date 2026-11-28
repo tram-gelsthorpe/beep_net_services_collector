@@ -8,7 +8,7 @@
 -- table's currency codes and rates, so a collection's ExtractedJson is
 -- {"ContentSelector": ["27 November 2026", "USD", 1.0957, "JPY", 174.81, ...]}. The DispatchUrl is
 -- POST <ApiBaseUrl>/api/currencyrate/currency/ecbfr, which reads them with EcbRateParser.France
--- (Beep.Api/Domain/Currency/Parsers/EcbRateParser.cs). The ECB publishes the rates on its working days at about 16:00
+-- (Beep.Platform.Api/Domain/Currency/Parsers/EcbRateParser.cs). The ECB publishes the rates on its working days at about 16:00
 -- Central European Time.
 --
 -- Run against the WebsiteCollector database, with the Api's address (no trailing slash) in the ApiBaseUrl

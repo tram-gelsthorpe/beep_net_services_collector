@@ -1,6 +1,6 @@
 # Beep.Website.Currency
 
-Razor Pages website that shows the latest bank exchange rates recorded by [Beep.Api](../Beep.Api/README.md).
+Razor Pages website that shows the latest bank exchange rates recorded by [Beep.Platform.Api](../Beep.Platform.Api/README.md).
 
 On the home page, choose any combination of:
 
@@ -13,7 +13,7 @@ Each matching bank is shown with its rate per currency: buy (cash), buy (transfe
 and the time the bank published them. The filters are in the URL (`/?country=VN&date=2024-05-01&bank=BFTVVNVX`),
 so a search can be bookmarked or shared.
 
-The site reads everything from Beep.Api's `GET /api/currencyrate/countries`, `/banks` and `/latest`. The calls
+The site reads everything from Beep.Platform.Api's `GET /api/currencyrate/countries`, `/banks` and `/latest`. The calls
 are made from the server, so the API key never reaches the browser.
 
 ## Pages
@@ -35,9 +35,9 @@ checklist with a search field. Open any page with `#subscribe` to open the dialo
 
 - `GET /alerts/options?country=` gives the countries, and the banks and currencies of one country.
 - `POST /alerts/subscribe` (JSON, with the antiforgery token in a `RequestVerificationToken` header) sends
-  the choices to Beep.Api's `/api/notification/subscribe`, with the page's language.
+  the choices to Beep.Platform.Api's `/api/notification/subscribe`, with the page's language.
 
-Both go through the server, so the API key never reaches the browser. Beep.Api sends the confirmation email
+Both go through the server, so the API key never reaches the browser. Beep.Platform.Api sends the confirmation email
 and the alerts (see [Beep.Notification](../Beep.Notification/README.md)).
 
 ## Languages
@@ -48,7 +48,7 @@ kept for a year in the `.AspNetCore.Culture` cookie (`/language/{code}?returnUrl
 browser's language is used, else English. The site's texts and their translations are in
 [`Localization/UiText.cs`](Localization/UiText.cs): each text takes all thirteen languages, so a missing
 translation does not build. Numbers and dates keep one format in every language, and bank and currency names
-are shown as Beep.Api returns them.
+are shown as Beep.Platform.Api returns them.
 
 Arabic is written right to left: the page gets `dir="rtl"` (from the language's culture) and the
 layout mirrors. The CSS uses start/end properties (`padding-inline-start`, `text-align: end`, …) rather
@@ -59,15 +59,15 @@ than left/right, so keep to those; the few rules that can't (select chevrons, ar
 
 | Key | Purpose |
 | --- | --- |
-| `BeepApi:BaseUrl` | Beep.Api's address, e.g. `https://localhost:55281/` |
-| `BeepApi:ApiKey` | One of Beep.Api's `Authentication:ApiKeys` |
+| `BeepApi:BaseUrl` | Beep.Platform.Api's address, e.g. `https://localhost:55281/` |
+| `BeepApi:ApiKey` | One of Beep.Platform.Api's `Authentication:ApiKeys` |
 
 Set them in user secrets on a developer machine, or in environment variables or Key Vault (`KeyVault:Uri`).
 The site does not start without them.
 
 ## Run
 
-Start Beep.Api, then:
+Start Beep.Platform.Api, then:
 
 ```bash
 dotnet run --project src/Beep.Website.Currency

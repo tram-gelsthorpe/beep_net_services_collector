@@ -68,12 +68,12 @@ public sealed class IndexModel(BeepApiClient api, UiText text, ILogger<IndexMode
 		}
 		catch (HttpRequestException ex)
 		{
-			logger.LogError(ex, "Beep.Api could not be reached or refused the request");
+			logger.LogError(ex, "Beep.Platform.Api could not be reached or refused the request");
 			Error = ApiError(text, ex);
 		}
 	}
 
-	/// <summary>The message shown when Beep.Api fails.</summary>
+	/// <summary>The message shown when Beep.Platform.Api fails.</summary>
 	public static string ApiError(UiText text, HttpRequestException ex) =>
 		ex.StatusCode is { } status
 			? text.Format("The rates service answered {0}.", $"{(int)status} ({status})")

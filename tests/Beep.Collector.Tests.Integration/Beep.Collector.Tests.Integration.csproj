@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Beep.Api\Beep.Api.csproj" />
+    <ProjectReference Include="..\..\src\Beep.Platform.Api\Beep.Platform.Api.csproj" />
     <ProjectReference Include="..\..\src\Beep.Collector\Beep.Collector.csproj" />
   </ItemGroup>
 

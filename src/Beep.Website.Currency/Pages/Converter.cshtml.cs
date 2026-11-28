@@ -58,7 +58,7 @@ public sealed class ConverterModel(BeepApiClient api, UiText text, ILogger<Conve
 		}
 		catch (HttpRequestException ex)
 		{
-			logger.LogError(ex, "Beep.Api could not be reached or refused the request");
+			logger.LogError(ex, "Beep.Platform.Api could not be reached or refused the request");
 			Error = IndexModel.ApiError(text, ex);
 		}
 	}

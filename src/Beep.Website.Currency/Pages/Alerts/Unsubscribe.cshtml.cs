@@ -34,7 +34,7 @@ public sealed class UnsubscribeModel(BeepApiClient api, ILogger<UnsubscribeModel
 		}
 		catch (HttpRequestException ex)
 		{
-			logger.LogError(ex, "Beep.Api could not unsubscribe");
+			logger.LogError(ex, "Beep.Platform.Api could not unsubscribe");
 			Outcome = AlertOutcome.Error;
 		}
 	}

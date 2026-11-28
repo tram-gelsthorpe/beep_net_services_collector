@@ -1,8 +1,8 @@
 using System.Net.Mail;
 using System.Text.Json;
-using Beep.Api.Notifications;
-using Beep.Api.Repositories.Country;
-using Beep.Api.Repositories.Currency;
+using Beep.Platform.Api.Notifications;
+using Beep.Platform.Api.Repositories.Country;
+using Beep.Platform.Api.Repositories.Currency;
 using Beep.Notification;
 using Beep.ServiceBus;
 using Dapper;
@@ -13,7 +13,7 @@ namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
 /// Beep.Notification's subscriptions (dbo.User and dbo.User_Notification), queued emails (dbo.User_Notification_Email)
-/// and Beep.Api's currency rate alerts. Runs against its own LocalDB database with copies of A_1_Beep_Global_Default's
+/// and Beep.Platform.Api's currency rate alerts. Runs against its own LocalDB database with copies of A_1_Beep_Global_Default's
 /// Licence, User, User_Notification and User_Notification_Email tables (the last two as Beep.Database.Processor creates
 /// them, in Create/Global.sql). The ServiceBus is a recording fake: RunQueuedAsync processes what was queued.
 /// </summary>

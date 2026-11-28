@@ -6,7 +6,7 @@
 -- ContentSelector picks out the table's day and time, then its cells, so a collection's ExtractedJson is
 -- {"ContentSelector": ["27/11/2026", "07:15", "AUD", "1,654400", "1,637300", "", "", ...]}. The DispatchUrl is
 -- POST <ApiBaseUrl>/api/currencyrate/currency/raiffeisenlu, which reads them with
--- Beep.Api/Domain/Currency/Parsers/RaiffeisenLuRateParser.cs.
+-- Beep.Platform.Api/Domain/Currency/Parsers/RaiffeisenLuRateParser.cs.
 --
 -- Run against the WebsiteCollector database, with the Api's address (no trailing slash) in the ApiBaseUrl
 -- scripting variable. sqlcmd reads it from the environment (its -v option refuses a value with "/"):

@@ -5,7 +5,7 @@
 -- One dbo.Websites row ("European Central Bank (NBBEBEBB)") and one HTML dbo.WebsiteSelectors row for the ECB's rates
 -- page. Its ContentSelector picks out the page's day and the table's currency codes and rates, so a collection's
 -- ExtractedJson is {"ContentSelector": ["27 November 2026", "USD", 1.0957, "JPY", 174.81, ...]}. The DispatchUrl is
--- POST <ApiBaseUrl>/api/currencyrate/currency/ecb, which reads them with Beep.Api/Domain/Currency/Parsers/EcbRateParser.cs.
+-- POST <ApiBaseUrl>/api/currencyrate/currency/ecb, which reads them with Beep.Platform.Api/Domain/Currency/Parsers/EcbRateParser.cs.
 -- The ECB publishes the rates on its working days at about 16:00 Central European Time.
 --
 -- Run against the WebsiteCollector database, with the Api's address (no trailing slash) in the ApiBaseUrl

@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text.Json;
-using Beep.Api.Backfill;
-using Beep.Api.Controllers.Currency;
-using Beep.Api.Domain.Currency;
-using Beep.Api.Repositories.Collector;
-using Beep.Api.Repositories.Currency;
+using Beep.Platform.Api.Backfill;
+using Beep.Platform.Api.Controllers.Currency;
+using Beep.Platform.Api.Domain.Currency;
+using Beep.Platform.Api.Repositories.Collector;
+using Beep.Platform.Api.Repositories.Currency;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Beep.Collector.Tests.Integration;
 
 /// <summary>
-/// Beep.Api recording Vietcombank rates in Currency_Rate_Bank. Runs against its own LocalDB database with
+/// Beep.Platform.Api recording Vietcombank rates in Currency_Rate_Bank. Runs against its own LocalDB database with
 /// copies of A_1_Beep_Global_Currency's Bank, Currency and Currency_Rate_Bank tables, as Beep.Database.Processor
 /// creates them (Create/Global_Currency.sql).
 /// </summary>
@@ -534,7 +534,7 @@ public sealed class CurrencyRateIntegrationTests
 			""", new { code, bankId = _bankId, day = day.ToDateTime(TimeOnly.MinValue) });
 	}
 
-	private sealed class RecordingAlerts : Beep.Api.Notifications.IBankRatesAlerts
+	private sealed class RecordingAlerts : Beep.Platform.Api.Notifications.IBankRatesAlerts
 	{
 		public List<string> Banks { get; } = [];
 

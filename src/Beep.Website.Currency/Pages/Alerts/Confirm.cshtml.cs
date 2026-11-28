@@ -25,7 +25,7 @@ public sealed class ConfirmModel(BeepApiClient api, ILogger<ConfirmModel> logger
 		}
 		catch (HttpRequestException ex)
 		{
-			logger.LogError(ex, "Beep.Api could not confirm a subscription");
+			logger.LogError(ex, "Beep.Platform.Api could not confirm a subscription");
 			Outcome = AlertOutcome.Error;
 		}
 	}

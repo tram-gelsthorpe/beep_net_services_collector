@@ -1,7 +1,7 @@
 # Beep.Notification
 
 Email alerts for every Beep website: subscribing, confirming (double opt-in), unsubscribing and sending.
-Beep.Api hosts it and exposes it at `/api/notification/*`; each website adds its own kinds of alert.
+Beep.Platform.Api hosts it and exposes it at `/api/notification/*`; each website adds its own kinds of alert.
 
 ## Data (A_1_Beep_Global_Default)
 
@@ -48,7 +48,7 @@ Apply the script to A_1_Beep_Global_Default before the first run. It is safe to 
 
 Emails are queued, so no request waits for SMTP. `INotificationEmailQueue` adds one `User_Notification_Email`
 row per subscription, and one ServiceBus work item for each row (worker type `NotificationEmail`, DomainId =
-the row's `Id`). `NotificationEmailWorker` claims the work items, so any number of Beep.Api instances can
+the row's `Id`). `NotificationEmailWorker` claims the work items, so any number of Beep.Platform.Api instances can
 send without sending an email twice. For each one, `NotificationEmailWorkProcessor`:
 
 1. Loads the row and the subscription as they are now. It skips the email (and finishes the work item) when
@@ -75,7 +75,7 @@ answer) or a malformed address is not retried: the work item is finished with th
    `INotificationEmailQueue.EnqueueAsync(ids, NotificationEmailKind.Alert, data)`. `data` is given back to
    `AlertEmailAsync`.
 
-Beep.Api's `Notifications/BankRates/BankRatesNotification.cs` is the example: Beep Currency's bank rate alerts.
+Beep.Platform.Api's `Notifications/BankRates/BankRatesNotification.cs` is the example: Beep Currency's bank rate alerts.
 
 Email texts are in the websites' thirteen languages (en, vi, th, zh, ja, ko, fr, de, es, id, ms, nl, ar) through
 `EmailText`, in each subscriber's language. Arabic emails are laid out right to left.

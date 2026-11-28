@@ -5,7 +5,7 @@ namespace Beep.Website.Currency;
 
 /// <summary>
 /// What the Subscribe dialog (wwwroot/js/subscribe.js) calls: the choices it offers, and subscribing. Both go
-/// through Beep.Api from the server, so the API key stays here.
+/// through Beep.Platform.Api from the server, so the API key stays here.
 /// </summary>
 public static class AlertEndpoints
 {
@@ -52,7 +52,7 @@ public static class AlertEndpoints
 			}
 			catch (HttpRequestException ex)
 			{
-				logger.LogError(ex, "Beep.Api could not save a subscription");
+				logger.LogError(ex, "Beep.Platform.Api could not save a subscription");
 				return Results.Json(new { errors = new[] { "server" } }, statusCode: StatusCodes.Status502BadGateway);
 			}
 		});

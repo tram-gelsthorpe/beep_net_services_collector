@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Beep.Website.Currency;
 
 /// <summary>
-/// Reads currency rates from Beep.Api's CurrencyRate endpoints. Calls are made from the server, so the
+/// Reads currency rates from Beep.Platform.Api's CurrencyRate endpoints. Calls are made from the server, so the
 /// API key (<c>BeepApi:ApiKey</c>) never reaches the browser. Country and currency names are given in the current
 /// UI culture's language (<see cref="CountryNames"/>, <see cref="CurrencyNames"/>).
 /// </summary>

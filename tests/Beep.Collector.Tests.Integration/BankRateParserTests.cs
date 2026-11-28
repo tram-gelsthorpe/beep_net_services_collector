@@ -1,4 +1,4 @@
-using Beep.Api.Domain.Currency;
+using Beep.Platform.Api.Domain.Currency;
 
 namespace Beep.Collector.Tests.Integration;
 

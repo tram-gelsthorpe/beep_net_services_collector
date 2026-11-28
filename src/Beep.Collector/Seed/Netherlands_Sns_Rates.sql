@@ -6,7 +6,7 @@
 -- ContentSelector picks out the cells of the rates table, which follows the page's "Wisselkoersen" heading (and not
 -- the fees table below it), so a collection's ExtractedJson is
 -- {"ContentSelector": ["AUD", "Australische dollar", "1,63595", "1,65595", ...]}. The DispatchUrl is
--- POST <ApiBaseUrl>/api/currencyrate/currency/sns, which reads them with Beep.Api/Domain/Currency/Parsers/SnsRateParser.cs.
+-- POST <ApiBaseUrl>/api/currencyrate/currency/sns, which reads them with Beep.Platform.Api/Domain/Currency/Parsers/SnsRateParser.cs.
 -- The page gives no time: the rates are recorded at the time they are collected.
 --
 -- Run against the WebsiteCollector database, with the Api's address (no trailing slash) in the ApiBaseUrl
